@@ -1,7 +1,7 @@
-
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { runTests } from './tests';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -14,3 +14,14 @@ root.render(
     <App />
   </React.StrictMode>
 );
+
+// Run tests if query param is present
+try {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.has('run_tests')) {
+      console.log("Running test suite...");
+      runTests();
+  }
+} catch (e) {
+    console.error("Could not run tests:", e);
+}

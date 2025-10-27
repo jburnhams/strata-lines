@@ -30,7 +30,6 @@ const parseGpx = (fileContent: string): UnprocessedTrack[] => {
     const name = track.name || 'Unnamed Track';
     const length = calculateTrackLength(points);
     
-    // FIX: Add isVisible property to match UnprocessedTrack type.
     return { name, points, length, isVisible: true };
   });
 };
@@ -78,7 +77,6 @@ const parseTcx = (fileContent: string): UnprocessedTrack[] => {
       const idNode = activity.getElementsByTagName('Id')[0];
       const name = idNode && idNode.textContent ? `${sport} - ${idNode.textContent}` : `${sport}`;
       const length = calculateTrackLength(points);
-      // FIX: Add isVisible property to match UnprocessedTrack type.
       tracks.push({ name, points, length, isVisible: true });
     }
   }
@@ -127,7 +125,6 @@ const parseFit = (fileContent: Uint8Array): UnprocessedTrack[] => {
         }
 
         const length = calculateTrackLength(points);
-        // FIX: Add isVisible property to match UnprocessedTrack type.
         return [{ name, points, length, isVisible: true }];
         
     } catch (error) {
