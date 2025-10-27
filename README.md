@@ -41,7 +41,7 @@ StrataLines uses a modern build-first architecture:
 ## Quick Start
 
 ### Prerequisites
-- Node.js 18+
+- Node.js 20+ (or 22.x)
 - npm or yarn
 
 ### Installation
@@ -61,7 +61,7 @@ npm install
 # Start development server with hot reload
 npm run dev
 
-# The app will be available at http://localhost:3000
+# The app will be available at http://localhost:5173
 ```
 
 ### Testing
