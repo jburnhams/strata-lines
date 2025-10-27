@@ -1,0 +1,5 @@
+{
+  "name": "StrataLines",
+  "description": "Upload GPX or TCX files to visualize your routes on a high-resolution satellite map. StrataLines allows you to create a personal tapestry of your journeys and export your custom map view as a high-quality PNG image.",
+  "requestFramePermissions": []
+}

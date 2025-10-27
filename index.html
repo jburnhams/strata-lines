@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StrataLines</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""/>
+    <style>
+      .leaflet-container {
+        height: 100%;
+        width: 100%;
+      }
+      .leaflet-control-attribution, .leaflet-control-zoom {
+        filter: invert(1) hue-rotate(180deg);
+      }
+      .blinking-track {
+        animation: blinker 1.5s ease-in-out infinite;
+      }
+      @keyframes blinker {
+        0% { opacity: 0.8; }
+        50% { opacity: 0.2; }
+        100% { opacity: 0.8; }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "leaflet": "https://aistudiocdn.com/leaflet@^1.9.4",
+    "html2canvas": "https://aistudiocdn.com/html2canvas@^1.4.1",
+    "react-leaflet": "https://aistudiocdn.com/react-leaflet@^5.0.0",
+    "gpxparser": "https://aistudiocdn.com/gpxparser@^3.0.8",
+    "pako": "https://aistudiocdn.com/pako@^2.1.0",
+    "@garmin/fitsdk": "https://aistudiocdn.com/@garmin/fitsdk@^21.115.0",
+    "jszip": "https://aistudiocdn.com/jszip@^3.10.1"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
