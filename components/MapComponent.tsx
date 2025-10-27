@@ -25,7 +25,7 @@ const FitBoundsManager: React.FC<{ bounds: LatLngBounds | null; onFitted: () => 
     useEffect(() => {
         if (bounds && bounds.isValid()) {
             const currentZoom = map.getZoom();
-            const targetZoom = map.getBoundsZoom(bounds, false, [50, 50]); // Get zoom level needed for a tight fit
+            const targetZoom = map.getBoundsZoom(bounds, false, L.point(50, 50)); // Get zoom level needed for a tight fit
 
             map.once('moveend', onFitted);
             

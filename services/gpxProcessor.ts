@@ -104,7 +104,7 @@ const parseFit = (fileContent: Uint8Array): UnprocessedTrack[] => {
         }
 
         const points: Point[] = [];
-        recordMessages.forEach(record => {
+        recordMessages.forEach((record: any) => {
             // Semicircles to degrees conversion: semicircles * ( 180 / 2^31 )
             if (record.positionLat != null && record.positionLong != null) {
                 const lat = record.positionLat * (180 / Math.pow(2, 31));
