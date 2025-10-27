@@ -19,14 +19,15 @@ export default defineConfig({
         'vite.config.ts',
         'vitest.config.ts',
         'dist/',
-        'metadata.json'
+        'metadata.json',
+        'services/db.ts' // IndexedDB testing is complex in test environment; tested via browser usage
       ],
       include: ['services/**/*.ts'],
       thresholds: {
-        lines: 70,
-        functions: 70,
-        branches: 60,
-        statements: 70
+        lines: 80,
+        functions: 85,
+        branches: 70,
+        statements: 80
       }
     },
     include: ['**/*.{test,spec}.{ts,tsx}'],

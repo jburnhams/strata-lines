@@ -28,9 +28,9 @@ StrataLines has been transformed from a runtime-transpiled application to a mode
 - **Tree-shaking**: Eliminates dead code
 - **Code splitting**: Optimizes load performance
 
-### Testing Infrastructure  
+### Testing Infrastructure
 - **Vitest**: Modern, fast testing framework
-- **Coverage**: 72% overall, targeting 70%+
+- **Coverage**: Targeting 70%+ (lines, functions, statements), 60%+ (branches)
 - **42 passing tests**: Comprehensive test suites
 - **Mocked dependencies**: Isolated unit tests
 
@@ -70,7 +70,7 @@ npm run dev   npm test   70%+       npm build   Cloudflare
 ## Quality Gates
 
 ✅ All 42 tests passing
-✅ 72% code coverage (target: 70%+)
+✅ Code coverage target: 70%+ (lines, functions, statements), 60%+ (branches)
 ✅ TypeScript strict mode
 ✅ Production build successful
 
