@@ -11,36 +11,10 @@ import * as db from './services/db';
 import type { Track, UnprocessedTrack, AspectRatio, TileLayerDefinition } from './types';
 import { UK_CENTER_LATLNG, TILE_LAYERS } from './constants';
 import { trackToGpxString } from './services/gpxGenerator';
-import { getRandomColorInRange, getTracksBounds } from './services/utils';
-
-// Custom hook for persisting state to localStorage
-function useLocalStorage<T>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
-  const [storedValue, setStoredValue] = useState<T>(() => {
-    if (typeof window === 'undefined') {
-      return initialValue;
-    }
-    try {
-      const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
-    } catch (error) {
-      console.error(error);
-      return initialValue;
-    }
-  });
-
-  useEffect(() => {
-    try {
-      if (typeof window !== 'undefined') {
-        const valueToStore = JSON.stringify(storedValue);
-        window.localStorage.setItem(key, valueToStore);
-      }
-    } catch (error) {
-       console.error(`Error setting localStorage key “${key}”:`, error);
-    }
-  }, [key, storedValue]);
-
-  return [storedValue, setStoredValue];
-}
+import { getTracksBounds } from './services/utils';
+import { assignTrackColors } from './utils/colorAssignment';
+import { useLocalStorage } from './hooks/useLocalStorage';
+import { metersToMiles, calculateBoundsDimensions, calculatePixelDimensions } from './utils/mapCalculations';
 
 
 const createPrintMap = (container: HTMLElement) => {
@@ -201,34 +175,8 @@ const App: React.FC = () => {
   }, []);
 
   const coloredTracks = useMemo(() => {
-    return tracks.map(track => ({
-        ...track,
-        color: getRandomColorInRange(lineColorStart, lineColorEnd)
-    }));
+    return assignTrackColors(tracks, lineColorStart, lineColorEnd);
   }, [tracks, lineColorStart, lineColorEnd]);
-
-  const metersToMiles = (meters: number) => meters * 0.000621371;
-
-  const calculateBoundsDimensions = (b: LatLngBounds): { width: number, height: number } => {
-      const center = b.getCenter();
-      const west = b.getWest();
-      const east = b.getEast();
-      const north = b.getNorth();
-      const south = b.getSouth();
-
-      const westPoint = L.latLng(center.lat, west);
-      const eastPoint = L.latLng(center.lat, east);
-      const northPoint = L.latLng(north, center.lng);
-      const southPoint = L.latLng(south, center.lng);
-
-      const widthMeters = westPoint.distanceTo(eastPoint);
-      const heightMeters = northPoint.distanceTo(southPoint);
-
-      return {
-          width: metersToMiles(widthMeters),
-          height: metersToMiles(heightMeters)
-      };
-  };
 
   const handleUserMove = useCallback((data: { center: LatLng; zoom: number; bounds: LatLngBounds; size: LeafletPoint; }) => {
     setMapCenter(data.center);
@@ -327,26 +275,6 @@ const App: React.FC = () => {
     }
   }, [exportBounds, mapCenter, zoom, setAspectRatioState, setExportBounds, exportBoundsLocked, setExportBoundsLocked]);
 
-  const calculatePixelDimensions = useCallback((bounds: L.LatLngBounds, atZoom: number) => {
-    let tempMap: L.Map | null = null;
-    const tempContainer = document.createElement('div');
-    tempContainer.style.position = 'absolute'; tempContainer.style.left = '-9999px'; tempContainer.style.top = '-9999px';
-    tempContainer.style.width = '1px'; tempContainer.style.height = '1px';
-    document.body.appendChild(tempContainer);
-    try {
-        tempMap = L.map(tempContainer, { center: [0, 0], zoom: 0 });
-        const northWestPoint = tempMap.project(bounds.getNorthWest(), atZoom);
-        const southEastPoint = tempMap.project(bounds.getSouthEast(), atZoom);
-        return {
-            width: Math.round(southEastPoint.x - northWestPoint.x),
-            height: Math.round(southEastPoint.y - northWestPoint.y),
-        };
-    } finally {
-        if (tempMap) tempMap.remove();
-        document.body.removeChild(tempContainer);
-    }
-  }, []);
-
   // Effect to calculate all derived export properties based on the export area.
   useEffect(() => {
     if (!exportBounds || typeof previewZoom !== 'number') {
@@ -369,11 +297,11 @@ const App: React.FC = () => {
     } else {
         setExportBoundsAspectRatio(null);
     }
-    
+
     // 3. Export viewport miles are calculated from the yellow box area.
     setViewportMiles(calculateBoundsDimensions(exportBounds));
 
-  }, [exportBounds, previewZoom, exportQuality, calculatePixelDimensions]);
+  }, [exportBounds, previewZoom, exportQuality]);
 
   const handleFiles = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0) return;
