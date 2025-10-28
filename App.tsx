@@ -532,6 +532,40 @@ const App: React.FC = () => {
     }
   }, [tracks]);
 
+  /**
+   * Resizes a canvas to exact target dimensions
+   * Used when labels are rendered at a different zoom level than the base map
+   */
+  const resizeCanvas = useCallback((sourceCanvas: HTMLCanvasElement, targetWidth: number, targetHeight: number): HTMLCanvasElement => {
+    console.log(`📐 Resizing canvas from ${sourceCanvas.width}x${sourceCanvas.height} to ${targetWidth}x${targetHeight}`);
+
+    // Create new canvas at target size
+    const resizedCanvas = document.createElement('canvas');
+    resizedCanvas.width = targetWidth;
+    resizedCanvas.height = targetHeight;
+
+    const ctx = resizedCanvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('Failed to get 2D context for canvas resize');
+    }
+
+    // Enable smooth scaling for better quality
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    // Draw source canvas scaled to target dimensions
+    ctx.drawImage(
+      sourceCanvas,
+      0, 0, sourceCanvas.width, sourceCanvas.height,  // Source rectangle
+      0, 0, targetWidth, targetHeight  // Destination rectangle
+    );
+
+    const scaleFactor = targetWidth / sourceCanvas.width;
+    console.log(`✅ Resize complete, scale factor: ${scaleFactor.toFixed(2)}x`);
+
+    return resizedCanvas;
+  }, []);
+
   const renderCanvasForBounds = useCallback(async (bounds: L.LatLngBounds, layerType: 'base' | 'lines' | 'labels-only', zoomForRender: number): Promise<HTMLCanvasElement | null> => {
     const visibleTracks = coloredTracks.filter(t => t.isVisible);
     let isTransparent = false;
@@ -801,20 +835,57 @@ const App: React.FC = () => {
 
         // SIMPLIFIED: Direct rendering without tiling
         if (type === 'combined') {
+            console.log('🎯 Rendering combined export...');
             const baseCanvas = await renderCanvasForBounds(exportBounds, 'base', derivedExportZoom);
             const linesCanvas = visibleTracks.length > 0 ? await renderCanvasForBounds(exportBounds, 'lines', derivedExportZoom) : null;
-            const labelsCanvas = tileLayerKey === 'esriImagery' && labelDensity >= 0 ?
-                await renderCanvasForBounds(exportBounds, 'labels-only', (previewZoom || zoom) + labelDensity) : null;
+
+            // Labels are rendered at a different zoom level
+            const labelZoom = (previewZoom || zoom) + labelDensity;
+            let labelsCanvas = tileLayerKey === 'esriImagery' && labelDensity >= 0 ?
+                await renderCanvasForBounds(exportBounds, 'labels-only', labelZoom) : null;
 
             if (!baseCanvas) throw new Error('Failed to render base layer');
 
+            // CRITICAL: Resize labels to match base canvas dimensions
+            // Labels are rendered at labelZoom but need to overlay at derivedExportZoom
+            if (labelsCanvas) {
+                console.group('🏷️  Processing labels layer');
+                console.log(`Base zoom: ${derivedExportZoom}, Label zoom: ${labelZoom}`);
+                console.log(`Base dimensions: ${baseCanvas.width}x${baseCanvas.height}`);
+                console.log(`Label dimensions (before resize): ${labelsCanvas.width}x${labelsCanvas.height}`);
+
+                // Only resize if dimensions don't match
+                if (labelsCanvas.width !== baseCanvas.width || labelsCanvas.height !== baseCanvas.height) {
+                    console.log('⚠️  Dimensions mismatch - resizing labels to match base');
+                    const resizedLabels = resizeCanvas(labelsCanvas, baseCanvas.width, baseCanvas.height);
+
+                    // Free original labels canvas
+                    labelsCanvas.width = 0;
+                    labelsCanvas.height = 0;
+
+                    labelsCanvas = resizedLabels;
+                    console.log(`Label dimensions (after resize): ${labelsCanvas.width}x${labelsCanvas.height}`);
+                } else {
+                    console.log('✅ Dimensions match - no resize needed');
+                }
+                console.groupEnd();
+            }
+
+            // Stack layers
+            console.log('📚 Stacking layers: base → lines → labels');
             finalCanvas = document.createElement('canvas');
             finalCanvas.width = baseCanvas.width;
             finalCanvas.height = baseCanvas.height;
             const ctx = finalCanvas.getContext('2d')!;
             ctx.drawImage(baseCanvas, 0, 0);
-            if (linesCanvas) ctx.drawImage(linesCanvas, 0, 0);
-            if (labelsCanvas) ctx.drawImage(labelsCanvas, 0, 0);
+            if (linesCanvas) {
+                console.log(`  + Lines layer (${linesCanvas.width}x${linesCanvas.height})`);
+                ctx.drawImage(linesCanvas, 0, 0);
+            }
+            if (labelsCanvas) {
+                console.log(`  + Labels layer (${labelsCanvas.width}x${labelsCanvas.height})`);
+                ctx.drawImage(labelsCanvas, 0, 0);
+            }
 
             // Free memory
             baseCanvas.width = 0; baseCanvas.height = 0;
@@ -855,7 +926,7 @@ const App: React.FC = () => {
       } finally {
           setters[type](false);
       }
-  }, [coloredTracks, exportDimensions, exportBounds, derivedExportZoom, lineThickness, exportQuality, tileLayerKey, labelDensity, previewZoom, zoom, renderCanvasForBounds]);
+  }, [coloredTracks, exportDimensions, exportBounds, derivedExportZoom, lineThickness, exportQuality, tileLayerKey, labelDensity, previewZoom, zoom, renderCanvasForBounds, resizeCanvas]);
 
   const performZipExport = useCallback(async () => {
     setNotification({ type: 'info', message: "ZIP export temporarily disabled while debugging basic export." });
