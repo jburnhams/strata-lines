@@ -535,13 +535,14 @@ const App: React.FC = () => {
   const renderCanvasForBounds = useCallback(async (bounds: L.LatLngBounds, layerType: 'base' | 'lines' | 'labels-only', zoomForRender: number): Promise<HTMLCanvasElement | null> => {
     const visibleTracks = coloredTracks.filter(t => t.isVisible);
     let isTransparent = false;
-    
+
+    // Calculate pixel dimensions at the target zoom level for these exact lat/long bounds
     const { width, height } = calculatePixelDimensions(bounds, zoomForRender);
 
     if (layerType === 'lines' || layerType === 'labels-only') {
         isTransparent = true;
     }
-    
+
     const printContainer = document.createElement('div');
     printContainer.style.width = `${width}px`;
     printContainer.style.height = `${height}px`;
@@ -552,7 +553,7 @@ const App: React.FC = () => {
         printContainer.style.backgroundColor = 'transparent';
     }
     document.body.appendChild(printContainer);
-    
+
     let printMap: L.Map | null = null;
     try {
         printMap = createPrintMap(printContainer);
@@ -560,21 +561,17 @@ const App: React.FC = () => {
             (printMap.getContainer() as HTMLElement).style.backgroundColor = 'transparent';
         }
 
-        // Calculate the exact pixel offset to align the bounds precisely with the container
-        // This ensures the exported area exactly matches the yellow selection box.
-        const nwPoint = printMap.project(bounds.getNorthWest(), zoomForRender);
-        const sePoint = printMap.project(bounds.getSouthEast(), zoomForRender);
-        const size = sePoint.subtract(nwPoint);
-
-        // Calculate the center point that will place the bounds correctly in the container
-        // We need to account for the container dimensions to center the view properly
-        const containerCenterPoint = nwPoint.add(size.divideBy(2));
-        const centerLatLng = printMap.unproject(containerCenterPoint, zoomForRender);
-
-        printMap.setView(centerLatLng, zoomForRender, { animate: false });
-
-        // Force the map to recognize its true size
+        // Force the map to recognize its true size before setting bounds
         printMap.invalidateSize({ pan: false });
+
+        // CRITICAL CHANGE: Use fitBounds to ensure the map view exactly covers the lat/long bounds
+        // This is more accurate than manually calculating center and using setView
+        // maxZoom ensures we render at the exact zoom level we want
+        printMap.fitBounds(bounds, {
+            padding: [0, 0],
+            animate: false,
+            maxZoom: zoomForRender
+        });
 
         if (layerType === 'base') {
             const selectedTileLayer = TILE_LAYERS.find(l => l.key === tileLayerKey) || TILE_LAYERS[0];
@@ -592,8 +589,8 @@ const App: React.FC = () => {
             });
             await new Promise(res => setTimeout(res, 500)); // Short delay for canvas to draw lines
         }
-        
-        const canvas = await html2canvas(printContainer, { 
+
+        const canvas = await html2canvas(printContainer, {
           useCORS: true, allowTaint: true, logging: false,
           backgroundColor: isTransparent ? null : '#000',
         });
@@ -617,19 +614,31 @@ const App: React.FC = () => {
       const finalCtx = finalCanvas.getContext('2d');
       if (!finalCtx) throw new Error('Could not create canvas context for stitching.');
 
+      // Create a temporary map for coordinate projection
+      // This is only used for converting lat/long to pixel coordinates, not for rendering
       let tempMap: L.Map | null = null;
       const tempContainer = document.createElement('div');
       Object.assign(tempContainer.style, { position: 'absolute', left: '-9999px', top: '-9999px', width: '1px', height: '1px' });
       document.body.appendChild(tempContainer);
-      
+
       try {
           tempMap = L.map(tempContainer, { center: [0, 0], zoom: 0 });
+
+          // Convert the NW corner of the total bounds to pixel coordinates at the target zoom
+          // This serves as our reference point (pixel 0,0)
           const totalNwPoint = tempMap.project(totalBounds.getNorthWest(), zoom);
-          
+
+          // Position each tile based on its lat/long bounds
+          // We calculate pixel offset from the lat/long coordinates to ensure perfect alignment
           for (const tile of tiles) {
+              // Convert this tile's NW corner to pixel coordinates at the same zoom level
               const tileNwPoint = tempMap.project(tile.bounds.getNorthWest(), zoom);
+
+              // Calculate pixel offset relative to the total bounds
+              // This ensures tiles are positioned based on their geographic location, not arbitrary pixels
               const x = Math.round(tileNwPoint.x - totalNwPoint.x);
               const y = Math.round(tileNwPoint.y - totalNwPoint.y);
+
               finalCtx.drawImage(tile.canvas, x, y);
           }
       } finally {
@@ -644,27 +653,41 @@ const App: React.FC = () => {
     layerType: 'base' | 'lines' | 'labels-only',
     zoomForRender: number
   ): Promise<{ canvas: HTMLCanvasElement; bounds: L.LatLngBounds }[]> => {
+      // Calculate pixel dimensions for these lat/long bounds at the target zoom level
+      // This is only used to determine if we need to split, not for rendering
       const { width, height } = calculatePixelDimensions(bounds, zoomForRender);
 
+      // Base case: if the bounds would render to a canvas smaller than MAX_TILE_DIMENSION,
+      // render it as a single tile
       if (width <= MAX_TILE_DIMENSION && height <= MAX_TILE_DIMENSION) {
           const canvas = await renderCanvasForBounds(bounds, layerType, zoomForRender);
           return canvas ? [{ canvas, bounds }] : [];
       }
 
+      // Recursive case: split the bounds in half along the longer dimension
+      // This is done purely in lat/long coordinates, dividing at the geographic center
       const center = bounds.getCenter();
       let bounds1: L.LatLngBounds, bounds2: L.LatLngBounds;
+
       if (width > height) {
+          // Split vertically (divide longitude at center)
+          // Left half: from SW corner to [North, CenterLng]
           bounds1 = L.latLngBounds(bounds.getSouthWest(), L.latLng(bounds.getNorth(), center.lng));
+          // Right half: from [South, CenterLng] to NE corner
           bounds2 = L.latLngBounds(L.latLng(bounds.getSouth(), center.lng), bounds.getNorthEast());
       } else {
+          // Split horizontally (divide latitude at center)
+          // Top half: from [CenterLat, West] to NE corner
           bounds1 = L.latLngBounds(L.latLng(center.lat, bounds.getWest()), bounds.getNorthEast());
+          // Bottom half: from SW corner to [CenterLat, East]
           bounds2 = L.latLngBounds(bounds.getSouthWest(), L.latLng(center.lat, bounds.getEast()));
       }
-      
-      // Process sequentially to conserve memory
+
+      // Process sub-bounds sequentially to conserve memory
+      // Each recursive call will further split if needed, or render a single tile
       const tiles1 = await renderLayerRecursive(bounds1, layerType, zoomForRender);
       const tiles2 = await renderLayerRecursive(bounds2, layerType, zoomForRender);
-      
+
       return [...tiles1, ...tiles2];
   }, [calculatePixelDimensions, renderCanvasForBounds]);
   
