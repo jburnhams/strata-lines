@@ -8,6 +8,19 @@ export default defineConfig({
     globals: true,
     environment: 'happy-dom',
     setupFiles: './tests/setup.ts',
+    poolOptions: {
+      threads: {
+        maxThreads: 2,
+        minThreads: 1,
+      },
+      forks: {
+        maxForks: 2,
+        minForks: 1,
+      },
+    },
+    testTimeout: 30000,
+    hookTimeout: 30000,
+    teardownTimeout: 10000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
