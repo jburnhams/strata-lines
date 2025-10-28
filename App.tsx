@@ -536,17 +536,34 @@ const App: React.FC = () => {
     const visibleTracks = coloredTracks.filter(t => t.isVisible);
     let isTransparent = false;
 
-    // Calculate pixel dimensions at the target zoom level for these exact lat/long bounds
-    // This uses the Web Mercator projection to determine the exact pixel size needed
-    const { width, height } = calculatePixelDimensions(bounds, zoomForRender);
-
     if (layerType === 'lines' || layerType === 'labels-only') {
         isTransparent = true;
     }
 
+    console.group(`🎨 Rendering ${layerType} at zoom ${zoomForRender}`);
+    console.log('Target bounds:', {
+      north: bounds.getNorth(),
+      south: bounds.getSouth(),
+      east: bounds.getEast(),
+      west: bounds.getWest(),
+      center: bounds.getCenter()
+    });
+
+    // Calculate the EXACT pixel dimensions we need for the target bounds
+    const { width: targetWidth, height: targetHeight } = calculatePixelDimensions(bounds, zoomForRender);
+    console.log('Target dimensions:', { width: targetWidth, height: targetHeight });
+
+    // STRATEGY: Render a slightly larger area, then crop to exact bounds
+    // This ensures we capture the exact geographic area even if alignment is slightly off
+    const PADDING_PERCENT = 0.15; // 15% padding on each side
+    const paddedWidth = Math.round(targetWidth * (1 + PADDING_PERCENT * 2));
+    const paddedHeight = Math.round(targetHeight * (1 + PADDING_PERCENT * 2));
+
+    console.log('Padded container dimensions:', { width: paddedWidth, height: paddedHeight });
+
     const printContainer = document.createElement('div');
-    printContainer.style.width = `${width}px`;
-    printContainer.style.height = `${height}px`;
+    printContainer.style.width = `${paddedWidth}px`;
+    printContainer.style.height = `${paddedHeight}px`;
     printContainer.style.position = 'absolute';
     printContainer.style.left = '-9999px';
     printContainer.style.top = '-9999px';
@@ -562,40 +579,11 @@ const App: React.FC = () => {
             (printMap.getContainer() as HTMLElement).style.backgroundColor = 'transparent';
         }
 
-        // CRITICAL: Calculate the exact center point that will place the bounds correctly
-        //
-        // We need to position the map such that:
-        // - The NW corner of bounds appears at pixel (0, 0) of the container
-        // - The SE corner of bounds appears at pixel (width, height) of the container
-        //
-        // Strategy:
-        // 1. Project NW and SE corners to get their positions in global Web Mercator pixel space at this zoom
-        // 2. The container needs to show the rectangle between these two points
-        // 3. The center of this rectangle in global pixel space is what we need
-        // 4. Unproject that center point back to lat/lng
-        // 5. Use setView with exact zoom to position the map precisely
-        //
-        // This ensures the bounds are rendered at EXACTLY the zoom level we specify,
-        // unlike fitBounds which may adjust the zoom level to fit the container.
-
-        const nwPoint = printMap.project(bounds.getNorthWest(), zoomForRender);
-        const sePoint = printMap.project(bounds.getSouthEast(), zoomForRender);
-
-        // Size in global pixel coordinates
-        const size = sePoint.subtract(nwPoint);
-
-        // Center point in global pixel coordinates
-        const containerCenterPoint = nwPoint.add(size.divideBy(2));
-
-        // Convert back to lat/lng
-        const centerLatLng = printMap.unproject(containerCenterPoint, zoomForRender);
-
-        // Set view with EXACT zoom level and calculated center
-        printMap.setView(centerLatLng, zoomForRender, { animate: false });
-
-        // Force the map to recognize its container size AFTER setting the view
+        // Set the view to the center of our target bounds at exact zoom
+        printMap.setView(bounds.getCenter(), zoomForRender, { animate: false });
         printMap.invalidateSize({ pan: false });
 
+        // Add layers
         if (layerType === 'base') {
             const selectedTileLayer = TILE_LAYERS.find(l => l.key === tileLayerKey) || TILE_LAYERS[0];
             const tileLayer = L.tileLayer(selectedTileLayer.layers[0].url, { attribution: '' });
@@ -610,24 +598,76 @@ const App: React.FC = () => {
             visibleTracks.forEach(track => {
                 L.polyline(track.points as L.LatLngExpression[], { color: track.color || '#ff4500', weight: exportLineThickness, opacity: 0.8 }).addTo(printMap!);
             });
-            await new Promise(res => setTimeout(res, 500)); // Short delay for canvas to draw lines
+            await new Promise(res => setTimeout(res, 500));
         }
 
-        // Capture the container at EXACT pixel dimensions
-        // CRITICAL: Set scale to 1 to avoid devicePixelRatio scaling on high-DPI displays
-        // Set explicit window dimensions to ensure exact capture size
-        const canvas = await html2canvas(printContainer, {
+        // After rendering, check what bounds we actually got
+        const actualBounds = printMap.getBounds();
+        console.log('Actual rendered bounds:', {
+          north: actualBounds.getNorth(),
+          south: actualBounds.getSouth(),
+          east: actualBounds.getEast(),
+          west: actualBounds.getWest(),
+          center: actualBounds.getCenter()
+        });
+
+        // Calculate where our target bounds appear in the container
+        const targetNW = printMap.latLngToContainerPoint(bounds.getNorthWest());
+        const targetSE = printMap.latLngToContainerPoint(bounds.getSouthEast());
+
+        console.log('Target bounds in container pixels:', {
+          nw: { x: targetNW.x, y: targetNW.y },
+          se: { x: targetSE.x, y: targetSE.y },
+          width: targetSE.x - targetNW.x,
+          height: targetSE.y - targetNW.y
+        });
+
+        // Capture the padded container
+        const paddedCanvas = await html2canvas(printContainer, {
           useCORS: true,
           allowTaint: true,
           logging: false,
           backgroundColor: isTransparent ? null : '#000',
-          scale: 1,  // Force 1:1 pixel ratio, ignore devicePixelRatio
-          width: width,  // Explicit width
-          height: height,  // Explicit height
-          windowWidth: width,  // Window dimensions for rendering
-          windowHeight: height,
+          scale: 1,
+          width: paddedWidth,
+          height: paddedHeight,
+          windowWidth: paddedWidth,
+          windowHeight: paddedHeight,
         });
-        return canvas;
+
+        console.log('Captured canvas size:', { width: paddedCanvas.width, height: paddedCanvas.height });
+
+        // Now crop to the exact target bounds
+        const cropX = Math.round(targetNW.x);
+        const cropY = Math.round(targetNW.y);
+        const cropWidth = Math.round(targetSE.x - targetNW.x);
+        const cropHeight = Math.round(targetSE.y - targetNW.y);
+
+        console.log('Cropping to:', { x: cropX, y: cropY, width: cropWidth, height: cropHeight });
+
+        // Create final canvas with exact target dimensions
+        const finalCanvas = document.createElement('canvas');
+        finalCanvas.width = targetWidth;
+        finalCanvas.height = targetHeight;
+        const ctx = finalCanvas.getContext('2d');
+
+        if (!ctx) {
+            console.error('Failed to get canvas context');
+            console.groupEnd();
+            return null;
+        }
+
+        // Draw the cropped region
+        ctx.drawImage(
+            paddedCanvas,
+            cropX, cropY, cropWidth, cropHeight,  // Source rectangle
+            0, 0, targetWidth, targetHeight  // Destination rectangle
+        );
+
+        console.log('✅ Final canvas size:', { width: finalCanvas.width, height: finalCanvas.height });
+        console.groupEnd();
+
+        return finalCanvas;
     } finally {
         if (printMap) printMap.remove();
         document.body.removeChild(printContainer);
@@ -738,37 +778,44 @@ const App: React.FC = () => {
         setNotification({ type: 'error', message: "Export properties not calculated yet."});
         return;
       }
-      
+
+      console.log('🚀 Starting export:', {
+        type,
+        exportBounds: {
+          north: exportBounds.getNorth(),
+          south: exportBounds.getSouth(),
+          east: exportBounds.getEast(),
+          west: exportBounds.getWest()
+        },
+        exportZoom: derivedExportZoom,
+        previewZoom: previewZoom || zoom,
+        dimensions: exportDimensions
+      });
+
       setNotification(null);
       const setters = { 'combined': setIsExporting, 'base': setIsExportingBase, 'lines': setIsExportingLines, 'labels': setIsExportingLabels };
       setters[type](true);
 
       try {
         let finalCanvas: HTMLCanvasElement;
-        const targetWidth = exportDimensions.width;
-        const targetHeight = exportDimensions.height;
 
-        const renderAndStitchLayer = async (layerType: 'base' | 'lines' | 'labels-only', zoom: number) => {
-            const tiles = await renderLayerRecursive(exportBounds, layerType, zoom);
-            const stitched = await stitchCanvases(tiles, exportBounds, targetWidth, targetHeight, zoom);
-            // Free memory from intermediate tiles
-            tiles.forEach(t => { t.canvas.width = 0; t.canvas.height = 0; });
-            return stitched;
-        };
-
+        // SIMPLIFIED: Direct rendering without tiling
         if (type === 'combined') {
-            const baseCanvas = await renderAndStitchLayer('base', derivedExportZoom);
-            const linesCanvas = visibleTracks.length > 0 ? await renderAndStitchLayer('lines', derivedExportZoom) : null;
-            const labelsCanvas = tileLayerKey === 'esriImagery' && labelDensity >= 0 ? await renderAndStitchLayer('labels-only', (previewZoom || zoom) + labelDensity) : null;
-            
+            const baseCanvas = await renderCanvasForBounds(exportBounds, 'base', derivedExportZoom);
+            const linesCanvas = visibleTracks.length > 0 ? await renderCanvasForBounds(exportBounds, 'lines', derivedExportZoom) : null;
+            const labelsCanvas = tileLayerKey === 'esriImagery' && labelDensity >= 0 ?
+                await renderCanvasForBounds(exportBounds, 'labels-only', (previewZoom || zoom) + labelDensity) : null;
+
+            if (!baseCanvas) throw new Error('Failed to render base layer');
+
             finalCanvas = document.createElement('canvas');
-            finalCanvas.width = targetWidth;
-            finalCanvas.height = targetHeight;
+            finalCanvas.width = baseCanvas.width;
+            finalCanvas.height = baseCanvas.height;
             const ctx = finalCanvas.getContext('2d')!;
             ctx.drawImage(baseCanvas, 0, 0);
             if (linesCanvas) ctx.drawImage(linesCanvas, 0, 0);
             if (labelsCanvas) ctx.drawImage(labelsCanvas, 0, 0);
-            
+
             // Free memory
             baseCanvas.width = 0; baseCanvas.height = 0;
             if (linesCanvas) { linesCanvas.width = 0; linesCanvas.height = 0; }
@@ -783,8 +830,12 @@ const App: React.FC = () => {
                 layerType = 'labels-only';
                 zoomForRender = (previewZoom || zoom) + labelDensity;
             }
-            finalCanvas = await renderAndStitchLayer(layerType, zoomForRender);
+            const canvas = await renderCanvasForBounds(exportBounds, layerType, zoomForRender);
+            if (!canvas) throw new Error(`Failed to render ${layerType} layer`);
+            finalCanvas = canvas;
         }
+
+        console.log('✅ Export complete, canvas size:', { width: finalCanvas.width, height: finalCanvas.height });
 
         const blob = await new Promise<Blob|null>(resolve => finalCanvas.toBlob(resolve, 'image/png'));
         if (blob) {
@@ -800,13 +851,15 @@ const App: React.FC = () => {
 
       } catch (err: any) {
           setNotification({ type: 'error', message: err.message || 'Failed to export map. Please try again.' });
-          console.error(err);
+          console.error('Export error:', err);
       } finally {
           setters[type](false);
       }
-  }, [coloredTracks, exportDimensions, exportBounds, derivedExportZoom, lineThickness, exportQuality, tileLayerKey, labelDensity, previewZoom, zoom, stitchCanvases, renderLayerRecursive]);
+  }, [coloredTracks, exportDimensions, exportBounds, derivedExportZoom, lineThickness, exportQuality, tileLayerKey, labelDensity, previewZoom, zoom, renderCanvasForBounds]);
 
   const performZipExport = useCallback(async () => {
+    setNotification({ type: 'info', message: "ZIP export temporarily disabled while debugging basic export." });
+    /* TEMPORARILY DISABLED FOR DEBUGGING
     const visibleTracks = coloredTracks.filter(t => t.isVisible);
     if (visibleTracks.length === 0) {
         setNotification({ type: 'error', message: "Cannot export with lines without a visible track."});
@@ -928,7 +981,8 @@ const App: React.FC = () => {
     } finally {
         setIsExportingZip(false);
     }
-  }, [coloredTracks, exportDimensions, exportBounds, derivedExportZoom, tileLayerKey, labelDensity, previewZoom, zoom, calculatePixelDimensions, renderCanvasForBounds, stitchCanvases]);
+    */
+  }, []);
 
   const selectedTileLayer = TILE_LAYERS.find(l => l.key === tileLayerKey) || TILE_LAYERS[0];
 
