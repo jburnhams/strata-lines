@@ -537,6 +537,7 @@ const App: React.FC = () => {
     let isTransparent = false;
 
     // Calculate pixel dimensions at the target zoom level for these exact lat/long bounds
+    // This uses the Web Mercator projection to determine the exact pixel size needed
     const { width, height } = calculatePixelDimensions(bounds, zoomForRender);
 
     if (layerType === 'lines' || layerType === 'labels-only') {
@@ -561,17 +562,39 @@ const App: React.FC = () => {
             (printMap.getContainer() as HTMLElement).style.backgroundColor = 'transparent';
         }
 
-        // Force the map to recognize its true size before setting bounds
-        printMap.invalidateSize({ pan: false });
+        // CRITICAL: Calculate the exact center point that will place the bounds correctly
+        //
+        // We need to position the map such that:
+        // - The NW corner of bounds appears at pixel (0, 0) of the container
+        // - The SE corner of bounds appears at pixel (width, height) of the container
+        //
+        // Strategy:
+        // 1. Project NW and SE corners to get their positions in global Web Mercator pixel space at this zoom
+        // 2. The container needs to show the rectangle between these two points
+        // 3. The center of this rectangle in global pixel space is what we need
+        // 4. Unproject that center point back to lat/lng
+        // 5. Use setView with exact zoom to position the map precisely
+        //
+        // This ensures the bounds are rendered at EXACTLY the zoom level we specify,
+        // unlike fitBounds which may adjust the zoom level to fit the container.
 
-        // CRITICAL CHANGE: Use fitBounds to ensure the map view exactly covers the lat/long bounds
-        // This is more accurate than manually calculating center and using setView
-        // maxZoom ensures we render at the exact zoom level we want
-        printMap.fitBounds(bounds, {
-            padding: [0, 0],
-            animate: false,
-            maxZoom: zoomForRender
-        });
+        const nwPoint = printMap.project(bounds.getNorthWest(), zoomForRender);
+        const sePoint = printMap.project(bounds.getSouthEast(), zoomForRender);
+
+        // Size in global pixel coordinates
+        const size = sePoint.subtract(nwPoint);
+
+        // Center point in global pixel coordinates
+        const containerCenterPoint = nwPoint.add(size.divideBy(2));
+
+        // Convert back to lat/lng
+        const centerLatLng = printMap.unproject(containerCenterPoint, zoomForRender);
+
+        // Set view with EXACT zoom level and calculated center
+        printMap.setView(centerLatLng, zoomForRender, { animate: false });
+
+        // Force the map to recognize its container size AFTER setting the view
+        printMap.invalidateSize({ pan: false });
 
         if (layerType === 'base') {
             const selectedTileLayer = TILE_LAYERS.find(l => l.key === tileLayerKey) || TILE_LAYERS[0];
@@ -590,9 +613,19 @@ const App: React.FC = () => {
             await new Promise(res => setTimeout(res, 500)); // Short delay for canvas to draw lines
         }
 
+        // Capture the container at EXACT pixel dimensions
+        // CRITICAL: Set scale to 1 to avoid devicePixelRatio scaling on high-DPI displays
+        // Set explicit window dimensions to ensure exact capture size
         const canvas = await html2canvas(printContainer, {
-          useCORS: true, allowTaint: true, logging: false,
+          useCORS: true,
+          allowTaint: true,
+          logging: false,
           backgroundColor: isTransparent ? null : '#000',
+          scale: 1,  // Force 1:1 pixel ratio, ignore devicePixelRatio
+          width: width,  // Explicit width
+          height: height,  // Explicit height
+          windowWidth: width,  // Window dimensions for rendering
+          windowHeight: height,
         });
         return canvas;
     } finally {
