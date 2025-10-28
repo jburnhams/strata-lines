@@ -43,16 +43,35 @@ vi.mock('leaflet', () => {
     },
   });
 
-  const createLatLngBounds = (points: any[]) => ({
-    isValid: () => points && points.length > 0,
-    getNorthEast: () => ({ lat: 51.6, lng: -0.1 }),
-    getSouthWest: () => ({ lat: 51.5, lng: -0.2 }),
-  });
+  const createLatLngBounds = (sw?: any, ne?: any) => {
+    const southWest = sw || { lat: 51.5, lng: -0.2 };
+    const northEast = ne || { lat: 51.6, lng: -0.1 };
+    return {
+      isValid: () => true,
+      getNorthEast: () => northEast,
+      getSouthWest: () => southWest,
+      getNorth: () => northEast.lat,
+      getSouth: () => southWest.lat,
+      getEast: () => northEast.lng,
+      getWest: () => southWest.lng,
+      getCenter: () => ({
+        lat: (southWest.lat + northEast.lat) / 2,
+        lng: (southWest.lng + northEast.lng) / 2,
+      }),
+    };
+  };
 
   return {
     default: {
       latLng: createLatLng,
       latLngBounds: createLatLngBounds,
+      divIcon: vi.fn((options: any) => ({
+        options,
+        createIcon: vi.fn(),
+      })),
+      DomEvent: {
+        stopPropagation: vi.fn(),
+      },
     },
     latLng: createLatLng,
     latLngBounds: createLatLngBounds,

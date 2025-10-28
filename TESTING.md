@@ -1,77 +1,40 @@
 # Testing Guide
 
-This project includes comprehensive testing coverage with both unit tests and end-to-end (E2E) integration tests.
+This project uses Vitest for comprehensive test coverage of business logic, utilities, and components.
 
 ## Test Types
 
-### Unit Tests (Vitest)
-Unit tests cover the core business logic and utility functions:
+### Unit Tests
+Core business logic and utility functions:
 - GPX/TCX/FIT file parsing
 - Track processing and generation
 - Utility functions
 - Database operations
 
-**Location**: `tests/` directory
-**Framework**: Vitest with Happy-DOM
-
-### E2E Integration Tests (Playwright)
-End-to-end tests verify the complete application behavior in a real browser:
-- Map rendering and initialization
-- Map resizing and responsiveness
+### Component Tests
+React component rendering and behavior:
+- MapComponent rendering
+- Map initialization
 - Track visualization
-- Export functionality
-- Selection box manipulation
+- Export bounds handling
 
-**Location**: `e2e/` directory
-**Framework**: Playwright Test
+**Location**: `tests/` directory
+**Framework**: Vitest with Happy-DOM and React Testing Library
 
 ## Running Tests
 
-### Unit Tests
-
 ```bash
-# Run all unit tests
+# Run all tests in watch mode
 npm test
 
 # Run tests in watch mode (automatically re-run on file changes)
 npm run test:watch
 
-# Run tests with coverage report
+# Run tests once with coverage report
 npm run test:coverage
 
 # Open interactive test UI
 npm run test:ui
-```
-
-### E2E Tests
-
-**Prerequisites**: Install Playwright browsers (only needed once):
-```bash
-npm run playwright:install
-# Or install all browsers:
-npx playwright install
-```
-
-**Running E2E tests**:
-```bash
-# Run all E2E tests (headless mode)
-npm run test:e2e
-
-# Run with browser UI visible
-npm run test:e2e:headed
-
-# Open interactive Playwright UI
-npm run test:e2e:ui
-
-# Debug mode (step through tests)
-npm run test:e2e:debug
-```
-
-### Run All Tests
-
-```bash
-# Run both unit tests with coverage and E2E tests
-npm run test:all
 ```
 
 ## Test Coverage Requirements
@@ -93,18 +56,17 @@ Coverage reports are generated in:
 Tests run automatically in GitHub Actions on:
 - Push to `main` branch
 - Pull requests to `main` branch
+- Node.js versions: 20.x, 22.x, 24.x
 
 The CI pipeline:
 1. Installs dependencies
-2. Installs Playwright Chromium browser
-3. Builds the project
-4. Runs unit tests with coverage
-5. Runs E2E tests
-6. Uploads test reports as artifacts
+2. Builds the project
+3. Runs tests with coverage
+4. Uploads coverage report (Node 24.x only)
 
 ## Writing Tests
 
-### Unit Tests Example
+### Unit Test Example
 
 ```typescript
 import { describe, it, expect } from 'vitest';
@@ -118,73 +80,72 @@ describe('My Service', () => {
 });
 ```
 
-### E2E Tests Example
+### Component Test Example
 
 ```typescript
-import { test, expect } from '@playwright/test';
+import { describe, it, expect } from 'vitest';
+import { render } from '@testing-library/react';
+import { MyComponent } from '../components/MyComponent';
 
-test('should render map correctly', async ({ page }) => {
-  await page.goto('/');
-  const map = page.locator('.leaflet-container');
-  await expect(map).toBeVisible();
+describe('MyComponent', () => {
+  it('should render correctly', () => {
+    const { container } = render(<MyComponent />);
+    expect(container.querySelector('.my-element')).toBeTruthy();
+  });
 });
 ```
 
-## Known Issues
+## Manual Testing
 
-### Map Rendering (FIXED)
+For integration testing with real browser behavior (map rendering, export functionality, etc.):
+
+### Local Testing
+```bash
+npm run dev
+# Open http://localhost:3000 in your browser
+```
+
+### Preview Deployment Testing
+When you push changes, Cloudflare Pages automatically creates preview deployments:
+- Check preview URL in Cloudflare Pages dashboard or PR comments
+- Test map rendering on initial load
+- Test export functionality with yellow selection box
+- Test on different devices/browsers
+
+### Known Fixed Issues
+
+#### Map Rendering (FIXED in MapComponent.tsx)
 - **Issue**: Map initially rendered with incorrect dimensions on page load
 - **Fix**: Added `MapSizeManager` component that invalidates map size after mount
 
-### Export Bounds (FIXED)
+#### Export Bounds (FIXED in App.tsx)
 - **Issue**: Exported map area didn't match yellow selection box
 - **Fix**: Updated export to use precise pixel coordinate calculations instead of `fitBounds()`
 
-## Debugging E2E Tests
-
-### View Test Reports
-After running E2E tests, view the HTML report:
-```bash
-npx playwright show-report
-```
-
-### Screenshots and Videos
-Failed tests automatically capture:
-- Screenshots (saved in `test-results/`)
-- Video recordings (if enabled in config)
-- Trace files for debugging
-
-### Debug Specific Test
-```bash
-# Run only tests matching a pattern
-npx playwright test --grep "map rendering"
-
-# Debug a specific file
-npx playwright test e2e/map-rendering.spec.ts --debug
-```
-
-## Browser Selection
-
-By default, E2E tests run on:
-- Chromium (Desktop)
-- Chromium (Mobile - Pixel 5)
-
-To test other browsers, uncomment them in `playwright.config.ts`:
-```typescript
-projects: [
-  { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-  { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-  { name: 'webkit', use: { ...devices['Desktop Safari'] } },
-],
-```
-
 ## Performance
 
-- Unit tests complete in ~5 seconds
-- E2E tests complete in ~30-60 seconds depending on system
+- All tests complete in ~5 seconds
+- CI pipeline runs in ~1-2 minutes (without heavy browser installation)
+
+## Debugging Tests
+
+### Run Specific Tests
+```bash
+# Run only tests matching a pattern
+npm test -- --grep "map rendering"
+
+# Run a specific file
+npm test tests/MapComponent.test.tsx
+```
+
+### Debug Mode
+```bash
+# Run with debug output
+npm test -- --reporter=verbose
+```
 
 ## Additional Resources
 
 - [Vitest Documentation](https://vitest.dev/)
-- [Playwright Documentation](https://playwright.dev/)
-- [Testing Library](https://testing-library.com/docs/react-testing-library/intro/)
+- [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/)
+- [Cloudflare Pages](https://developers.cloudflare.com/pages/)
