@@ -97,6 +97,22 @@ const MapViewManager: React.FC<{ center: LatLng; zoom: number; tileLayerKey: str
   return null;
 };
 
+// Component to ensure map size is correctly calculated after initial render
+const MapSizeManager: React.FC = () => {
+  const map = useMap();
+  useEffect(() => {
+    // Invalidate size after a short delay to ensure container has final dimensions
+    // This fixes the issue where the map renders with incorrect size on initial page load
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [map]);
+
+  return null;
+};
+
 export const MapComponent: React.FC<MapComponentProps> = ({ tracks, onUserMove, center, zoom, lineThickness, exportBounds, onExportBoundsChange, boundsToFit, onBoundsFitted, tileLayer, labelDensity, highlightedTrackId }) => {
   
   const highlightedTrack = useMemo(() => 
@@ -153,6 +169,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({ tracks, onUserMove, 
       <DraggableBoundsBox bounds={exportBounds} onChange={onExportBoundsChange} />
       <MapUpdater onUserMove={onUserMove} />
       <MapViewManager center={center} zoom={zoom} tileLayerKey={tileLayer.key} />
+      <MapSizeManager />
       <FitBoundsManager bounds={boundsToFit} onFitted={onBoundsFitted} />
     </MapContainer>
   );

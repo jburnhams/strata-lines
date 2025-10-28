@@ -559,8 +559,22 @@ const App: React.FC = () => {
         if (isTransparent) {
             (printMap.getContainer() as HTMLElement).style.backgroundColor = 'transparent';
         }
-        
-        printMap.fitBounds(bounds, { animate: false, padding: [0, 0] });
+
+        // Calculate the exact pixel offset to align the bounds precisely with the container
+        // This ensures the exported area exactly matches the yellow selection box.
+        const nwPoint = printMap.project(bounds.getNorthWest(), zoomForRender);
+        const sePoint = printMap.project(bounds.getSouthEast(), zoomForRender);
+        const size = sePoint.subtract(nwPoint);
+
+        // Calculate the center point that will place the bounds correctly in the container
+        // We need to account for the container dimensions to center the view properly
+        const containerCenterPoint = nwPoint.add(size.divideBy(2));
+        const centerLatLng = printMap.unproject(containerCenterPoint, zoomForRender);
+
+        printMap.setView(centerLatLng, zoomForRender, { animate: false });
+
+        // Force the map to recognize its true size
+        printMap.invalidateSize({ pan: false });
 
         if (layerType === 'base') {
             const selectedTileLayer = TILE_LAYERS.find(l => l.key === tileLayerKey) || TILE_LAYERS[0];
