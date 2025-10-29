@@ -1,5 +1,5 @@
 import L from 'leaflet';
-import GpxParser from 'gpxparser';
+import { parseGPX } from '@we-gold/gpxjs';
 import pako from 'pako';
 import { Stream, Decoder } from '@garmin/fitsdk';
 import type { UnprocessedTrack, Point } from '../types';
@@ -18,18 +18,17 @@ function calculateTrackLength(points: Point[]): number {
 }
 
 const parseGpx = (fileContent: string): UnprocessedTrack[] => {
-  const gpx = new GpxParser();
-  gpx.parse(fileContent);
+  const [parsedFile, error] = parseGPX(fileContent);
 
-  if (!gpx.tracks || gpx.tracks.length === 0) {
+  if (error || !parsedFile || !parsedFile.tracks || parsedFile.tracks.length === 0) {
     return [];
   }
 
-  return gpx.tracks.map(track => {
-    const points: Point[] = track.points.map(p => [p.lat, p.lon]);
+  return parsedFile.tracks.map(track => {
+    const points: Point[] = track.points.map(p => [p.latitude, p.longitude]);
     const name = track.name || 'Unnamed Track';
     const length = calculateTrackLength(points);
-    
+
     return { name, points, length, isVisible: true };
   });
 };

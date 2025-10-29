@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from '@jest/globals';
 import { colorDistance, generateColorPalette, assignTrackColors } from '../utils/colorAssignment';
 import type { Track } from '../types';
 

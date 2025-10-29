@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from '@jest/globals';
 import type { Track } from '../types';
 
 // We'll test the database module by mocking IndexedDB with a simpler approach
@@ -80,20 +80,20 @@ describe('Database Service', () => {
     beforeEach(() => {
       // Create a basic mock structure
       mockStore = {
-        getAll: vi.fn(),
-        put: vi.fn(),
-        delete: vi.fn(),
-        clear: vi.fn(),
+        getAll: jest.fn(),
+        put: jest.fn(),
+        delete: jest.fn(),
+        clear: jest.fn(),
       };
 
       mockTransaction = {
-        objectStore: vi.fn(() => mockStore),
+        objectStore: jest.fn(() => mockStore),
       };
 
       mockDB = {
-        transaction: vi.fn(() => mockTransaction),
+        transaction: jest.fn(() => mockTransaction),
         objectStoreNames: {
-          contains: vi.fn(() => true),
+          contains: jest.fn(() => true),
         },
       };
     });
