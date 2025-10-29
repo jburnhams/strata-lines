@@ -33,8 +33,9 @@ jobs:
       continue-on-error: true
       run: npm run test:coverage 2>&1 | tee test-output.log
       env:
-        NODE_OPTIONS: "--max-old-space-size=4096 --expose-gc"
-
+        # 1.5GB is sufficient for tests+coverage. The issue is vitest worker cleanup,
+        # not actual test execution. Tests complete successfully in <300ms.
+        NODE_OPTIONS: "--max-old-space-size=1536 --expose-gc"
     - name: Verify tests passed and coverage generated
       run: |
         # Check if tests actually passed by examining output
