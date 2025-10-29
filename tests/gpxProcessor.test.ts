@@ -1,14 +1,6 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect } from '@jest/globals';
 import { processGpxFiles } from '../services/gpxProcessor';
 import pako from 'pako';
-
-// Memory cleanup after each test to prevent heap exhaustion
-afterEach(() => {
-  // Force garbage collection if available (for testing environments)
-  if (global.gc) {
-    global.gc();
-  }
-});
 
 // Test data
 const sampleGpx = `<?xml version="1.0" encoding="UTF-8"?>
@@ -49,7 +41,7 @@ const sampleTcx = `<?xml version="1.0" encoding="UTF-8"?>
 
 // Helper to create mock File objects with proper methods
 function createFile(content: string | Uint8Array, name: string): File {
-  const blob = new Blob([content]);
+  const blob = new Blob([content as BlobPart]);
   const file = new File([blob], name);
 
   // Add text() method if content is string

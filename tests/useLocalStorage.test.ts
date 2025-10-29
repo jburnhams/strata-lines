@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from '@jest/globals';
 import { renderHook, act } from '@testing-library/react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 
@@ -7,7 +7,7 @@ describe('useLocalStorage', () => {
     // Clear localStorage before each test
     window.localStorage.clear();
     // Clear all mocks
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   it('should return initial value when no stored value exists', () => {
@@ -104,7 +104,7 @@ describe('useLocalStorage', () => {
 
   it('should return initial value when localStorage contains invalid JSON', () => {
     window.localStorage.setItem('test-key', 'invalid-json{');
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     const { result } = renderHook(() => useLocalStorage('test-key', 'initial-value'));
 
@@ -115,8 +115,8 @@ describe('useLocalStorage', () => {
   });
 
   it('should handle localStorage being unavailable', () => {
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const getItemSpy = jest.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('localStorage is not available');
     });
 
@@ -130,8 +130,8 @@ describe('useLocalStorage', () => {
   });
 
   it('should handle localStorage setItem errors gracefully', () => {
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const setItemSpy = jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('Quota exceeded');
     });
 

@@ -1,6 +1,11 @@
-import { expect, afterEach, vi } from 'vitest';
+import { afterEach } from '@jest/globals';
 import { cleanup } from '@testing-library/react';
-import '@testing-library/jest-dom/vitest';
+import '@testing-library/jest-dom';
+import { TextEncoder, TextDecoder } from 'util';
+
+// Add TextEncoder/TextDecoder to global for jsdom
+global.TextEncoder = TextEncoder;
+global.TextDecoder = TextDecoder as any;
 
 // Cleanup after each test
 afterEach(() => {
@@ -10,20 +15,20 @@ afterEach(() => {
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: vi.fn().mockImplementation(query => ({
+  value: jest.fn().mockImplementation(query => ({
     matches: false,
     media: query,
     onchange: null,
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn(),
   })),
 });
 
 // Mock Leaflet for tests
-vi.mock('leaflet', () => {
+jest.mock('leaflet', () => {
   const createLatLng = (lat: number, lng: number) => ({
     lat,
     lng,
@@ -65,12 +70,12 @@ vi.mock('leaflet', () => {
     default: {
       latLng: createLatLng,
       latLngBounds: createLatLngBounds,
-      divIcon: vi.fn((options: any) => ({
+      divIcon: jest.fn((options: any) => ({
         options,
-        createIcon: vi.fn(),
+        createIcon: jest.fn(),
       })),
       DomEvent: {
-        stopPropagation: vi.fn(),
+        stopPropagation: jest.fn(),
       },
     },
     latLng: createLatLng,

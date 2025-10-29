@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from '@jest/globals';
 import L from 'leaflet';
 import { metersToMiles, calculateBoundsDimensions, calculatePixelDimensions } from '../utils/mapCalculations';
 

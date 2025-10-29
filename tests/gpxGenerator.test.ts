@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from '@jest/globals';
 import { trackToGpxString } from '../services/gpxGenerator';
 import type { Track } from '../types';
 

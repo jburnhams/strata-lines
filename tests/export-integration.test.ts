@@ -1,12 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from '@jest/globals';
 import L from 'leaflet';
-
-// Memory cleanup after each test
-afterEach(() => {
-  if (global.gc) {
-    global.gc();
-  }
-});
 
 /**
  * Integration tests for export workflow
