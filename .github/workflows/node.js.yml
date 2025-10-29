@@ -32,7 +32,7 @@ jobs:
       id: test
       shell: bash {0}  # ← KEY FIX: Disable -e flag
       run: |
-        npm run coverage 2>&1 | tee test-output.log
+        npm run test:coverage 2>&1 | tee test-output.log
         echo "test_exit_code=$?" >> $GITHUB_OUTPUT
       env:
         NODE_OPTIONS: "--max-old-space-size=2560 --expose-gc"
