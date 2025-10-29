@@ -7,18 +7,19 @@ export default {
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
   transform: {
-    '^.+\\.tsx?$': [
-      'ts-jest',
+    '^.+\\.(ts|tsx|js|jsx)$': [
+      'babel-jest',
       {
-        useESM: true,
-        tsconfig: {
-          jsx: 'react-jsx',
-          esModuleInterop: true,
-          allowSyntheticDefaultImports: true,
-        },
+        presets: [
+          ['@babel/preset-env', { targets: { node: 'current' } }],
+          '@babel/preset-typescript',
+        ],
       },
     ],
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(gpxparser|jsdom|parse5|@garmin/fitsdk)/)',
+  ],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   testMatch: ['<rootDir>/tests/**/*.test.{ts,tsx}'],
   collectCoverageFrom: [
