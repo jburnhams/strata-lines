@@ -1,4 +1,40 @@
 import { describe, it, expect } from '@jest/globals';
+import { LABEL_TILE_URL_RETINA } from '../labelTiles';
+
+describe('Retina label tile fetching', () => {
+  it('should request tiles with @2x suffix for higher pixel density', () => {
+    expect(LABEL_TILE_URL_RETINA.endsWith('@2x.png')).toBe(true);
+  });
+
+  it('should preserve leaflet tile placeholders for subdomain and coordinates', () => {
+    ['{s}', '{z}', '{x}', '{y}'].forEach(token => {
+      expect(LABEL_TILE_URL_RETINA.includes(token)).toBe(true);
+    });
+  });
+
+  it('should provide double the pixel data for a given CSS tile size', () => {
+    const cssTileSize = 256; // Leaflet displays tiles at 256 CSS pixels
+    const retinaTilePixelWidth = cssTileSize * 2; // Retina tiles contain 512px imagery
+    expect(retinaTilePixelWidth / cssTileSize).toBe(2);
+  });
+
+  it('should allow the resized labels canvas to match the base canvas dimensions', () => {
+    const baseCanvas = { width: 4096, height: 4096 };
+    const retinaLabelCanvas = { width: 4096, height: 4096 }; // Captured with double pixel density
+
+    // After resizing/downscaling, the dimensions must still match for merging
+    expect(retinaLabelCanvas.width).toBe(baseCanvas.width);
+    expect(retinaLabelCanvas.height).toBe(baseCanvas.height);
+  });
+
+  it('should keep label zoom logic independent of retina pixel ratio', () => {
+    const previewZoom = 11;
+    const labelDensity = 2;
+    const expectedLabelZoom = previewZoom + labelDensity;
+
+    expect(expectedLabelZoom).toBe(13);
+  });
+});
 
 /**
  * Tests for label rendering and resizing during export

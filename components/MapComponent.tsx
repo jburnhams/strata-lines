@@ -3,6 +3,7 @@ import React, { useEffect, useCallback, useMemo } from 'react';
 import { MapContainer, TileLayer, Polyline, useMap, useMapEvents } from 'react-leaflet';
 import L, { type LatLngExpression, type LatLng, type LatLngBounds, type Point as LeafletPoint } from 'leaflet';
 import type { Track, TileLayerDefinition } from '../types';
+import { LABEL_TILE_URL_RETINA } from '../labelTiles';
 import { DraggableBoundsBox } from './DraggableBoundsBox';
 
 interface MapComponentProps {
@@ -133,7 +134,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({ tracks, onUserMove, 
       {labelDensity >= 0 && tileLayer.key === 'esriImagery' && (
           <TileLayer
               key="labels"
-              url="https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png"
+              url={LABEL_TILE_URL_RETINA}
               attribution=""
               opacity={1}
               pane="shadowPane"

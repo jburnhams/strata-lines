@@ -10,6 +10,7 @@ import { processGpxFiles } from './services/gpxProcessor';
 import * as db from './services/db';
 import type { Track, UnprocessedTrack, AspectRatio, TileLayerDefinition } from './types';
 import { UK_CENTER_LATLNG, TILE_LAYERS } from './constants';
+import { LABEL_TILE_URL_RETINA } from './labelTiles';
 import { trackToGpxString } from './services/gpxGenerator';
 import { getTracksBounds } from './services/utils';
 import { assignTrackColors } from './utils/colorAssignment';
@@ -552,7 +553,7 @@ const App: React.FC = () => {
             tileLayer.addTo(printMap);
             await waitForTiles(tileLayer);
         } else if (layerType === 'labels-only') {
-            const labelLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', { attribution: '' });
+            const labelLayer = L.tileLayer(LABEL_TILE_URL_RETINA, { attribution: '' });
             labelLayer.addTo(printMap);
             await waitForTiles(labelLayer);
         } else if (layerType === 'lines') {
