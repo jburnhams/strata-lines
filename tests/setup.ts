@@ -1,14 +1,13 @@
 import { afterEach } from '@jest/globals';
 import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import type { NodeRequire } from 'module';
 import { TextEncoder, TextDecoder } from 'util';
 
 // Add TextEncoder/TextDecoder to global for jsdom
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder as any;
 
-const nodeRequire = (eval('require') as NodeRequire);
+const nodeRequire = eval('require') as NodeJS.Require;
 
 let fontAssetPath: string | undefined;
 try {
