@@ -1,6 +1,10 @@
 import { describe, it, expect } from '@jest/globals';
 import L from 'leaflet';
-import { metersToMiles, calculateBoundsDimensions } from '../utils/mapCalculations';
+import {
+  metersToMiles,
+  calculateBoundsDimensions,
+  calculatePixelDimensions,
+} from '../utils/mapCalculations';
 
 describe('Map Calculations', () => {
   describe('metersToMiles', () => {
@@ -84,6 +88,43 @@ describe('Map Calculations', () => {
       expect(dimensions.height).toBeGreaterThan(0);
       expect(dimensions.width).toBeLessThan(0.1);
       expect(dimensions.height).toBeLessThan(0.1);
+    });
+  });
+
+  describe('calculatePixelDimensions', () => {
+    it('projects geographic bounds to expected pixel size at zoom level 10', () => {
+      const bounds = L.latLngBounds(
+        L.latLng(51.5, -0.1),
+        L.latLng(51.6, 0.0)
+      );
+
+      const dimensions = calculatePixelDimensions(bounds, 10);
+
+      expect(dimensions).toEqual({ width: 73, height: 117 });
+    });
+
+    it('scales pixel dimensions when zoom level increases', () => {
+      const bounds = L.latLngBounds(
+        L.latLng(51.5, -0.1),
+        L.latLng(51.6, 0.0)
+      );
+
+      const atZoom10 = calculatePixelDimensions(bounds, 10);
+      const atZoom12 = calculatePixelDimensions(bounds, 12);
+
+      expect(atZoom12.width).toBeGreaterThan(atZoom10.width);
+      expect(atZoom12.height).toBeGreaterThan(atZoom10.height);
+    });
+
+    it('cleans up temporary DOM nodes after measurement', () => {
+      const bounds = L.latLngBounds(
+        L.latLng(40.7128, -74.006),
+        L.latLng(40.7328, -73.986)
+      );
+
+      const initialChildren = document.body.childElementCount;
+      calculatePixelDimensions(bounds, 11);
+      expect(document.body.childElementCount).toBe(initialChildren);
     });
   });
 });
