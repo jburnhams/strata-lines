@@ -1,0 +1,45 @@
+{
+  "name": "js-app-template",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A template for React + TypeScript web applications with comprehensive testing setup",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "NODE_OPTIONS='--max-old-space-size=2048' jest --maxWorkers=1",
+    "test:coverage": "NODE_OPTIONS='--max-old-space-size=2048' jest --coverage --maxWorkers=1",
+    "test:watch": "jest --watch --maxWorkers=1",
+    "type-check": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.28.5",
+    "@babel/preset-env": "^7.28.5",
+    "@babel/preset-typescript": "^7.28.5",
+    "@jest/globals": "^29.7.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^24.9.2",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^5.0.0",
+    "babel-jest": "^30.2.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "jsdom": "^27.0.1",
+    "ts-jest": "^29.2.5",
+    "typescript": "~5.9.3",
+    "vite": "^7.1.12"
+  }
+}
