@@ -26,10 +26,30 @@ const createPrintMap = (container: HTMLElement) => {
     });
 };
 
+/**
+ * Waits for canvas rendering to complete by using requestAnimationFrame
+ * This is more reliable than fixed timeouts as it waits for the actual rendering pipeline
+ * @param frames Number of animation frames to wait (default: 3)
+ */
+const waitForCanvasRender = (frames: number = 3): Promise<void> => {
+    return new Promise<void>((resolve) => {
+        let count = 0;
+        const scheduleNext = () => {
+            count++;
+            if (count >= frames) {
+                resolve();
+            } else {
+                requestAnimationFrame(scheduleNext);
+            }
+        };
+        requestAnimationFrame(scheduleNext);
+    });
+};
+
 const waitForTiles = (tileLayer: L.TileLayer) => {
     return new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => reject(new Error('Map export timed out waiting for tiles.')), 60000);
-        
+
         let loaded = false;
         const loadHandler = () => {
           if (!loaded) {
@@ -544,7 +564,13 @@ const App: React.FC = () => {
 
         // Set the view to the center of our target bounds at exact zoom
         printMap.setView(bounds.getCenter(), zoomForRender, { animate: false });
+
+        // CRITICAL: Invalidate size FIRST to ensure canvas renderer is initialized
         printMap.invalidateSize({ pan: false });
+
+        // Force the map to be "ready" by triggering internal initialization
+        // This ensures the canvas renderer is fully set up
+        (printMap as any)._onResize();
 
         // Add layers
         if (layerType === 'base') {
@@ -559,9 +585,91 @@ const App: React.FC = () => {
         } else if (layerType === 'lines') {
             const exportLineThickness = lineThickness * (1 + exportQuality / 2);
             visibleTracks.forEach(track => {
-                L.polyline(track.points as L.LatLngExpression[], { color: track.color || '#ff4500', weight: exportLineThickness, opacity: 0.8 }).addTo(printMap!);
+                L.polyline(track.points as L.LatLngExpression[], {
+                    color: track.color || '#ff4500',
+                    weight: exportLineThickness,
+                    opacity: 1.0,  // Use full opacity to ensure tracks are visible
+                    fillOpacity: 0  // No fill for polylines
+                }).addTo(printMap!);
             });
-            await new Promise(res => setTimeout(res, 500));
+
+            console.log(`📍 Added ${visibleTracks.length} tracks to map`);
+
+            // Get the canvas renderer to verify tracks are being drawn
+            const container = printMap.getContainer();
+            const canvasElements = container.querySelectorAll('canvas');
+            console.log(`🎨 Found ${canvasElements.length} canvas elements`);
+
+            canvasElements.forEach((canvas, i) => {
+                console.log(`Canvas ${i}: ${canvas.width}x${canvas.height}, className: ${canvas.className}`);
+            });
+
+            // CRITICAL: Force the canvas renderer to update
+            // The canvas renderer might not auto-update for off-screen maps
+            const renderer = (printMap as any)._renderer;
+            if (renderer) {
+                console.log('🔧 Found renderer, forcing update');
+
+                // Force renderer to recalculate bounds and initialize for large canvases
+                renderer._bounds = printMap.getPixelBounds();
+                renderer._center = printMap.getCenter();
+
+                // Force update which should trigger drawing
+                renderer._update();
+
+                // For large canvases, we may need to force a full reset
+                if (renderer._container) {
+                    const canvas = renderer._container;
+                    console.log(`🎨 Renderer canvas: ${canvas.width}x${canvas.height}`);
+
+                    // Ensure the canvas context is properly initialized
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        console.log('✓ Canvas context is available');
+                    }
+                }
+            }
+
+            // Force each polyline layer to redraw
+            let layerCount = 0;
+            printMap.eachLayer((layer: any) => {
+                if (layer instanceof L.Polyline) {
+                    layerCount++;
+                    // Force the layer to recalculate its bounds and project coordinates
+                    if ((layer as any)._project) {
+                        (layer as any)._project();
+                    }
+                    layer.redraw();
+                }
+            });
+            console.log(`🔄 Forced redraw on ${layerCount} polyline layers`);
+
+            // Wait for canvas rendering to complete using requestAnimationFrame
+            // Higher quality exports need more frames to ensure rendering is complete
+            // Base: 3 frames + additional frames based on quality level
+            const framesToWait = 3 + (exportQuality * 2);
+            console.log(`⏱️  Waiting ${framesToWait} animation frames for track rendering at quality ${exportQuality}`);
+            await waitForCanvasRender(framesToWait);
+
+            // Additional delay to ensure html2canvas can capture the rendered canvas
+            await new Promise(resolve => setTimeout(resolve, 200));
+
+            // Check if canvas has any non-transparent pixels
+            const trackCanvas = Array.from(canvasElements).find(c => c.className.includes('leaflet-zoom-animated'));
+            if (trackCanvas) {
+                const ctx = (trackCanvas as HTMLCanvasElement).getContext('2d');
+                if (ctx) {
+                    const imageData = ctx.getImageData(0, 0, trackCanvas.width, trackCanvas.height);
+                    const pixels = imageData.data;
+                    let nonTransparentCount = 0;
+                    for (let i = 3; i < pixels.length; i += 4) {
+                        if (pixels[i] > 0) nonTransparentCount++;
+                    }
+                    console.log(`🔍 Canvas has ${nonTransparentCount} non-transparent pixels out of ${pixels.length / 4} total`);
+                }
+            }
+
+            console.log('✅ Track rendering complete');
         }
 
         // After rendering, check what bounds we actually got
