@@ -14,6 +14,8 @@ import { LABEL_TILE_URL_RETINA } from './labelTiles';
 import { trackToGpxString } from './services/gpxGenerator';
 import { getTracksBounds } from './services/utils';
 import { assignTrackColors } from './utils/colorAssignment';
+import { assertCanvasHasMapTiles } from './utils/canvasValidation';
+import { waitForPolylines } from './utils/renderWait';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { metersToMiles, calculateBoundsDimensions, calculatePixelDimensions } from './utils/mapCalculations';
 
@@ -28,32 +30,81 @@ const createPrintMap = (container: HTMLElement) => {
 
 const waitForTiles = (tileLayer: L.TileLayer) => {
     return new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Map export timed out waiting for tiles.')), 60000);
-        
-        let loaded = false;
+        let completed = false;
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+        let pollId: ReturnType<typeof setInterval> | null = null;
+
+        const cleanup = () => {
+            tileLayer.off('load', loadHandler);
+            tileLayer.off('tileload', tileLoadHandler);
+            tileLayer.off('tileerror', tileErrorHandler);
+            if (timeoutId !== null) {
+                clearTimeout(timeoutId);
+                timeoutId = null;
+            }
+            if (pollId !== null) {
+                clearInterval(pollId);
+                pollId = null;
+            }
+        };
+
+        const finish = (callback: () => void) => {
+            if (completed) {
+                return;
+            }
+            completed = true;
+            cleanup();
+            callback();
+        };
+
+        const tilesReady = () => {
+            if (completed) {
+                return true;
+            }
+
+            const tiles: Array<{ loaded?: boolean; complete?: boolean; el?: HTMLImageElement }> = Object.values((tileLayer as any)._tiles ?? {});
+            if (tiles.length === 0) {
+                return false;
+            }
+
+            const allLoaded = tiles.every(tile => tile.loaded || tile.complete || tile.el?.complete);
+            if (allLoaded) {
+                finish(() => {
+                    setTimeout(() => resolve(), 300);
+                });
+                return true;
+            }
+            return false;
+        };
+
         const loadHandler = () => {
-          if (!loaded) {
-            loaded = true;
-            clearTimeout(timeout);
-            setTimeout(resolve, 500); // Extra delay for rendering
-          }
+            tilesReady();
+        };
+
+        const tileLoadHandler = () => {
+            tilesReady();
+        };
+
+        const tileErrorHandler = (e: unknown) => {
+            console.error('Tile error:', e);
+            finish(() => reject(new Error('Could not load map tiles for export.')));
         };
 
         tileLayer.on('load', loadHandler);
+        tileLayer.on('tileload', tileLoadHandler);
+        tileLayer.on('tileerror', tileErrorHandler);
 
-        // This check is crucial. fitBounds() might finish and tiles are loading,
-        // but isLoading() might not be true for a few ms. A small delay helps.
-        setTimeout(() => {
-          if (tileLayer.isLoading() === false) {
-            loadHandler();
-          }
-        }, 100);
+        timeoutId = setTimeout(() => {
+            finish(() => reject(new Error('Map export timed out waiting for tiles.')));
+        }, 60000);
 
-        tileLayer.on('tileerror', (e) => {
-            console.error('Tile error:', e);
-            clearTimeout(timeout);
-            reject(new Error('Could not load map tiles for export.'));
-        });
+        pollId = setInterval(() => {
+            tilesReady();
+        }, 200);
+
+        if (!tileLayer.isLoading()) {
+            tilesReady();
+        }
     });
 };
 
@@ -558,10 +609,12 @@ const App: React.FC = () => {
             await waitForTiles(labelLayer);
         } else if (layerType === 'lines') {
             const exportLineThickness = lineThickness * (1 + exportQuality / 2);
+            const polylines: L.Polyline[] = [];
             visibleTracks.forEach(track => {
-                L.polyline(track.points as L.LatLngExpression[], { color: track.color || '#ff4500', weight: exportLineThickness, opacity: 0.8 }).addTo(printMap!);
+                const polyline = L.polyline(track.points as L.LatLngExpression[], { color: track.color || '#ff4500', weight: exportLineThickness, opacity: 0.8 }).addTo(printMap!);
+                polylines.push(polyline);
             });
-            await new Promise(res => setTimeout(res, 500));
+            await waitForPolylines(polylines);
         }
 
         // After rendering, check what bounds we actually got
@@ -590,7 +643,7 @@ const App: React.FC = () => {
           useCORS: true,
           allowTaint: true,
           logging: false,
-          backgroundColor: isTransparent ? null : '#000',
+          backgroundColor: isTransparent ? null : '#000000',
           scale: 1,
           width: paddedWidth,
           height: paddedHeight,
@@ -626,6 +679,10 @@ const App: React.FC = () => {
             cropX, cropY, cropWidth, cropHeight,  // Source rectangle
             0, 0, targetWidth, targetHeight  // Destination rectangle
         );
+
+        if (layerType === 'base') {
+            assertCanvasHasMapTiles(finalCanvas, '#000000');
+        }
 
         console.log('✅ Final canvas size:', { width: finalCanvas.width, height: finalCanvas.height });
         console.groupEnd();
