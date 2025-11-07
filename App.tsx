@@ -15,6 +15,7 @@ import { trackToGpxString } from './services/gpxGenerator';
 import { getTracksBounds } from './services/utils';
 import { assignTrackColors } from './utils/colorAssignment';
 import { assertCanvasHasLineContent, assertCanvasHasMapTiles, LineContentSampleGroup, LineContentSamplePoint } from './utils/canvasValidation';
+import { waitForPolylines } from './utils/renderWait';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { metersToMiles, calculateBoundsDimensions, calculatePixelDimensions } from './utils/mapCalculations';
 
@@ -103,99 +104,6 @@ const waitForTiles = (tileLayer: L.TileLayer) => {
 
         if (!tileLayer.isLoading()) {
             tilesReady();
-        }
-    });
-};
-
-const waitForPolylines = (polylines: L.Polyline[], timeoutMs: number = 60000) => {
-    if (polylines.length === 0) {
-        return Promise.resolve();
-    }
-
-    const globalScope = globalThis as typeof globalThis & {
-        requestAnimationFrame?: typeof requestAnimationFrame;
-        cancelAnimationFrame?: typeof cancelAnimationFrame;
-    };
-
-    type FrameHandle = number | ReturnType<typeof setTimeout>;
-
-    const scheduleFrame = (callback: FrameRequestCallback): FrameHandle => {
-        if (typeof globalScope.requestAnimationFrame === 'function') {
-            return globalScope.requestAnimationFrame(callback);
-        }
-
-        return setTimeout(() => callback(Date.now()), 16);
-    };
-
-    const cancelFrame = (handle: FrameHandle) => {
-        if (typeof globalScope.cancelAnimationFrame === 'function' && typeof handle === 'number') {
-            globalScope.cancelAnimationFrame(handle);
-            return;
-        }
-
-        clearTimeout(handle as ReturnType<typeof setTimeout>);
-    };
-
-    const now = () => (typeof performance !== 'undefined' && typeof performance.now === 'function') ? performance.now() : Date.now();
-
-    return new Promise<void>((resolve, reject) => {
-        let frameHandle: FrameHandle | null = null;
-        let settled = false;
-        const startTime = now();
-
-        const cleanup = () => {
-            if (frameHandle !== null) {
-                cancelFrame(frameHandle);
-                frameHandle = null;
-            }
-        };
-
-        const finish = (callback: () => void) => {
-            if (settled) {
-                return;
-            }
-            settled = true;
-            cleanup();
-            callback();
-        };
-
-        const arePolylinesReady = () => {
-            return polylines.every(polyline => {
-                const layer: any = polyline;
-                if (layer._renderer && layer._renderer._drawnLayers) {
-                    return Boolean(layer._renderer._drawnLayers[layer._leaflet_id]);
-                }
-                if (layer._path && typeof layer._path.getAttribute === 'function') {
-                    return Boolean(layer._path.getAttribute('d'));
-                }
-                return false;
-            });
-        };
-
-        const tick = () => {
-            if (arePolylinesReady()) {
-                finish(() => {
-                    setTimeout(() => resolve(), 100);
-                });
-                return;
-            }
-
-            if (now() - startTime > timeoutMs) {
-                finish(() => reject(new Error('Map export timed out waiting for tracks to render.')));
-                return;
-            }
-
-            frameHandle = scheduleFrame(() => {
-                tick();
-            });
-        };
-
-        if (arePolylinesReady()) {
-            finish(() => {
-                setTimeout(() => resolve(), 100);
-            });
-        } else {
-            tick();
         }
     });
 };
