@@ -564,7 +564,13 @@ const App: React.FC = () => {
 
         // Set the view to the center of our target bounds at exact zoom
         printMap.setView(bounds.getCenter(), zoomForRender, { animate: false });
+
+        // CRITICAL: Invalidate size FIRST to ensure canvas renderer is initialized
         printMap.invalidateSize({ pan: false });
+
+        // Force the map to be "ready" by triggering internal initialization
+        // This ensures the canvas renderer is fully set up
+        (printMap as any)._onResize();
 
         // Add layers
         if (layerType === 'base') {
@@ -598,7 +604,16 @@ const App: React.FC = () => {
                 console.log(`Canvas ${i}: ${canvas.width}x${canvas.height}, className: ${canvas.className}`);
             });
 
-            // Force Leaflet to redraw the canvas layers
+            // CRITICAL: Force the canvas renderer to update
+            // The canvas renderer might not auto-update for off-screen maps
+            const renderer = (printMap as any)._renderer;
+            if (renderer) {
+                console.log('🔧 Found renderer, forcing update');
+                // Force renderer to update its bounds and redraw
+                renderer._update();
+            }
+
+            // Also force each polyline layer to redraw
             printMap.eachLayer((layer: any) => {
                 if (layer instanceof L.Polyline) {
                     layer.redraw();
