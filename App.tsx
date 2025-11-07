@@ -117,25 +117,36 @@ const waitForPolylines = (polylines: L.Polyline[], timeoutMs: number = 60000) =>
         cancelAnimationFrame?: typeof cancelAnimationFrame;
     };
 
-    const scheduleFrame: (callback: FrameRequestCallback) => number = typeof globalScope.requestAnimationFrame === 'function'
-        ? callback => globalScope.requestAnimationFrame!(callback)
-        : callback => setTimeout(() => callback(Date.now()), 16);
+    type FrameHandle = number | ReturnType<typeof setTimeout>;
 
-    const cancelFrame: (id: number) => void = typeof globalScope.cancelAnimationFrame === 'function'
-        ? id => globalScope.cancelAnimationFrame!(id)
-        : id => clearTimeout(id);
+    const scheduleFrame = (callback: FrameRequestCallback): FrameHandle => {
+        if (typeof globalScope.requestAnimationFrame === 'function') {
+            return globalScope.requestAnimationFrame(callback);
+        }
+
+        return setTimeout(() => callback(Date.now()), 16);
+    };
+
+    const cancelFrame = (handle: FrameHandle) => {
+        if (typeof globalScope.cancelAnimationFrame === 'function' && typeof handle === 'number') {
+            globalScope.cancelAnimationFrame(handle);
+            return;
+        }
+
+        clearTimeout(handle as ReturnType<typeof setTimeout>);
+    };
 
     const now = () => (typeof performance !== 'undefined' && typeof performance.now === 'function') ? performance.now() : Date.now();
 
     return new Promise<void>((resolve, reject) => {
-        let frameId: number | null = null;
+        let frameHandle: FrameHandle | null = null;
         let settled = false;
         const startTime = now();
 
         const cleanup = () => {
-            if (frameId !== null) {
-                cancelFrame(frameId);
-                frameId = null;
+            if (frameHandle !== null) {
+                cancelFrame(frameHandle);
+                frameHandle = null;
             }
         };
 
@@ -174,7 +185,7 @@ const waitForPolylines = (polylines: L.Polyline[], timeoutMs: number = 60000) =>
                 return;
             }
 
-            frameId = scheduleFrame(() => {
+            frameHandle = scheduleFrame(() => {
                 tick();
             });
         };

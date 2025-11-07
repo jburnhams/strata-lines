@@ -12,7 +12,7 @@ const createMockCanvas = (width: number, height: number, defaultPixel: RGBA, ove
       if (type !== '2d') {
         return null;
       }
-      return {
+      const context = {
         getImageData: (x: number, y: number) => {
           const clampedX = Math.min(Math.max(Math.floor(x), 0), width - 1);
           const clampedY = Math.min(Math.max(Math.floor(y), 0), height - 1);
@@ -20,7 +20,9 @@ const createMockCanvas = (width: number, height: number, defaultPixel: RGBA, ove
           const pixel = overrides[key] ?? defaultPixel;
           return { data: new Uint8ClampedArray(pixel) };
         }
-      } as CanvasRenderingContext2D;
+      };
+
+      return context as unknown as CanvasRenderingContext2D;
     }
   } as unknown as HTMLCanvasElement;
 };
