@@ -609,16 +609,40 @@ const App: React.FC = () => {
             const renderer = (printMap as any)._renderer;
             if (renderer) {
                 console.log('🔧 Found renderer, forcing update');
-                // Force renderer to update its bounds and redraw
+
+                // Force renderer to recalculate bounds and initialize for large canvases
+                renderer._bounds = printMap.getPixelBounds();
+                renderer._center = printMap.getCenter();
+
+                // Force update which should trigger drawing
                 renderer._update();
+
+                // For large canvases, we may need to force a full reset
+                if (renderer._container) {
+                    const canvas = renderer._container;
+                    console.log(`🎨 Renderer canvas: ${canvas.width}x${canvas.height}`);
+
+                    // Ensure the canvas context is properly initialized
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        console.log('✓ Canvas context is available');
+                    }
+                }
             }
 
-            // Also force each polyline layer to redraw
+            // Force each polyline layer to redraw
+            let layerCount = 0;
             printMap.eachLayer((layer: any) => {
                 if (layer instanceof L.Polyline) {
+                    layerCount++;
+                    // Force the layer to recalculate its bounds and project coordinates
+                    if ((layer as any)._project) {
+                        (layer as any)._project();
+                    }
                     layer.redraw();
                 }
             });
+            console.log(`🔄 Forced redraw on ${layerCount} polyline layers`);
 
             // Wait for canvas rendering to complete using requestAnimationFrame
             // Higher quality exports need more frames to ensure rendering is complete
