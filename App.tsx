@@ -26,10 +26,30 @@ const createPrintMap = (container: HTMLElement) => {
     });
 };
 
+/**
+ * Waits for canvas rendering to complete by using requestAnimationFrame
+ * This is more reliable than fixed timeouts as it waits for the actual rendering pipeline
+ * @param frames Number of animation frames to wait (default: 3)
+ */
+const waitForCanvasRender = (frames: number = 3): Promise<void> => {
+    return new Promise<void>((resolve) => {
+        let count = 0;
+        const scheduleNext = () => {
+            count++;
+            if (count >= frames) {
+                resolve();
+            } else {
+                requestAnimationFrame(scheduleNext);
+            }
+        };
+        requestAnimationFrame(scheduleNext);
+    });
+};
+
 const waitForTiles = (tileLayer: L.TileLayer) => {
     return new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => reject(new Error('Map export timed out waiting for tiles.')), 60000);
-        
+
         let loaded = false;
         const loadHandler = () => {
           if (!loaded) {
@@ -561,7 +581,12 @@ const App: React.FC = () => {
             visibleTracks.forEach(track => {
                 L.polyline(track.points as L.LatLngExpression[], { color: track.color || '#ff4500', weight: exportLineThickness, opacity: 0.8 }).addTo(printMap!);
             });
-            await new Promise(res => setTimeout(res, 500));
+            // Wait for canvas rendering to complete using requestAnimationFrame
+            // Higher quality exports need more frames to ensure rendering is complete
+            // Base: 3 frames + additional frames based on quality level
+            const framesToWait = 3 + (exportQuality * 2);
+            console.log(`⏱️  Waiting ${framesToWait} animation frames for track rendering at quality ${exportQuality}`);
+            await waitForCanvasRender(framesToWait);
         }
 
         // After rendering, check what bounds we actually got
