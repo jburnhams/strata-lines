@@ -579,14 +579,58 @@ const App: React.FC = () => {
         } else if (layerType === 'lines') {
             const exportLineThickness = lineThickness * (1 + exportQuality / 2);
             visibleTracks.forEach(track => {
-                L.polyline(track.points as L.LatLngExpression[], { color: track.color || '#ff4500', weight: exportLineThickness, opacity: 0.8 }).addTo(printMap!);
+                L.polyline(track.points as L.LatLngExpression[], {
+                    color: track.color || '#ff4500',
+                    weight: exportLineThickness,
+                    opacity: 1.0,  // Use full opacity to ensure tracks are visible
+                    fillOpacity: 0  // No fill for polylines
+                }).addTo(printMap!);
             });
+
+            console.log(`📍 Added ${visibleTracks.length} tracks to map`);
+
+            // Get the canvas renderer to verify tracks are being drawn
+            const container = printMap.getContainer();
+            const canvasElements = container.querySelectorAll('canvas');
+            console.log(`🎨 Found ${canvasElements.length} canvas elements`);
+
+            canvasElements.forEach((canvas, i) => {
+                console.log(`Canvas ${i}: ${canvas.width}x${canvas.height}, className: ${canvas.className}`);
+            });
+
+            // Force Leaflet to redraw the canvas layers
+            printMap.eachLayer((layer: any) => {
+                if (layer instanceof L.Polyline) {
+                    layer.redraw();
+                }
+            });
+
             // Wait for canvas rendering to complete using requestAnimationFrame
             // Higher quality exports need more frames to ensure rendering is complete
             // Base: 3 frames + additional frames based on quality level
             const framesToWait = 3 + (exportQuality * 2);
             console.log(`⏱️  Waiting ${framesToWait} animation frames for track rendering at quality ${exportQuality}`);
             await waitForCanvasRender(framesToWait);
+
+            // Additional delay to ensure html2canvas can capture the rendered canvas
+            await new Promise(resolve => setTimeout(resolve, 200));
+
+            // Check if canvas has any non-transparent pixels
+            const trackCanvas = Array.from(canvasElements).find(c => c.className.includes('leaflet-zoom-animated'));
+            if (trackCanvas) {
+                const ctx = (trackCanvas as HTMLCanvasElement).getContext('2d');
+                if (ctx) {
+                    const imageData = ctx.getImageData(0, 0, trackCanvas.width, trackCanvas.height);
+                    const pixels = imageData.data;
+                    let nonTransparentCount = 0;
+                    for (let i = 3; i < pixels.length; i += 4) {
+                        if (pixels[i] > 0) nonTransparentCount++;
+                    }
+                    console.log(`🔍 Canvas has ${nonTransparentCount} non-transparent pixels out of ${pixels.length / 4} total`);
+                }
+            }
+
+            console.log('✅ Track rendering complete');
         }
 
         // After rendering, check what bounds we actually got
