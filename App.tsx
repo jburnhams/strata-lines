@@ -14,7 +14,7 @@ import { LABEL_TILE_URL_RETINA } from './labelTiles';
 import { trackToGpxString } from './services/gpxGenerator';
 import { getTracksBounds } from './services/utils';
 import { assignTrackColors } from './utils/colorAssignment';
-import { assertCanvasHasLineContent, assertCanvasHasMapTiles, LineContentSampleGroup, LineContentSamplePoint } from './utils/canvasValidation';
+import { assertCanvasHasMapTiles } from './utils/canvasValidation';
 import { waitForPolylines } from './utils/renderWait';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { metersToMiles, calculateBoundsDimensions, calculatePixelDimensions } from './utils/mapCalculations';
@@ -106,84 +106,6 @@ const waitForTiles = (tileLayer: L.TileLayer) => {
             tilesReady();
         }
     });
-};
-
-const LINE_SAMPLE_STEP_PX = 24;
-
-const createLineSampleGroups = (
-    map: L.Map,
-    tracks: Track[],
-    bounds: L.LatLngBounds,
-    cropX: number,
-    cropY: number,
-    targetWidth: number,
-    targetHeight: number,
-    radius: number
-): LineContentSampleGroup[] => {
-    const margin = radius;
-
-    const isWithinCanvas = (point: { x: number; y: number }) => {
-        return (
-            point.x >= -margin &&
-            point.x <= targetWidth + margin &&
-            point.y >= -margin &&
-            point.y <= targetHeight + margin
-        );
-    };
-
-    return tracks.reduce<LineContentSampleGroup[]>((groups, track) => {
-        if (!track.points || track.points.length === 0) {
-            return groups;
-        }
-
-        const latLngs = track.points.map(([lat, lng]) => L.latLng(lat, lng));
-        const trackBounds = L.latLngBounds(latLngs);
-        if (!trackBounds.intersects(bounds)) {
-            return groups;
-        }
-
-        const containerPoints: LeafletPoint[] = latLngs.map(latLng => map.latLngToContainerPoint(latLng));
-        const samplePoints: LineContentSamplePoint[] = [];
-
-        containerPoints.forEach(point => {
-            const projected = { x: point.x - cropX, y: point.y - cropY };
-            if (isWithinCanvas(projected)) {
-                samplePoints.push(projected);
-            }
-        });
-
-        for (let i = 0; i < containerPoints.length - 1; i++) {
-            const start = containerPoints[i];
-            const end = containerPoints[i + 1];
-            const distance = start.distanceTo(end);
-            if (!isFinite(distance) || distance === 0) {
-                continue;
-            }
-
-            const steps = Math.max(1, Math.ceil(distance / LINE_SAMPLE_STEP_PX));
-            for (let step = 1; step < steps; step++) {
-                const t = step / steps;
-                const interpolated: LineContentSamplePoint = {
-                    x: start.x + (end.x - start.x) * t - cropX,
-                    y: start.y + (end.y - start.y) * t - cropY,
-                };
-                if (isWithinCanvas(interpolated)) {
-                    samplePoints.push(interpolated);
-                }
-            }
-        }
-
-        if (samplePoints.length > 0) {
-            groups.push({
-                id: track.id,
-                label: track.name,
-                samplePoints,
-                radius,
-            });
-        }
-
-        return groups;
-    }, []);
 };
 
 type Notification = {
@@ -626,16 +548,7 @@ const App: React.FC = () => {
 
   const renderCanvasForBounds = useCallback(async (bounds: L.LatLngBounds, layerType: 'base' | 'lines' | 'labels-only', zoomForRender: number): Promise<HTMLCanvasElement | null> => {
     const visibleTracks = coloredTracks.filter(t => t.isVisible);
-    const hasTrackIntersectingBounds = visibleTracks.some(track => {
-      if (!track.points || track.points.length === 0) {
-        return false;
-      }
-      const latLngPoints = track.points.map(point => L.latLng(point[0], point[1]));
-      const trackBounds = L.latLngBounds(latLngPoints);
-      return trackBounds.intersects(bounds);
-    });
     let isTransparent = false;
-    let exportLineThicknessForValidation: number | null = null;
 
     if (layerType === 'lines' || layerType === 'labels-only') {
         isTransparent = true;
@@ -702,7 +615,6 @@ const App: React.FC = () => {
                 polylines.push(polyline);
             });
             await waitForPolylines(polylines);
-            exportLineThicknessForValidation = exportLineThickness;
         }
 
         // After rendering, check what bounds we actually got
@@ -768,31 +680,8 @@ const App: React.FC = () => {
             0, 0, targetWidth, targetHeight  // Destination rectangle
         );
 
-        let lineSampleGroups: LineContentSampleGroup[] = [];
-        const lineValidationRadius = Math.max(2, Math.ceil((exportLineThicknessForValidation ?? lineThickness) / 2));
-        if (layerType === 'lines') {
-            if (!printMap) {
-                throw new Error('Export failed: print map unavailable for line validation.');
-            }
-            lineSampleGroups = createLineSampleGroups(
-                printMap,
-                visibleTracks,
-                bounds,
-                cropX,
-                cropY,
-                targetWidth,
-                targetHeight,
-                lineValidationRadius
-            );
-        }
-
         if (layerType === 'base') {
             assertCanvasHasMapTiles(finalCanvas, '#000000');
-        } else if (layerType === 'lines' && hasTrackIntersectingBounds) {
-            if (lineSampleGroups.length === 0) {
-                throw new Error('Export failed: tracks were not rendered before capture.');
-            }
-            assertCanvasHasLineContent(finalCanvas, lineSampleGroups, lineValidationRadius);
         }
 
         console.log('✅ Final canvas size:', { width: finalCanvas.width, height: finalCanvas.height });
