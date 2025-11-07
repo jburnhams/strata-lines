@@ -90,6 +90,8 @@ const App: React.FC = () => {
   const [previewBounds, setPreviewBounds] = useState<L.LatLngBounds | null>(null);
   const [boundsToFit, setBoundsToFit] = useState<L.LatLngBounds | null>(null);
   const [highlightedTrackId, setHighlightedTrackId] = useState<string | null>(null);
+  const [exportSubdivisions, setExportSubdivisions] = useState<L.LatLngBounds[]>([]);
+  const [currentExportSubdivisionIndex, setCurrentExportSubdivisionIndex] = useState<number>(-1);
   
   const [exportBounds, setExportBounds] = useState<L.LatLngBounds | null>(() => {
     if (typeof window === 'undefined') {
@@ -137,6 +139,7 @@ const App: React.FC = () => {
   const [lineThickness, setLineThickness] = useLocalStorage<number>('lineThickness', 3);
   const [tileLayerKey, setTileLayerKey] = useLocalStorage<string>('tileLayerKey', 'esriImagery');
   const [labelDensity, setLabelDensity] = useLocalStorage<number>('labelDensity', 1);
+  const [maxDimension, setMaxDimension] = useLocalStorage<number>('maxDimension', 4000);
 
   // Clamp labelDensity to max value and ensure it's an integer
   useEffect(() => {
@@ -726,7 +729,40 @@ const App: React.FC = () => {
 
       return [...tiles1, ...tiles2];
   }, [calculatePixelDimensions, renderCanvasForBounds]);
-  
+
+  const calculateSubdivisions = useCallback((
+    bounds: L.LatLngBounds,
+    zoomForRender: number,
+    maxDim: number
+  ): L.LatLngBounds[] => {
+      const { width, height } = calculatePixelDimensions(bounds, zoomForRender);
+
+      // Base case: if both dimensions fit within maxDim, return this bounds as a single subdivision
+      if (width <= maxDim && height <= maxDim) {
+          return [bounds];
+      }
+
+      // Recursive case: split along the longest dimension
+      const center = bounds.getCenter();
+      let bounds1: L.LatLngBounds, bounds2: L.LatLngBounds;
+
+      if (width > height) {
+          // Split vertically (divide longitude at center)
+          bounds1 = L.latLngBounds(bounds.getSouthWest(), L.latLng(bounds.getNorth(), center.lng));
+          bounds2 = L.latLngBounds(L.latLng(bounds.getSouth(), center.lng), bounds.getNorthEast());
+      } else {
+          // Split horizontally (divide latitude at center)
+          bounds1 = L.latLngBounds(L.latLng(center.lat, bounds.getWest()), bounds.getNorthEast());
+          bounds2 = L.latLngBounds(bounds.getSouthWest(), L.latLng(center.lat, bounds.getEast()));
+      }
+
+      // Recursively subdivide each half
+      const subdivisions1 = calculateSubdivisions(bounds1, zoomForRender, maxDim);
+      const subdivisions2 = calculateSubdivisions(bounds2, zoomForRender, maxDim);
+
+      return [...subdivisions1, ...subdivisions2];
+  }, [calculatePixelDimensions]);
+
   const performPngExport = useCallback(async (type: 'combined' | 'base' | 'lines' | 'labels') => {
       const visibleTracks = coloredTracks.filter(t => t.isVisible);
       if ((type === 'combined' || type === 'lines') && visibleTracks.length === 0) {
@@ -760,102 +796,128 @@ const App: React.FC = () => {
       setters[type](true);
 
       try {
-        let finalCanvas: HTMLCanvasElement;
+        // Calculate subdivisions based on maxDimension
+        const subdivisions = calculateSubdivisions(exportBounds, derivedExportZoom, maxDimension);
+        console.log(`📐 Calculated ${subdivisions.length} subdivision(s) based on max dimension ${maxDimension}px`);
 
-        // SIMPLIFIED: Direct rendering without tiling
-        if (type === 'combined') {
-            console.log('🎯 Rendering combined export...');
-            const baseCanvas = await renderCanvasForBounds(exportBounds, 'base', derivedExportZoom);
-            const linesCanvas = visibleTracks.length > 0 ? await renderCanvasForBounds(exportBounds, 'lines', derivedExportZoom) : null;
+        // Show subdivisions on the map
+        setExportSubdivisions(subdivisions);
 
-            // Labels are rendered at a different zoom level
-            const labelZoom = (previewZoom || zoom) + labelDensity;
-            let labelsCanvas = tileLayerKey === 'esriImagery' && labelDensity >= 0 ?
-                await renderCanvasForBounds(exportBounds, 'labels-only', labelZoom) : null;
+        // Export each subdivision
+        for (let i = 0; i < subdivisions.length; i++) {
+          const subdivisionBounds = subdivisions[i];
 
-            if (!baseCanvas) throw new Error('Failed to render base layer');
+          // Highlight the current subdivision being rendered
+          setCurrentExportSubdivisionIndex(i);
+          console.log(`🎨 Exporting subdivision ${i + 1}/${subdivisions.length}`);
 
-            // CRITICAL: Resize labels to match base canvas dimensions
-            // Labels are rendered at labelZoom but need to overlay at derivedExportZoom
-            if (labelsCanvas) {
-                console.group('🏷️  Processing labels layer');
-                console.log(`Base zoom: ${derivedExportZoom}, Label zoom: ${labelZoom}`);
-                console.log(`Base dimensions: ${baseCanvas.width}x${baseCanvas.height}`);
-                console.log(`Label dimensions (before resize): ${labelsCanvas.width}x${labelsCanvas.height}`);
+          let finalCanvas: HTMLCanvasElement;
 
-                // Only resize if dimensions don't match
-                if (labelsCanvas.width !== baseCanvas.width || labelsCanvas.height !== baseCanvas.height) {
-                    console.log('⚠️  Dimensions mismatch - resizing labels to match base');
-                    const resizedLabels = resizeCanvas(labelsCanvas, baseCanvas.width, baseCanvas.height);
+          // Render the subdivision based on type
+          if (type === 'combined') {
+              console.log('🎯 Rendering combined export...');
+              const baseCanvas = await renderCanvasForBounds(subdivisionBounds, 'base', derivedExportZoom);
+              const linesCanvas = visibleTracks.length > 0 ? await renderCanvasForBounds(subdivisionBounds, 'lines', derivedExportZoom) : null;
 
-                    // Free original labels canvas
-                    labelsCanvas.width = 0;
-                    labelsCanvas.height = 0;
+              // Labels are rendered at a different zoom level
+              const labelZoom = (previewZoom || zoom) + labelDensity;
+              let labelsCanvas = tileLayerKey === 'esriImagery' && labelDensity >= 0 ?
+                  await renderCanvasForBounds(subdivisionBounds, 'labels-only', labelZoom) : null;
 
-                    labelsCanvas = resizedLabels;
-                    console.log(`Label dimensions (after resize): ${labelsCanvas.width}x${labelsCanvas.height}`);
-                } else {
-                    console.log('✅ Dimensions match - no resize needed');
-                }
-                console.groupEnd();
-            }
+              if (!baseCanvas) throw new Error('Failed to render base layer');
 
-            // Stack layers
-            console.log('📚 Stacking layers: base → lines → labels');
-            finalCanvas = document.createElement('canvas');
-            finalCanvas.width = baseCanvas.width;
-            finalCanvas.height = baseCanvas.height;
-            const ctx = finalCanvas.getContext('2d')!;
-            ctx.drawImage(baseCanvas, 0, 0);
-            if (linesCanvas) {
-                console.log(`  + Lines layer (${linesCanvas.width}x${linesCanvas.height})`);
-                ctx.drawImage(linesCanvas, 0, 0);
-            }
-            if (labelsCanvas) {
-                console.log(`  + Labels layer (${labelsCanvas.width}x${labelsCanvas.height})`);
-                ctx.drawImage(labelsCanvas, 0, 0);
-            }
+              // CRITICAL: Resize labels to match base canvas dimensions
+              // Labels are rendered at labelZoom but need to overlay at derivedExportZoom
+              if (labelsCanvas) {
+                  console.group('🏷️  Processing labels layer');
+                  console.log(`Base zoom: ${derivedExportZoom}, Label zoom: ${labelZoom}`);
+                  console.log(`Base dimensions: ${baseCanvas.width}x${baseCanvas.height}`);
+                  console.log(`Label dimensions (before resize): ${labelsCanvas.width}x${labelsCanvas.height}`);
 
-            // Free memory
-            baseCanvas.width = 0; baseCanvas.height = 0;
-            if (linesCanvas) { linesCanvas.width = 0; linesCanvas.height = 0; }
-            if (labelsCanvas) { labelsCanvas.width = 0; labelsCanvas.height = 0; }
+                  // Only resize if dimensions don't match
+                  if (labelsCanvas.width !== baseCanvas.width || labelsCanvas.height !== baseCanvas.height) {
+                      console.log('⚠️  Dimensions mismatch - resizing labels to match base');
+                      const resizedLabels = resizeCanvas(labelsCanvas, baseCanvas.width, baseCanvas.height);
 
-        } else {
-            let layerType: 'base' | 'lines' | 'labels-only';
-            let zoomForRender = derivedExportZoom;
-            if (type === 'base') layerType = 'base';
-            else if (type === 'lines') layerType = 'lines';
-            else {
-                layerType = 'labels-only';
-                zoomForRender = (previewZoom || zoom) + labelDensity;
-            }
-            const canvas = await renderCanvasForBounds(exportBounds, layerType, zoomForRender);
-            if (!canvas) throw new Error(`Failed to render ${layerType} layer`);
-            finalCanvas = canvas;
+                      // Free original labels canvas
+                      labelsCanvas.width = 0;
+                      labelsCanvas.height = 0;
+
+                      labelsCanvas = resizedLabels;
+                      console.log(`Label dimensions (after resize): ${labelsCanvas.width}x${labelsCanvas.height}`);
+                  } else {
+                      console.log('✅ Dimensions match - no resize needed');
+                  }
+                  console.groupEnd();
+              }
+
+              // Stack layers
+              console.log('📚 Stacking layers: base → lines → labels');
+              finalCanvas = document.createElement('canvas');
+              finalCanvas.width = baseCanvas.width;
+              finalCanvas.height = baseCanvas.height;
+              const ctx = finalCanvas.getContext('2d')!;
+              ctx.drawImage(baseCanvas, 0, 0);
+              if (linesCanvas) {
+                  console.log(`  + Lines layer (${linesCanvas.width}x${linesCanvas.height})`);
+                  ctx.drawImage(linesCanvas, 0, 0);
+              }
+              if (labelsCanvas) {
+                  console.log(`  + Labels layer (${labelsCanvas.width}x${labelsCanvas.height})`);
+                  ctx.drawImage(labelsCanvas, 0, 0);
+              }
+
+              // Free memory
+              baseCanvas.width = 0; baseCanvas.height = 0;
+              if (linesCanvas) { linesCanvas.width = 0; linesCanvas.height = 0; }
+              if (labelsCanvas) { labelsCanvas.width = 0; labelsCanvas.height = 0; }
+
+          } else {
+              let layerType: 'base' | 'lines' | 'labels-only';
+              let zoomForRender = derivedExportZoom;
+              if (type === 'base') layerType = 'base';
+              else if (type === 'lines') layerType = 'lines';
+              else {
+                  layerType = 'labels-only';
+                  zoomForRender = (previewZoom || zoom) + labelDensity;
+              }
+              const canvas = await renderCanvasForBounds(subdivisionBounds, layerType, zoomForRender);
+              if (!canvas) throw new Error(`Failed to render ${layerType} layer`);
+              finalCanvas = canvas;
+          }
+
+          console.log('✅ Subdivision render complete, canvas size:', { width: finalCanvas.width, height: finalCanvas.height });
+
+          // Download the subdivision
+          const blob = await new Promise<Blob|null>(resolve => finalCanvas.toBlob(resolve, 'image/png'));
+          if (blob) {
+              const link = document.createElement('a');
+              const suffix = subdivisions.length > 1 ? `_part${i + 1}of${subdivisions.length}` : '';
+              link.download = `gpx-map-${type}${suffix}-${Date.now()}.png`;
+              link.href = URL.createObjectURL(blob);
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              URL.revokeObjectURL(link.href);
+
+              // Small delay between downloads to ensure browser handles them properly
+              await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          finalCanvas.width = 0; finalCanvas.height = 0;
         }
 
-        console.log('✅ Export complete, canvas size:', { width: finalCanvas.width, height: finalCanvas.height });
-
-        const blob = await new Promise<Blob|null>(resolve => finalCanvas.toBlob(resolve, 'image/png'));
-        if (blob) {
-            const link = document.createElement('a');
-            link.download = `gpx-map-${type}-${Date.now()}.png`;
-            link.href = URL.createObjectURL(blob);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(link.href);
-        }
-        finalCanvas.width = 0; finalCanvas.height = 0;
+        console.log('✅ All subdivisions exported successfully');
 
       } catch (err: any) {
           setNotification({ type: 'error', message: err.message || 'Failed to export map. Please try again.' });
           console.error('Export error:', err);
       } finally {
+          // Clear subdivision visualization
+          setExportSubdivisions([]);
+          setCurrentExportSubdivisionIndex(-1);
           setters[type](false);
       }
-  }, [coloredTracks, exportDimensions, exportBounds, derivedExportZoom, lineThickness, exportQuality, tileLayerKey, labelDensity, previewZoom, zoom, renderCanvasForBounds, resizeCanvas]);
+  }, [coloredTracks, exportDimensions, exportBounds, derivedExportZoom, lineThickness, exportQuality, tileLayerKey, labelDensity, previewZoom, zoom, renderCanvasForBounds, resizeCanvas, maxDimension, calculateSubdivisions]);
 
   const performZipExport = useCallback(async () => {
     setNotification({ type: 'info', message: "ZIP export temporarily disabled while debugging basic export." });
@@ -990,8 +1052,8 @@ const App: React.FC = () => {
     <div className="bg-gray-900 text-white min-h-screen flex flex-col md:flex-row font-sans">
       <div ref={mapContainerRef} className="w-full h-[50vh] md:h-screen md:flex-1 relative flex justify-center items-center bg-gray-900">
         <div ref={mapWrapperRef} className="h-full w-full">
-            <MapComponent 
-              tracks={coloredTracks} 
+            <MapComponent
+              tracks={coloredTracks}
               onUserMove={handleUserMove}
               center={L.latLng(mapCenter.lat, mapCenter.lng)}
               zoom={zoom}
@@ -1003,6 +1065,8 @@ const App: React.FC = () => {
               tileLayer={selectedTileLayer}
               labelDensity={labelDensity}
               highlightedTrackId={highlightedTrackId}
+              exportSubdivisions={exportSubdivisions}
+              currentExportSubdivisionIndex={currentExportSubdivisionIndex}
             />
         </div>
       </div>
@@ -1048,6 +1112,8 @@ const App: React.FC = () => {
         onTrackHover={setHighlightedTrackId}
         handleDownloadAllTracks={handleDownloadAllTracks}
         isDownloading={isDownloading}
+        maxDimension={maxDimension}
+        setMaxDimension={setMaxDimension}
       />
     </div>
   );

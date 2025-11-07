@@ -50,6 +50,8 @@ interface ControlsPanelProps {
   onTrackHover: (trackId: string | null) => void;
   handleDownloadAllTracks: () => void;
   isDownloading: boolean;
+  maxDimension: number;
+  setMaxDimension: (dimension: number) => void;
 }
 
 const InfoIcon: React.FC = () => (
@@ -114,6 +116,8 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
   onTrackHover,
   handleDownloadAllTracks,
   isDownloading,
+  maxDimension,
+  setMaxDimension,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [aspectRatioKey, setAspectRatioKey] = useState<string>('custom');
@@ -469,6 +473,20 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
 
       <section className="flex-grow flex flex-col justify-end space-y-4">
         <div>
+          <label htmlFor="max-dimension" className="block text-sm font-medium text-gray-400 mb-2">
+            Max Dimension (px)
+          </label>
+          <input
+            type="number"
+            id="max-dimension"
+            min="100"
+            max="10000"
+            step="100"
+            value={maxDimension}
+            onChange={(e) => setMaxDimension(parseInt(e.target.value, 10) || 4000)}
+            className="mb-3 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
+            placeholder="4000"
+          />
           <button
             onClick={handleExport}
             disabled={anyExporting || tracks.filter(t => t.isVisible).length === 0}
