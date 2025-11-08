@@ -220,9 +220,22 @@ export const performPngExport = async (
         `📐 Grid layout: ${gridLayout.rows} rows × ${gridLayout.columns} columns`
       );
 
-      // Convert canvases to Uint8Array for image-stitch
+      // Create a map from bounds to canvas for reordering
+      const boundsToCanvasMap = new Map<LatLngBounds, HTMLCanvasElement>();
+      subdivisions.forEach((bounds, index) => {
+        boundsToCanvasMap.set(bounds, subdivisionCanvases[index]);
+      });
+
+      // Reorder canvases according to gridLayout.orderedSubdivisions (row-major order)
+      const orderedCanvases = gridLayout.orderedSubdivisions.map((bounds) => {
+        const canvas = boundsToCanvasMap.get(bounds);
+        if (!canvas) throw new Error('Canvas not found for subdivision bounds');
+        return canvas;
+      });
+
+      // Convert ordered canvases to ArrayBuffers for image-stitch
       const canvasBlobs = await Promise.all(
-        subdivisionCanvases.map(
+        orderedCanvases.map(
           (canvas) =>
             new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
         )
@@ -251,7 +264,7 @@ export const performPngExport = async (
       const imageData = new Uint8Array(stitchedImage);
       finalBlob = new Blob([imageData], { type: 'image/png' });
 
-      // Clean up subdivision canvases
+      // Clean up subdivision canvases (all of them, regardless of order)
       subdivisionCanvases.forEach((canvas) => {
         canvas.width = 0;
         canvas.height = 0;
