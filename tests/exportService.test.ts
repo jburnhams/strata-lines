@@ -308,7 +308,7 @@ describe('Export Service Integration Tests', () => {
 
       // Should calculate subdivisions
       expect(mockCallbacks.onSubdivisionsCalculated).toHaveBeenCalled();
-      const calledSubdivisions = (mockCallbacks.onSubdivisionsCalculated as jest.Mock).mock.calls[0][0];
+      const calledSubdivisions = (mockCallbacks.onSubdivisionsCalculated as jest.Mock).mock.calls[0][0] as L.LatLngBounds[];
       expect(calledSubdivisions.length).toBe(4);
 
       // Should call onSubdivisionProgress for each subdivision
@@ -339,14 +339,14 @@ describe('Export Service Integration Tests', () => {
 
       await performPngExport('base', [mockTrack], configWithSubdivisions, mockCallbacks);
 
-      const calledSubdivisions = (mockCallbacks.onSubdivisionsCalculated as jest.Mock).mock.calls[0][0];
+      const calledSubdivisions = (mockCallbacks.onSubdivisionsCalculated as jest.Mock).mock.calls[0][0] as L.LatLngBounds[];
 
       // Should create download links for each subdivision
       expect(mockCreateElement).toHaveBeenCalledWith('a');
 
       // Link creation count should match subdivision count
       const linkCreations = (mockCreateElement as jest.Mock).mock.calls.filter(
-        call => call[0] === 'a'
+        (call: any) => call[0] === 'a'
       );
       expect(linkCreations.length).toBe(calledSubdivisions.length);
     });
@@ -361,7 +361,7 @@ describe('Export Service Integration Tests', () => {
       await performPngExport('base', [mockTrack], configNoSubdivisions, mockCallbacks);
 
       expect(mockCallbacks.onSubdivisionsCalculated).toHaveBeenCalled();
-      const subdivisions = (mockCallbacks.onSubdivisionsCalculated as jest.Mock).mock.calls[0][0];
+      const subdivisions = (mockCallbacks.onSubdivisionsCalculated as jest.Mock).mock.calls[0][0] as L.LatLngBounds[];
       expect(subdivisions.length).toBe(1);
 
       expect(mockCallbacks.onSubdivisionProgress).toHaveBeenCalledWith(0);
@@ -385,8 +385,8 @@ describe('Export Service Integration Tests', () => {
       await performPngExport('base', [mockTrack], mockConfig, mockCallbacks);
 
       const linkElement = (mockCreateElement as jest.Mock).mock.results.find(
-        result => result.value.download !== undefined
-      )?.value;
+        (result: any) => result.value.download !== undefined
+      )?.value as any;
 
       expect(linkElement).toBeDefined();
       expect(linkElement.download).toContain('base');
@@ -413,12 +413,12 @@ describe('Export Service Integration Tests', () => {
       await performPngExport('base', [mockTrack], configWithSubdivisions, mockCallbacks);
 
       const linkElements = (mockCreateElement as jest.Mock).mock.results
-        .filter(result => result.value.download !== undefined)
-        .map(result => result.value);
+        .filter((result: any) => result.value.download !== undefined)
+        .map((result: any) => result.value);
 
       // Should have multiple files with part numbers
       expect(linkElements.length).toBe(4);
-      expect(linkElements[0].download).toMatch(/_part1of4/);
+      expect((linkElements[0] as any).download).toMatch(/_part1of4/);
     });
   });
 
