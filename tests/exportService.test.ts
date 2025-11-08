@@ -56,12 +56,19 @@ const mockBody = {
 jest.mock('../utils/exportHelpers', () => ({
   renderCanvasForBounds: jest.fn(),
   calculateSubdivisions: jest.fn(),
+  calculateGridLayout: jest.fn(),
   resizeCanvas: jest.fn(),
+}));
+
+// Mock image-stitch library
+jest.mock('image-stitch/bundle', () => ({
+  concatToBuffer: jest.fn(),
 }));
 
 // Now import after mocks are set up
 import { performPngExport } from '../services/exportService';
 import * as exportHelpers from '../utils/exportHelpers';
+import * as imageStitch from 'image-stitch/bundle';
 
 describe('Export Service Integration Tests', () => {
   let mockTrack: Track;
@@ -69,7 +76,9 @@ describe('Export Service Integration Tests', () => {
   let mockCallbacks: ExportCallbacks;
   let renderCanvasForBoundsMock: jest.MockedFunction<typeof exportHelpers.renderCanvasForBounds>;
   let calculateSubdivisionsMock: jest.MockedFunction<typeof exportHelpers.calculateSubdivisions>;
+  let calculateGridLayoutMock: jest.MockedFunction<typeof exportHelpers.calculateGridLayout>;
   let resizeCanvasMock: jest.MockedFunction<typeof exportHelpers.resizeCanvas>;
+  let concatToBufferMock: jest.MockedFunction<typeof imageStitch.concatToBuffer>;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -130,6 +139,26 @@ describe('Export Service Integration Tests', () => {
       const canvas = createCanvas(width, height);
       (canvas as any).toBlob = mockToBlob;
       return canvas as any;
+    });
+
+    // Mock calculateGridLayout
+    calculateGridLayoutMock = exportHelpers.calculateGridLayout as jest.MockedFunction<typeof exportHelpers.calculateGridLayout>;
+    calculateGridLayoutMock.mockImplementation((subdivisions) => {
+      // For a simple 2x2 grid layout (most common case with 4 subdivisions)
+      const rows = Math.ceil(Math.sqrt(subdivisions.length));
+      const columns = Math.ceil(subdivisions.length / rows);
+      return {
+        rows,
+        columns,
+        orderedSubdivisions: subdivisions,
+      };
+    });
+
+    // Mock image-stitch concatToBuffer function
+    concatToBufferMock = imageStitch.concatToBuffer as jest.MockedFunction<typeof imageStitch.concatToBuffer>;
+    concatToBufferMock.mockImplementation(async (options: any) => {
+      // Return a mock Uint8Array representing a stitched PNG
+      return new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]) as any; // PNG header
     });
   });
 
@@ -320,7 +349,7 @@ describe('Export Service Integration Tests', () => {
       expect(mockCallbacks.onComplete).toHaveBeenCalled();
     });
 
-    it('should use sequential file naming for subdivisions', async () => {
+    it('should stitch subdivisions into a single download', async () => {
       const configWithSubdivisions = {
         ...mockConfig,
         maxDimension: 100,
@@ -341,14 +370,19 @@ describe('Export Service Integration Tests', () => {
 
       const calledSubdivisions = (mockCallbacks.onSubdivisionsCalculated as jest.Mock).mock.calls[0][0] as L.LatLngBounds[];
 
-      // Should create download links for each subdivision
-      expect(mockCreateElement).toHaveBeenCalledWith('a');
+      // Should render all subdivisions
+      expect(calledSubdivisions.length).toBe(4);
+      expect(renderCanvasForBoundsMock).toHaveBeenCalledTimes(4);
 
-      // Link creation count should match subdivision count
+      // Should create only ONE download link (stitched image)
+      expect(mockCreateElement).toHaveBeenCalledWith('a');
       const linkCreations = (mockCreateElement as jest.Mock).mock.calls.filter(
         (call: any) => call[0] === 'a'
       );
-      expect(linkCreations.length).toBe(calledSubdivisions.length);
+      expect(linkCreations.length).toBe(1);
+
+      // Should complete successfully
+      expect(mockCallbacks.onComplete).toHaveBeenCalled();
     });
 
     it('should handle single subdivision (no split needed)', async () => {
@@ -393,7 +427,7 @@ describe('Export Service Integration Tests', () => {
       expect(linkElement.download).toContain('.png');
     });
 
-    it('should include part numbers in filename for subdivisions', async () => {
+    it('should NOT include part numbers in filename when subdivisions are stitched', async () => {
       const configWithSubdivisions = {
         ...mockConfig,
         maxDimension: 100,
@@ -416,9 +450,10 @@ describe('Export Service Integration Tests', () => {
         .filter((result: any) => result.value.download !== undefined)
         .map((result: any) => result.value);
 
-      // Should have multiple files with part numbers
-      expect(linkElements.length).toBe(4);
-      expect((linkElements[0] as any).download).toMatch(/_part1of4/);
+      // Should have only ONE stitched file without part numbers
+      expect(linkElements.length).toBe(1);
+      expect((linkElements[0] as any).download).not.toMatch(/_part/);
+      expect((linkElements[0] as any).download).toContain('base');
     });
   });
 

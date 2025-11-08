@@ -158,6 +158,72 @@ export const calculateSubdivisions = (
   return [...subdivisions1, ...subdivisions2];
 };
 
+/**
+ * Calculates the grid layout (rows, columns) for subdivisions
+ * and returns them in the correct order for stitching
+ *
+ * This function analyzes the geographical bounds of subdivisions to determine
+ * their relative positions and arranges them in a 2D grid suitable for image stitching.
+ */
+export const calculateGridLayout = (
+  subdivisions: L.LatLngBounds[]
+): { rows: number; columns: number; orderedSubdivisions: L.LatLngBounds[] } => {
+  if (subdivisions.length === 1) {
+    return { rows: 1, columns: 1, orderedSubdivisions: subdivisions };
+  }
+
+  // Extract unique latitude and longitude boundaries
+  const lats = new Set<number>();
+  const lngs = new Set<number>();
+
+  subdivisions.forEach((bounds) => {
+    lats.add(bounds.getNorth());
+    lats.add(bounds.getSouth());
+    lngs.add(bounds.getWest());
+    lngs.add(bounds.getEast());
+  });
+
+  // Sort boundaries to create grid lines
+  const sortedLats = Array.from(lats).sort((a, b) => b - a); // North to South (descending)
+  const sortedLngs = Array.from(lngs).sort((a, b) => a - b); // West to East (ascending)
+
+  const rows = sortedLats.length - 1;
+  const columns = sortedLngs.length - 1;
+
+  // Create a 2D grid to store subdivisions in their correct positions
+  const grid: (L.LatLngBounds | null)[][] = Array(rows)
+    .fill(null)
+    .map(() => Array(columns).fill(null));
+
+  // Place each subdivision in the grid based on its bounds
+  subdivisions.forEach((bounds) => {
+    const north = bounds.getNorth();
+    const south = bounds.getSouth();
+    const west = bounds.getWest();
+    const east = bounds.getEast();
+
+    // Find the row and column for this subdivision
+    const rowIndex = sortedLats.findIndex((lat) => lat === north);
+    const colIndex = sortedLngs.findIndex((lng) => lng === west);
+
+    if (rowIndex !== -1 && colIndex !== -1 && rowIndex < rows && colIndex < columns) {
+      grid[rowIndex][colIndex] = bounds;
+    }
+  });
+
+  // Flatten the grid to create ordered subdivisions (row-major order: left-to-right, top-to-bottom)
+  const orderedSubdivisions: L.LatLngBounds[] = [];
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < columns; col++) {
+      if (grid[row][col]) {
+        orderedSubdivisions.push(grid[row][col]!);
+      }
+    }
+  }
+
+  return { rows, columns, orderedSubdivisions };
+};
+
 export interface RenderOptions {
   bounds: L.LatLngBounds;
   layerType: 'base' | 'lines' | 'labels-only';
