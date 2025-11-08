@@ -9,6 +9,7 @@ import {
 } from '../utils/exportHelpers';
 import { calculatePixelDimensions } from '../utils/mapCalculations';
 import { createCanvas } from '@napi-rs/canvas';
+import L from 'leaflet';
 
 describe('Export Helpers', () => {
   describe('calculateSubdivisions', () => {

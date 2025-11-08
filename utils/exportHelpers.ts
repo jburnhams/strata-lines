@@ -54,11 +54,20 @@ export const waitForTiles = (tileLayer: L.TileLayer): Promise<void> => {
 };
 
 /**
+ * Canvas-like interface that works in both browser and Node.js environments
+ */
+interface CanvasLike {
+  width: number;
+  height: number;
+  getContext(contextId: '2d'): any;
+}
+
+/**
  * Resizes a canvas to exact target dimensions
  * Used when labels are rendered at a different zoom level than the base map
  */
 export const resizeCanvas = (
-  sourceCanvas: HTMLCanvasElement,
+  sourceCanvas: CanvasLike,
   targetWidth: number,
   targetHeight: number
 ): HTMLCanvasElement => {
@@ -81,8 +90,9 @@ export const resizeCanvas = (
   ctx.imageSmoothingQuality = 'high';
 
   // Draw source canvas scaled to target dimensions
+  // Type assertion needed as both HTMLCanvasElement and Node.js Canvas work with drawImage
   ctx.drawImage(
-    sourceCanvas,
+    sourceCanvas as any,
     0,
     0,
     sourceCanvas.width,
