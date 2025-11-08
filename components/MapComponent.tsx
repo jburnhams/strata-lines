@@ -1,6 +1,6 @@
 
 import React, { useEffect, useCallback, useMemo } from 'react';
-import { MapContainer, TileLayer, Polyline, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, Rectangle, useMap, useMapEvents } from 'react-leaflet';
 import L, { type LatLngExpression, type LatLng, type LatLngBounds, type Point as LeafletPoint } from 'leaflet';
 import type { Track, TileLayerDefinition } from '../types';
 import { LABEL_TILE_URL_RETINA } from '../labelTiles';
@@ -19,6 +19,8 @@ interface MapComponentProps {
   tileLayer: TileLayerDefinition;
   labelDensity: number;
   highlightedTrackId: string | null;
+  exportSubdivisions: LatLngBounds[];
+  currentExportSubdivisionIndex: number;
 }
 
 const FitBoundsManager: React.FC<{ bounds: LatLngBounds | null; onFitted: () => void }> = ({ bounds, onFitted }) => {
@@ -114,7 +116,7 @@ const MapSizeManager: React.FC = () => {
   return null;
 };
 
-export const MapComponent: React.FC<MapComponentProps> = ({ tracks, onUserMove, center, zoom, lineThickness, exportBounds, onExportBoundsChange, boundsToFit, onBoundsFitted, tileLayer, labelDensity, highlightedTrackId }) => {
+export const MapComponent: React.FC<MapComponentProps> = ({ tracks, onUserMove, center, zoom, lineThickness, exportBounds, onExportBoundsChange, boundsToFit, onBoundsFitted, tileLayer, labelDensity, highlightedTrackId, exportSubdivisions, currentExportSubdivisionIndex }) => {
   
   const highlightedTrack = useMemo(() => 
     highlightedTrackId ? tracks.find(t => t.id === highlightedTrackId) : null,
@@ -168,6 +170,24 @@ export const MapComponent: React.FC<MapComponentProps> = ({ tracks, onUserMove, 
       )}
 
       <DraggableBoundsBox bounds={exportBounds} onChange={onExportBoundsChange} />
+
+      {/* Render subdivision rectangles during export */}
+      {exportSubdivisions.length > 0 && exportSubdivisions.map((subdivisionBounds, index) => {
+        const isCurrentlyExporting = index === currentExportSubdivisionIndex;
+        return (
+          <Rectangle
+            key={`subdivision-${index}`}
+            bounds={subdivisionBounds}
+            pathOptions={{
+              color: isCurrentlyExporting ? '#00ff00' : '#ff9800',
+              weight: isCurrentlyExporting ? 3 : 2,
+              fillOpacity: isCurrentlyExporting ? 0.3 : 0.1,
+              dashArray: isCurrentlyExporting ? undefined : '5, 5'
+            }}
+          />
+        );
+      })}
+
       <MapUpdater onUserMove={onUserMove} />
       <MapViewManager center={center} zoom={zoom} tileLayerKey={tileLayer.key} />
       <MapSizeManager />
