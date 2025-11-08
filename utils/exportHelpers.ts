@@ -54,6 +54,164 @@ export const waitForTiles = (tileLayer: L.TileLayer): Promise<void> => {
 };
 
 /**
+ * Waits for canvas renderer to finish drawing all vector layers (polylines, polygons, etc.)
+ */
+export const waitForCanvasRenderer = (map: L.Map): Promise<void> => {
+  return new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(
+      () => reject(new Error('Map export timed out waiting for canvas renderer.')),
+      60000
+    );
+
+    // Get the canvas renderer from the map
+    // @ts-ignore - Accessing internal Leaflet renderer
+    const renderer = map.getRenderer(L.polyline([]));
+
+    if (!renderer || !(renderer instanceof L.Canvas)) {
+      // No canvas renderer, resolve immediately
+      clearTimeout(timeout);
+      resolve();
+      return;
+    }
+
+    let isRendered = false;
+    let checkCount = 0;
+    const maxChecks = 50; // Maximum number of checks before assuming render is complete
+
+    const checkRenderComplete = () => {
+      if (isRendered) return;
+      checkCount++;
+
+      // @ts-ignore - Accessing internal canvas element
+      const canvas = renderer._container as HTMLCanvasElement;
+
+      if (!canvas) {
+        isRendered = true;
+        clearTimeout(timeout);
+        resolve();
+        return;
+      }
+
+      // Check if canvas has been drawn to (not blank)
+      // For a blank canvas, all pixels would be transparent/white
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        try {
+          // Only check a sample of pixels for performance
+          const sampleSize = Math.min(canvas.width * canvas.height, 10000);
+          const imageData = ctx.getImageData(0, 0, canvas.width, Math.min(canvas.height, Math.ceil(sampleSize / canvas.width)));
+          const hasContent = imageData.data.some((value, index) => {
+            // Check alpha channel (every 4th value starting at index 3)
+            return index % 4 === 3 && value > 0;
+          });
+
+          // Resolve if content found OR if we've checked many times (assume empty or problematic render)
+          if (hasContent || checkCount >= maxChecks) {
+            isRendered = true;
+            clearTimeout(timeout);
+            // Add a small delay to ensure rendering is fully complete
+            setTimeout(resolve, 200);
+          }
+        } catch (e) {
+          // In case getImageData fails (e.g., in some test environments)
+          console.warn('Could not check canvas content:', e);
+          isRendered = true;
+          clearTimeout(timeout);
+          setTimeout(resolve, 300);
+        }
+      } else {
+        // No context available, just wait a bit
+        isRendered = true;
+        clearTimeout(timeout);
+        setTimeout(resolve, 300);
+      }
+    };
+
+    // Listen for render updates
+    // @ts-ignore - Accessing internal renderer events
+    if (renderer.on) {
+      renderer.on('update', checkRenderComplete);
+    }
+
+    // Initial check after a short delay to allow rendering to start
+    setTimeout(checkRenderComplete, 100);
+
+    // Also check periodically in case events are missed
+    const checkInterval = setInterval(() => {
+      if (isRendered) {
+        clearInterval(checkInterval);
+        return;
+      }
+      checkRenderComplete();
+    }, 200);
+
+    // Clear interval when done
+    const originalResolve = resolve;
+    resolve = () => {
+      clearInterval(checkInterval);
+      originalResolve();
+    };
+  });
+};
+
+/**
+ * Waits for all rendering to complete on a Leaflet map
+ * Handles both tile layers and vector layers (polylines, etc.)
+ */
+export interface WaitForRenderOptions {
+  map: L.Map;
+  tileLayer?: L.TileLayer;
+  hasVectorLayers?: boolean;
+  timeoutMs?: number;
+}
+
+export const waitForRender = async (options: WaitForRenderOptions): Promise<void> => {
+  const { map, tileLayer, hasVectorLayers = false, timeoutMs = 60000 } = options;
+
+  console.log('🕐 Waiting for render to complete...', {
+    hasTiles: !!tileLayer,
+    hasVectorLayers,
+    timeout: `${timeoutMs}ms`,
+  });
+
+  const startTime = Date.now();
+
+  try {
+    // Create a timeout promise
+    const timeoutPromise = new Promise<void>((_, reject) => {
+      setTimeout(
+        () => reject(new Error(`Render timeout after ${timeoutMs}ms`)),
+        timeoutMs
+      );
+    });
+
+    // Wait for tiles if present
+    if (tileLayer) {
+      console.log('⏳ Waiting for tiles...');
+      await Promise.race([waitForTiles(tileLayer), timeoutPromise]);
+      console.log(`✅ Tiles loaded (${Date.now() - startTime}ms)`);
+    }
+
+    // Wait for canvas renderer if vector layers are present
+    if (hasVectorLayers) {
+      console.log('⏳ Waiting for vector layers to render...');
+      await Promise.race([waitForCanvasRenderer(map), timeoutPromise]);
+      console.log(`✅ Vector layers rendered (${Date.now() - startTime}ms)`);
+    }
+
+    // Add a final small delay to ensure everything is settled
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const totalTime = Date.now() - startTime;
+    console.log(`✅ Render complete (total: ${totalTime}ms)`);
+  } catch (error) {
+    const totalTime = Date.now() - startTime;
+    console.error(`❌ Render failed after ${totalTime}ms:`, error);
+    throw error;
+  }
+};
+
+/**
  * Canvas-like interface that works in both browser and Node.js environments
  */
 interface CanvasLike {
@@ -298,17 +456,18 @@ export const renderCanvasForBounds = async (
     printMap.setView(bounds.getCenter(), zoomForRender, { animate: false });
     printMap.invalidateSize({ pan: false });
 
-    // Add layers
+    // Add layers and wait for rendering to complete
+    let tileLayer: L.TileLayer | undefined;
+    let hasVectorLayers = false;
+
     if (layerType === 'base') {
       const selectedTileLayer =
         TILE_LAYERS.find((l) => l.key === tileLayerKey) || TILE_LAYERS[0];
-      const tileLayer = L.tileLayer(selectedTileLayer.layers[0].url, { attribution: '' });
+      tileLayer = L.tileLayer(selectedTileLayer.layers[0].url, { attribution: '' });
       tileLayer.addTo(printMap);
-      await waitForTiles(tileLayer);
     } else if (layerType === 'labels-only') {
-      const labelLayer = L.tileLayer(LABEL_TILE_URL_RETINA, { attribution: '' });
-      labelLayer.addTo(printMap);
-      await waitForTiles(labelLayer);
+      tileLayer = L.tileLayer(LABEL_TILE_URL_RETINA, { attribution: '' });
+      tileLayer.addTo(printMap);
     } else if (layerType === 'lines') {
       const exportLineThickness = lineThickness * (1 + exportQuality / 2);
       visibleTracks.forEach((track) => {
@@ -318,8 +477,15 @@ export const renderCanvasForBounds = async (
           opacity: 0.8,
         }).addTo(printMap!);
       });
-      await new Promise((res) => setTimeout(res, 500));
+      hasVectorLayers = visibleTracks.length > 0;
     }
+
+    // Wait for all rendering to complete before capturing
+    await waitForRender({
+      map: printMap,
+      tileLayer,
+      hasVectorLayers,
+    });
 
     // After rendering, check what bounds we actually got
     const actualBounds = printMap.getBounds();
