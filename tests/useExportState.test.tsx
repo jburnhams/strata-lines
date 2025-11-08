@@ -128,8 +128,8 @@ describe('useExportState', () => {
   describe('Derived Export Zoom', () => {
     it('should calculate derived export zoom from preview zoom and quality', () => {
       const { result, rerender } = renderHook(
-        ({ previewZoom, zoom }) => useExportState(previewZoom, zoom),
-        { initialProps: { previewZoom: null, zoom: 6 } }
+        ({ previewZoom, zoom }: { previewZoom: number | null; zoom: number }) => useExportState(previewZoom, zoom),
+        { initialProps: { previewZoom: null as number | null, zoom: 6 } }
       );
 
       // Set export quality
@@ -154,8 +154,8 @@ describe('useExportState', () => {
 
     it('should recalculate when export quality changes', () => {
       const { result, rerender } = renderHook(
-        ({ previewZoom, zoom }) => useExportState(previewZoom, zoom),
-        { initialProps: { previewZoom: 10, zoom: 6 } }
+        ({ previewZoom, zoom }: { previewZoom: number | null; zoom: number }) => useExportState(previewZoom, zoom),
+        { initialProps: { previewZoom: 10 as number | null, zoom: 6 } }
       );
 
       const bounds = L.latLngBounds(
@@ -179,8 +179,8 @@ describe('useExportState', () => {
   describe('Export Dimensions', () => {
     it('should calculate export dimensions when bounds and zoom are set', () => {
       const { result, rerender } = renderHook(
-        ({ previewZoom, zoom }) => useExportState(previewZoom, zoom),
-        { initialProps: { previewZoom: 10, zoom: 6 } }
+        ({ previewZoom, zoom }: { previewZoom: number | null; zoom: number }) => useExportState(previewZoom, zoom),
+        { initialProps: { previewZoom: 10 as number | null, zoom: 6 } }
       );
 
       const bounds = L.latLngBounds(
@@ -197,8 +197,8 @@ describe('useExportState', () => {
 
     it('should calculate aspect ratio from dimensions', () => {
       const { result, rerender } = renderHook(
-        ({ previewZoom, zoom }) => useExportState(previewZoom, zoom),
-        { initialProps: { previewZoom: 10, zoom: 6 } }
+        ({ previewZoom, zoom }: { previewZoom: number | null; zoom: number }) => useExportState(previewZoom, zoom),
+        { initialProps: { previewZoom: 10 as number | null, zoom: 6 } }
       );
 
       const bounds = L.latLngBounds(

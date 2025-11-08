@@ -4,33 +4,7 @@ import type { Track } from '../types';
 import type { ExportConfig, ExportCallbacks } from '../services/exportService';
 
 // Mock the export helpers module
-jest.mock('../utils/exportHelpers', () => ({
-  calculateSubdivisions: jest.fn((bounds, zoom, maxDim) => {
-    // Simple mock: return single subdivision if small, two if large
-    const mockWidth = 1000;
-    const mockHeight = 800;
-    if (mockWidth <= maxDim && mockHeight <= maxDim) {
-      return [bounds];
-    }
-    const center = bounds.getCenter();
-    return [
-      (globalThis as any).L.latLngBounds(bounds.getSouthWest(), (globalThis as any).L.latLng(bounds.getNorth(), center.lng)),
-      (globalThis as any).L.latLngBounds((globalThis as any).L.latLng(bounds.getSouth(), center.lng), bounds.getNorthEast()),
-    ];
-  }),
-  renderCanvasForBounds: jest.fn(async () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 800;
-    canvas.height = 600;
-    return canvas;
-  }),
-  resizeCanvas: jest.fn((source, width, height) => {
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    return canvas;
-  }),
-}));
+jest.mock('../utils/exportHelpers');
 
 describe('Export Service', () => {
   let mockTrack: Track;
@@ -45,8 +19,8 @@ describe('Export Service', () => {
       id: 'test-1',
       name: 'Test Track',
       points: [
-        { lat: 51.5, lng: -0.1 },
-        { lat: 51.6, lng: -0.05 },
+        [51.5, -0.1],
+        [51.6, -0.05],
       ],
       length: 10.5,
       isVisible: true,
