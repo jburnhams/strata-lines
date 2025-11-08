@@ -176,27 +176,43 @@ export const waitForRender = async (options: WaitForRenderOptions): Promise<void
 
   const startTime = Date.now();
 
+  // Create timeout handle that we can clear
+  let timeoutHandle: NodeJS.Timeout | null = null;
+  let timeoutReject: ((error: Error) => void) | null = null;
+
   try {
-    // Create a timeout promise
-    const timeoutPromise = new Promise<void>((_, reject) => {
-      setTimeout(
-        () => reject(new Error(`Render timeout after ${timeoutMs}ms`)),
-        timeoutMs
-      );
-    });
+    // Only create timeout promise if we actually need to wait for something
+    const needsWait = !!tileLayer || hasVectorLayers;
+
+    let timeoutPromise: Promise<void> | null = null;
+    if (needsWait) {
+      timeoutPromise = new Promise<void>((_, reject) => {
+        timeoutReject = reject;
+        timeoutHandle = setTimeout(
+          () => reject(new Error(`Render timeout after ${timeoutMs}ms`)),
+          timeoutMs
+        );
+      });
+    }
 
     // Wait for tiles if present
     if (tileLayer) {
       console.log('⏳ Waiting for tiles...');
-      await Promise.race([waitForTiles(tileLayer), timeoutPromise]);
+      await Promise.race([waitForTiles(tileLayer), timeoutPromise!]);
       console.log(`✅ Tiles loaded (${Date.now() - startTime}ms)`);
     }
 
     // Wait for canvas renderer if vector layers are present
     if (hasVectorLayers) {
       console.log('⏳ Waiting for vector layers to render...');
-      await Promise.race([waitForCanvasRenderer(map), timeoutPromise]);
+      await Promise.race([waitForCanvasRenderer(map), timeoutPromise!]);
       console.log(`✅ Vector layers rendered (${Date.now() - startTime}ms)`);
+    }
+
+    // Clear timeout since we completed successfully
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+      timeoutHandle = null;
     }
 
     // Add a final small delay to ensure everything is settled
@@ -205,6 +221,12 @@ export const waitForRender = async (options: WaitForRenderOptions): Promise<void
     const totalTime = Date.now() - startTime;
     console.log(`✅ Render complete (total: ${totalTime}ms)`);
   } catch (error) {
+    // Clear timeout on error
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+      timeoutHandle = null;
+    }
+
     const totalTime = Date.now() - startTime;
     console.error(`❌ Render failed after ${totalTime}ms:`, error);
     throw error;
