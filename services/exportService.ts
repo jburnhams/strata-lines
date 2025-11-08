@@ -4,8 +4,10 @@ import {
   renderCanvasForBounds,
   resizeCanvas,
   calculateSubdivisions,
+  calculateGridLayout,
   type RenderOptions,
 } from '../utils/exportHelpers';
+import { concat } from 'image-stitch/bundle';
 
 export interface ExportConfig {
   exportBounds: LatLngBounds;
@@ -63,6 +65,9 @@ export const performPngExport = async (
 
     // Show subdivisions on the map
     onSubdivisionsCalculated(subdivisions);
+
+    // Collect all subdivision canvases for stitching
+    const subdivisionCanvases: HTMLCanvasElement[] = [];
 
     // Export each subdivision
     for (let i = 0; i < subdivisions.length; i++) {
@@ -197,28 +202,83 @@ export const performPngExport = async (
         height: finalCanvas.height,
       });
 
-      // Download the subdivision
-      const blob = await new Promise<Blob | null>((resolve) =>
-        finalCanvas.toBlob(resolve, 'image/png')
-      );
-      if (blob) {
-        const link = document.createElement('a');
-        const suffix = subdivisions.length > 1 ? `_part${i + 1}of${subdivisions.length}` : '';
-        link.download = `gpx-map-${type}${suffix}-${Date.now()}.png`;
-        link.href = URL.createObjectURL(blob);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(link.href);
-
-        // Small delay between downloads to ensure browser handles them properly
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
-      finalCanvas.width = 0;
-      finalCanvas.height = 0;
+      // Store the canvas for stitching (don't clean up yet if we have multiple subdivisions)
+      subdivisionCanvases.push(finalCanvas);
     }
 
-    console.log('✅ All subdivisions exported successfully');
+    console.log('✅ All subdivisions rendered');
+
+    // Stitch subdivisions together if there are multiple
+    let finalBlob: Blob;
+
+    if (subdivisions.length > 1) {
+      console.log('🧵 Stitching subdivisions together...');
+
+      // Calculate grid layout for stitching
+      const gridLayout = calculateGridLayout(subdivisions);
+      console.log(
+        `📐 Grid layout: ${gridLayout.rows} rows × ${gridLayout.columns} columns`
+      );
+
+      // Convert canvases to Uint8Array for image-stitch
+      const canvasBlobs = await Promise.all(
+        subdivisionCanvases.map(
+          (canvas) =>
+            new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
+        )
+      );
+
+      const canvasArrayBuffers = await Promise.all(
+        canvasBlobs.map(async (blob) => {
+          if (!blob) throw new Error('Failed to convert canvas to blob');
+          return await blob.arrayBuffer();
+        })
+      );
+
+      // Stitch images together
+      const stitchedImage = await concat({
+        inputs: canvasArrayBuffers,
+        layout: {
+          rows: gridLayout.rows,
+          columns: gridLayout.columns,
+        },
+      });
+
+      console.log('✅ Stitching complete, size:', stitchedImage.byteLength, 'bytes');
+
+      // Convert Uint8Array to Blob
+      // Create a new Uint8Array to ensure compatibility with Blob constructor
+      const imageData = new Uint8Array(stitchedImage);
+      finalBlob = new Blob([imageData], { type: 'image/png' });
+
+      // Clean up subdivision canvases
+      subdivisionCanvases.forEach((canvas) => {
+        canvas.width = 0;
+        canvas.height = 0;
+      });
+    } else {
+      // Single subdivision - just convert to blob
+      const blob = await new Promise<Blob | null>((resolve) =>
+        subdivisionCanvases[0].toBlob(resolve, 'image/png')
+      );
+      if (!blob) throw new Error('Failed to convert canvas to blob');
+      finalBlob = blob;
+
+      // Clean up canvas
+      subdivisionCanvases[0].width = 0;
+      subdivisionCanvases[0].height = 0;
+    }
+
+    // Download the final image
+    const link = document.createElement('a');
+    link.download = `gpx-map-${type}-${Date.now()}.png`;
+    link.href = URL.createObjectURL(finalBlob);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+
+    console.log('✅ Export complete');
     onComplete();
   } catch (err) {
     onError(err instanceof Error ? err : new Error(String(err)));
