@@ -62,7 +62,7 @@ jest.mock('../utils/exportHelpers', () => ({
 
 // Mock image-stitch library
 jest.mock('image-stitch/bundle', () => ({
-  concat: jest.fn(),
+  concatToBuffer: jest.fn(),
 }));
 
 // Now import after mocks are set up
@@ -78,7 +78,7 @@ describe('Export Service Integration Tests', () => {
   let calculateSubdivisionsMock: jest.MockedFunction<typeof exportHelpers.calculateSubdivisions>;
   let calculateGridLayoutMock: jest.MockedFunction<typeof exportHelpers.calculateGridLayout>;
   let resizeCanvasMock: jest.MockedFunction<typeof exportHelpers.resizeCanvas>;
-  let concatMock: jest.MockedFunction<typeof imageStitch.concat>;
+  let concatToBufferMock: jest.MockedFunction<typeof imageStitch.concatToBuffer>;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -154,9 +154,9 @@ describe('Export Service Integration Tests', () => {
       };
     });
 
-    // Mock image-stitch concat function
-    concatMock = imageStitch.concat as jest.MockedFunction<typeof imageStitch.concat>;
-    concatMock.mockImplementation(async (options: any) => {
+    // Mock image-stitch concatToBuffer function
+    concatToBufferMock = imageStitch.concatToBuffer as jest.MockedFunction<typeof imageStitch.concatToBuffer>;
+    concatToBufferMock.mockImplementation(async (options: any) => {
       // Return a mock Uint8Array representing a stitched PNG
       return new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]) as any; // PNG header
     });

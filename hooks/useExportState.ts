@@ -51,6 +51,7 @@ export const useExportState = (
   // Subdivisions for visualizing export progress
   const [exportSubdivisions, setExportSubdivisions] = useState<L.LatLngBounds[]>([]);
   const [currentExportSubdivisionIndex, setCurrentExportSubdivisionIndex] = useState<number>(-1);
+  const [completedStitchedCount, setCompletedStitchedCount] = useState<number>(0);
 
   // Save export bounds to localStorage
   useEffect(() => {
@@ -175,5 +176,7 @@ export const useExportState = (
     setExportSubdivisions,
     currentExportSubdivisionIndex,
     setCurrentExportSubdivisionIndex,
+    completedStitchedCount,
+    setCompletedStitchedCount,
   };
 };

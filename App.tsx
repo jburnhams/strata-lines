@@ -189,9 +189,13 @@ const App: React.FC = () => {
         {
           onSubdivisionsCalculated: exportState.setExportSubdivisions,
           onSubdivisionProgress: exportState.setCurrentExportSubdivisionIndex,
+          onSubdivisionStitched: (completed) => {
+            exportState.setCompletedStitchedCount(completed);
+          },
           onComplete: () => {
             exportState.setExportSubdivisions([]);
             exportState.setCurrentExportSubdivisionIndex(-1);
+            exportState.setCompletedStitchedCount(0);
           },
           onError: (error) => {
             trackManagement.setNotification({
@@ -240,6 +244,7 @@ const App: React.FC = () => {
             highlightedTrackId={highlightedTrackId}
             exportSubdivisions={exportState.exportSubdivisions}
             currentExportSubdivisionIndex={exportState.currentExportSubdivisionIndex}
+            completedStitchedCount={exportState.completedStitchedCount}
           />
         </div>
       </div>

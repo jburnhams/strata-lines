@@ -7,7 +7,7 @@ import {
   calculateGridLayout,
   type RenderOptions,
 } from '../utils/exportHelpers';
-import { concat } from 'image-stitch/bundle';
+import { concatToBuffer } from 'image-stitch/bundle';
 
 export interface ExportConfig {
   exportBounds: LatLngBounds;
@@ -24,6 +24,7 @@ export interface ExportConfig {
 export interface ExportCallbacks {
   onSubdivisionsCalculated: (subdivisions: LatLngBounds[]) => void;
   onSubdivisionProgress: (index: number) => void;
+  onSubdivisionStitched?: (completed: number, total: number) => void;
   onComplete: () => void;
   onError: (error: Error) => void;
 }
@@ -52,6 +53,7 @@ export const performPngExport = async (
   const {
     onSubdivisionsCalculated,
     onSubdivisionProgress,
+    onSubdivisionStitched,
     onComplete,
     onError,
   } = callbacks;
@@ -248,13 +250,19 @@ export const performPngExport = async (
         })
       );
 
-      // Stitch images together
-      const stitchedImage = await concat({
+      // Stitch images together with progress tracking
+      const stitchedImage = await concatToBuffer({
         inputs: canvasArrayBuffers,
         layout: {
           rows: gridLayout.rows,
           columns: gridLayout.columns,
         },
+        onProgress: onSubdivisionStitched
+          ? (completed, total) => {
+              console.log(`🧵 Stitching progress: ${completed}/${total}`);
+              onSubdivisionStitched(completed, total);
+            }
+          : undefined,
       });
 
       console.log('✅ Stitching complete, size:', stitchedImage.byteLength, 'bytes');

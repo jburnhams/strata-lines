@@ -21,6 +21,7 @@ interface MapComponentProps {
   highlightedTrackId: string | null;
   exportSubdivisions: LatLngBounds[];
   currentExportSubdivisionIndex: number;
+  completedStitchedCount: number;
 }
 
 const FitBoundsManager: React.FC<{ bounds: LatLngBounds | null; onFitted: () => void }> = ({ bounds, onFitted }) => {
@@ -116,7 +117,7 @@ const MapSizeManager: React.FC = () => {
   return null;
 };
 
-export const MapComponent: React.FC<MapComponentProps> = ({ tracks, onUserMove, center, zoom, lineThickness, exportBounds, onExportBoundsChange, boundsToFit, onBoundsFitted, tileLayer, labelDensity, highlightedTrackId, exportSubdivisions, currentExportSubdivisionIndex }) => {
+export const MapComponent: React.FC<MapComponentProps> = ({ tracks, onUserMove, center, zoom, lineThickness, exportBounds, onExportBoundsChange, boundsToFit, onBoundsFitted, tileLayer, labelDensity, highlightedTrackId, exportSubdivisions, currentExportSubdivisionIndex, completedStitchedCount }) => {
   
   const highlightedTrack = useMemo(() => 
     highlightedTrackId ? tracks.find(t => t.id === highlightedTrackId) : null,
@@ -173,16 +174,19 @@ export const MapComponent: React.FC<MapComponentProps> = ({ tracks, onUserMove, 
 
       {/* Render subdivision rectangles during export */}
       {exportSubdivisions.length > 0 && exportSubdivisions.map((subdivisionBounds, index) => {
-        const isCurrentlyExporting = index === currentExportSubdivisionIndex;
+        const isCurrentlyRendering = index === currentExportSubdivisionIndex;
+        const isStitched = index < completedStitchedCount;
+        const isComplete = isStitched;
+
         return (
           <Rectangle
             key={`subdivision-${index}`}
             bounds={subdivisionBounds}
             pathOptions={{
-              color: isCurrentlyExporting ? '#00ff00' : '#ff9800',
-              weight: isCurrentlyExporting ? 3 : 2,
-              fillOpacity: isCurrentlyExporting ? 0.3 : 0.1,
-              dashArray: isCurrentlyExporting ? undefined : '5, 5'
+              color: isComplete ? '#00ff00' : (isCurrentlyRendering ? '#ffeb3b' : '#ff9800'),
+              weight: isComplete || isCurrentlyRendering ? 3 : 2,
+              fillOpacity: isComplete ? 0.2 : (isCurrentlyRendering ? 0.3 : 0.1),
+              dashArray: isComplete || isCurrentlyRendering ? undefined : '5, 5'
             }}
           />
         );
