@@ -1,10 +1,14 @@
+/**
+ * @jest-environment node
+ */
+
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import L from 'leaflet';
 import {
   calculateSubdivisions,
   resizeCanvas,
 } from '../utils/exportHelpers';
 import { calculatePixelDimensions } from '../utils/mapCalculations';
+import { createCanvas } from '@napi-rs/canvas';
 
 describe('Export Helpers', () => {
   describe('calculateSubdivisions', () => {
@@ -119,12 +123,9 @@ describe('Export Helpers', () => {
   });
 
   describe('resizeCanvas', () => {
-    // Note: These tests are skipped in JSDOM environment as it doesn't support canvas 2D context
-    // They should pass in a real browser environment or with a canvas mock library
-    it.skip('should resize canvas to target dimensions', () => {
-      const sourceCanvas = document.createElement('canvas');
-      sourceCanvas.width = 800;
-      sourceCanvas.height = 600;
+    // Note: These tests run in Node.js environment with leaflet-node's @napi-rs/canvas support
+    it('should resize canvas to target dimensions', () => {
+      const sourceCanvas = createCanvas(800, 600);
 
       const targetWidth = 400;
       const targetHeight = 300;
@@ -135,20 +136,16 @@ describe('Export Helpers', () => {
       expect(resized.height).toBe(targetHeight);
     });
 
-    it.skip('should create a new canvas instance', () => {
-      const sourceCanvas = document.createElement('canvas');
-      sourceCanvas.width = 800;
-      sourceCanvas.height = 600;
+    it('should create a new canvas instance', () => {
+      const sourceCanvas = createCanvas(800, 600);
 
       const resized = resizeCanvas(sourceCanvas, 400, 300);
 
       expect(resized).not.toBe(sourceCanvas);
     });
 
-    it.skip('should preserve aspect ratio when scaling proportionally', () => {
-      const sourceCanvas = document.createElement('canvas');
-      sourceCanvas.width = 800;
-      sourceCanvas.height = 600;
+    it('should preserve aspect ratio when scaling proportionally', () => {
+      const sourceCanvas = createCanvas(800, 600);
 
       const targetWidth = 400;
       const targetHeight = 300;
@@ -161,10 +158,8 @@ describe('Export Helpers', () => {
       expect(targetRatio).toBeCloseTo(sourceRatio, 2);
     });
 
-    it.skip('should handle upscaling', () => {
-      const sourceCanvas = document.createElement('canvas');
-      sourceCanvas.width = 800;
-      sourceCanvas.height = 600;
+    it('should handle upscaling', () => {
+      const sourceCanvas = createCanvas(800, 600);
 
       const targetWidth = 1600;
       const targetHeight = 1200;
@@ -175,10 +170,8 @@ describe('Export Helpers', () => {
       expect(resized.height).toBe(targetHeight);
     });
 
-    it.skip('should handle non-proportional resize', () => {
-      const sourceCanvas = document.createElement('canvas');
-      sourceCanvas.width = 800;
-      sourceCanvas.height = 600;
+    it('should handle non-proportional resize', () => {
+      const sourceCanvas = createCanvas(800, 600);
 
       const targetWidth = 100;
       const targetHeight = 500;
@@ -189,10 +182,8 @@ describe('Export Helpers', () => {
       expect(resized.height).toBe(targetHeight);
     });
 
-    it.skip('should have valid 2D context after resize', () => {
-      const sourceCanvas = document.createElement('canvas');
-      sourceCanvas.width = 800;
-      sourceCanvas.height = 600;
+    it('should have valid 2D context after resize', () => {
+      const sourceCanvas = createCanvas(800, 600);
 
       const resized = resizeCanvas(sourceCanvas, 400, 300);
       const ctx = resized.getContext('2d');
