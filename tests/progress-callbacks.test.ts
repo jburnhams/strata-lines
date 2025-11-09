@@ -1,4 +1,3 @@
-import { renderCanvasForBounds, waitForRender, type RenderOptions } from '../utils/exportHelpers';
 import type { Track } from '../types';
 
 // Mock track data for testing
@@ -16,14 +15,19 @@ const createMockTrack = (): Track => ({
 });
 
 let L: typeof import('leaflet');
+let waitForRender: any;
 let container: HTMLDivElement;
 
 describe('Progress Callbacks Integration Tests', () => {
   beforeEach(async () => {
-    // Import leaflet-node to set up the environment
+    // Import leaflet-node FIRST to set up the DOM environment
     const leafletNode = await import('leaflet-node');
     L = leafletNode.default;
     (global as any).L = L;
+
+    // Now we can safely import modules that depend on DOM/Leaflet
+    const exportHelpers = await import('../utils/exportHelpers');
+    waitForRender = exportHelpers.waitForRender;
 
     // Create a container for the map
     container = document.createElement('div');
@@ -59,29 +63,11 @@ describe('Progress Callbacks Integration Tests', () => {
       map.setView(bounds.getCenter(), 10, { animate: false });
       map.invalidateSize({ pan: false });
 
-      const tileLayer = L.tileLayer('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=={z}{y}{x}', {
+      // Use real tile server - will respect HTTP_PROXY/HTTPS_PROXY env vars
+      const tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         attribution: '',
       });
       tileLayer.addTo(map);
-
-      // Manually trigger tile events to simulate loading
-      setTimeout(() => {
-        // Fire tileloadstart events with slight delays
-        for (let i = 0; i < 4; i++) {
-          setTimeout(() => {
-            tileLayer.fire('tileloadstart');
-            if (onTileProgress) onTileProgress(i, 4);
-          }, i * 10);
-        }
-        // Fire tileload events with delays
-        for (let i = 1; i <= 4; i++) {
-          setTimeout(() => {
-            tileLayer.fire('tileload');
-            if (onTileProgress) onTileProgress(i, 4);
-            if (i === 4) tileLayer.fire('load');
-          }, 50 + i * 50);
-        }
-      }, 100);
 
       await waitForRender({
         map,
@@ -99,7 +85,7 @@ describe('Progress Callbacks Integration Tests', () => {
       expect(typeof total).toBe('number');
 
       map.remove();
-    }, 10000);
+    }, 30000);
 
     it('should track tile loading progress over time', async () => {
       const progressUpdates: Array<{ loaded: number; total: number }> = [];
@@ -121,25 +107,11 @@ describe('Progress Callbacks Integration Tests', () => {
       map.setView(bounds.getCenter(), 10, { animate: false });
       map.invalidateSize({ pan: false });
 
-      const tileLayer = L.tileLayer('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=={z}{y}{x}', {
+      // Use real tile server
+      const tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         attribution: '',
       });
       tileLayer.addTo(map);
-
-      // Manually trigger tile events to simulate progressive loading
-      setTimeout(() => {
-        for (let i = 0; i < 6; i++) {
-          tileLayer.fire('tileloadstart');
-          if (onTileProgress) onTileProgress(i, 6);
-        }
-        for (let i = 1; i <= 6; i++) {
-          setTimeout(() => {
-            tileLayer.fire('tileload');
-            if (onTileProgress) onTileProgress(i, 6);
-            if (i === 6) tileLayer.fire('load');
-          }, i * 50);
-        }
-      }, 100);
 
       await waitForRender({
         map,
@@ -157,7 +129,7 @@ describe('Progress Callbacks Integration Tests', () => {
       }
 
       map.remove();
-    }, 10000);
+    }, 30000);
 
     it('should handle onTileProgress being undefined gracefully', async () => {
       const map = L.map(container, {
@@ -174,17 +146,11 @@ describe('Progress Callbacks Integration Tests', () => {
       map.setView(bounds.getCenter(), 10, { animate: false });
       map.invalidateSize({ pan: false });
 
-      const tileLayer = L.tileLayer('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=={z}{y}{x}', {
+      // Use real tile server
+      const tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         attribution: '',
       });
       tileLayer.addTo(map);
-
-      // Manually trigger tile events
-      setTimeout(() => {
-        tileLayer.fire('tileloadstart');
-        tileLayer.fire('tileload');
-        tileLayer.fire('load');
-      }, 100);
 
       await expect(waitForRender({
         map,
@@ -194,7 +160,7 @@ describe('Progress Callbacks Integration Tests', () => {
       })).resolves.toBeUndefined();
 
       map.remove();
-    }, 10000);
+    }, 30000);
   });
 
   describe('Line Progress Tracking', () => {
@@ -408,23 +374,11 @@ describe('Progress Callbacks Integration Tests', () => {
       map1.setView(bounds.getCenter(), 10, { animate: false });
       map1.invalidateSize({ pan: false });
 
-      const tileLayer = L.tileLayer('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=={z}{y}{x}', {
+      // Use real tile server
+      const tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         attribution: '',
       });
       tileLayer.addTo(map1);
-
-      // Trigger tile events
-      setTimeout(() => {
-        for (let i = 0; i < 4; i++) {
-          tileLayer.fire('tileloadstart');
-          if (onTileProgress) onTileProgress(i, 4);
-        }
-        for (let i = 1; i <= 4; i++) {
-          tileLayer.fire('tileload');
-          if (onTileProgress) onTileProgress(i, 4);
-        }
-        tileLayer.fire('load');
-      }, 100);
 
       await waitForRender({
         map: map1,
@@ -486,7 +440,7 @@ describe('Progress Callbacks Integration Tests', () => {
 
       const lastLineUpdate = lineProgressUpdates[lineProgressUpdates.length - 1];
       expect(lastLineUpdate.checksCompleted).toBeGreaterThan(0);
-    }, 20000);
+    }, 40000);
   });
 
   describe('waitForRender Progress Integration', () => {
@@ -507,19 +461,11 @@ describe('Progress Callbacks Integration Tests', () => {
       map.setView(bounds.getCenter(), 10, { animate: false });
       map.invalidateSize({ pan: false });
 
-      const tileLayer = L.tileLayer('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=={z}{y}{x}', {
+      // Use real tile server
+      const tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         attribution: '',
       });
       tileLayer.addTo(map);
-
-      // Trigger tile events
-      setTimeout(() => {
-        tileLayer.fire('tileloadstart');
-        if (onTileProgress) onTileProgress(0, 1);
-        tileLayer.fire('tileload');
-        if (onTileProgress) onTileProgress(1, 1);
-        tileLayer.fire('load');
-      }, 100);
 
       await waitForRender({
         map,
@@ -531,7 +477,7 @@ describe('Progress Callbacks Integration Tests', () => {
       expect(onTileProgress).toHaveBeenCalled();
 
       map.remove();
-    }, 10000);
+    }, 30000);
 
     it('should propagate line progress through waitForRender', async () => {
       const onLineProgress = jest.fn();
@@ -608,19 +554,11 @@ describe('Progress Callbacks Integration Tests', () => {
       map.setView(bounds.getCenter(), 10, { animate: false });
       map.invalidateSize({ pan: false });
 
-      const tileLayer = L.tileLayer('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=={z}{y}{x}', {
+      // Use real tile server
+      const tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         attribution: '',
       });
       tileLayer.addTo(map);
-
-      // Trigger tile events
-      setTimeout(() => {
-        tileLayer.fire('tileloadstart');
-        try { onTileProgress(0, 1); } catch (e) { /* ignore */ }
-        tileLayer.fire('tileload');
-        try { onTileProgress(1, 1); } catch (e) { /* ignore */ }
-        tileLayer.fire('load');
-      }, 100);
 
       // Should still complete despite callback error
       await expect(waitForRender({
@@ -631,6 +569,6 @@ describe('Progress Callbacks Integration Tests', () => {
       })).resolves.toBeUndefined();
 
       map.remove();
-    }, 10000);
+    }, 30000);
   });
 });
