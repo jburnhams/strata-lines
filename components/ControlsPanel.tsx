@@ -18,8 +18,6 @@ interface ControlsPanelProps {
   handleExportBase: () => void;
   handleExportLines: () => void;
   handleExportLabels: () => void;
-  handleExportZip: () => void;
-  isExportingZip: boolean;
   aspectRatio: AspectRatio;
   setAspectRatio: (res: AspectRatio) => void;
   exportBoundsAspectRatio: number | null;
@@ -84,8 +82,6 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
   handleExportBase,
   handleExportLines,
   handleExportLabels,
-  handleExportZip,
-  isExportingZip,
   aspectRatio,
   setAspectRatio,
   exportBoundsAspectRatio,
@@ -192,7 +188,7 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
     info: "bg-blue-900/50 border-blue-700 text-blue-300",
   };
 
-  const anyExporting = isExporting || isExportingBase || isExportingLines || isExportingLabels || isDownloading || isExportingZip;
+  const anyExporting = isExporting || isExportingBase || isExportingLines || isExportingLabels || isDownloading;
 
   return (
     <div className="w-full md:w-96 bg-gray-800 p-6 flex flex-col space-y-6 overflow-y-auto h-[50vh] md:h-screen">
@@ -540,21 +536,6 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
                 ) : 'Labels'}
               </button>
           </div>
-        </div>
-        <div>
-          <button
-              onClick={handleExportZip}
-              disabled={anyExporting || tracks.filter(t => t.isVisible).length === 0}
-              className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded transition-colors duration-200 flex items-center justify-center"
-            >
-              {isExportingZip ? (
-                 <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                  <span>Zipping...</span>
-                </>
-              ) : 'Export All to ZIP'}
-            </button>
-            <p className="text-xs text-gray-500 mt-2 text-center">Recommended for large exports. Includes image tiles and a merged PNG if size permits.</p>
         </div>
       </section>
     </div>

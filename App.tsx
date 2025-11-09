@@ -19,7 +19,6 @@ const App: React.FC = () => {
   const [isExportingBase, setIsExportingBase] = useState<boolean>(false);
   const [isExportingLines, setIsExportingLines] = useState<boolean>(false);
   const [isExportingLabels, setIsExportingLabels] = useState<boolean>(false);
-  const [isExportingZip, setIsExportingZip] = useState<boolean>(false);
 
   // Map state
   const [zoom, setZoom] = useLocalStorage<number>('previewZoom', 6);
@@ -219,10 +218,6 @@ const App: React.FC = () => {
     zoom
   ]);
 
-  const performZipExport = useCallback(async () => {
-    trackManagement.setNotification({ type: 'info', message: "ZIP export temporarily disabled while debugging basic export." });
-  }, [trackManagement]);
-
   const selectedTileLayer = TILE_LAYERS.find(l => l.key === tileLayerKey) || TILE_LAYERS[0];
 
   return (
@@ -258,8 +253,6 @@ const App: React.FC = () => {
         handleExportBase={() => handleExport('base')}
         handleExportLines={() => handleExport('lines')}
         handleExportLabels={() => handleExport('labels')}
-        handleExportZip={performZipExport}
-        isExportingZip={isExportingZip}
         aspectRatio={exportState.aspectRatio}
         setAspectRatio={exportState.setAspectRatio}
         exportBoundsAspectRatio={exportState.exportBoundsAspectRatio}
