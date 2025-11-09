@@ -420,6 +420,8 @@ export interface RenderOptions {
 export const renderCanvasForBounds = async (
   options: RenderOptions
 ): Promise<HTMLCanvasElement | null> => {
+  const renderStartTime = performance.now();
+
   const {
     bounds,
     layerType,
@@ -578,7 +580,8 @@ export const renderCanvasForBounds = async (
       targetHeight // Destination rectangle
     );
 
-    console.log('✅ Final canvas size:', { width: finalCanvas.width, height: finalCanvas.height });
+    const renderDuration = ((performance.now() - renderStartTime) / 1000).toFixed(2);
+    console.log('✅ Final canvas size:', { width: finalCanvas.width, height: finalCanvas.height, duration: `${renderDuration}s` });
     console.groupEnd();
 
     return finalCanvas;

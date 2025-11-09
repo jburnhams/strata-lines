@@ -474,7 +474,7 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
       <section className="flex-grow flex flex-col justify-end space-y-4">
         <div>
           <label htmlFor="max-dimension" className="block text-sm font-medium text-gray-400 mb-2">
-            Max Dimension (px)
+            Max Subdivision Px
           </label>
           <input
             type="number"
