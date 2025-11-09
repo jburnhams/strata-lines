@@ -51,7 +51,7 @@
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "jsdom": "^27.0.1",
-    "leaflet-node": "^2.0.13",
+    "leaflet-node": "^2.0.14",
     "ts-jest": "^29.2.5",
     "typescript": "~5.9.3",
     "vite": "^7.1.12"

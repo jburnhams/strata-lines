@@ -8,16 +8,23 @@ import { ReadableStream } from 'stream/web';
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder as any;
 
-// Add ReadableStream BEFORE loading leaflet-node
-// This is needed because undici (statically imported by leaflet-node) uses it immediately
+// Add polyfills BEFORE loading leaflet-node
+// These are needed because undici (required at top of leaflet-node) uses them immediately
+
+// ReadableStream polyfill
 if (typeof globalThis.ReadableStream === 'undefined') {
   globalThis.ReadableStream = ReadableStream as any;
 }
 
-// Note: leaflet-node 2.0.12+ provides remaining undici polyfills:
+// performance.markResourceTiming polyfill
+// undici captures a reference to this when it loads, so it must exist before leaflet-node loads
+if (typeof performance !== 'undefined' && !performance.markResourceTiming) {
+  (performance as any).markResourceTiming = () => {};
+}
+
+// Note: leaflet-node 2.0.14+ provides remaining undici polyfills:
 // - setImmediate/clearImmediate
 // - setTimeout().unref()/ref()
-// - performance.markResourceTiming
 
 const nodeRequire = eval('require') as NodeJS.Require;
 
