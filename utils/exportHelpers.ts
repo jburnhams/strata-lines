@@ -25,52 +25,71 @@ export const waitForTiles = (
 ): Promise<void> => {
   return new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(
-      () => reject(new Error('Map export timed out waiting for tiles.')),
+      () => {
+        cleanup();
+        reject(new Error('Map export timed out waiting for tiles.'));
+      },
       60000
     );
 
     let loaded = false;
-    const loadHandler = () => {
-      if (!loaded) {
-        loaded = true;
-        clearTimeout(timeout);
-        setTimeout(resolve, 500); // Extra delay for rendering
-      }
-    };
 
     // Track tile loading progress
     let loadedCount = 0;
     let totalCount = 0;
 
-    tileLayer.on('tileloadstart', () => {
+    // Define all handlers so we can clean them up later
+    const tileLoadStartHandler = () => {
       totalCount++;
       if (onProgress) {
         onProgress(loadedCount, totalCount);
       }
-    });
+    };
 
-    tileLayer.on('tileload', () => {
+    const tileLoadHandler = () => {
       loadedCount++;
       if (onProgress) {
         onProgress(loadedCount, totalCount);
       }
-    });
+    };
 
-    tileLayer.on('load', loadHandler);
+    const tileErrorHandler = (e: any) => {
+      console.error('Tile error:', e);
+      cleanup();
+      clearTimeout(timeout);
+      reject(new Error('Could not load map tiles for export.'));
+    };
+
+    const loadCompleteHandler = () => {
+      if (!loaded) {
+        loaded = true;
+        cleanup();
+        clearTimeout(timeout);
+        setTimeout(resolve, 500); // Extra delay for rendering
+      }
+    };
+
+    // Cleanup function to remove all listeners
+    const cleanup = () => {
+      tileLayer.off('tileloadstart', tileLoadStartHandler);
+      tileLayer.off('tileload', tileLoadHandler);
+      tileLayer.off('load', loadCompleteHandler);
+      tileLayer.off('tileerror', tileErrorHandler);
+    };
+
+    // Attach listeners
+    tileLayer.on('tileloadstart', tileLoadStartHandler);
+    tileLayer.on('tileload', tileLoadHandler);
+    tileLayer.on('load', loadCompleteHandler);
+    tileLayer.on('tileerror', tileErrorHandler);
 
     // This check is crucial. fitBounds() might finish and tiles are loading,
     // but isLoading() might not be true for a few ms. A small delay helps.
     setTimeout(() => {
       if (tileLayer.isLoading() === false) {
-        loadHandler();
+        loadCompleteHandler();
       }
     }, 100);
-
-    tileLayer.on('tileerror', (e) => {
-      console.error('Tile error:', e);
-      clearTimeout(timeout);
-      reject(new Error('Could not load map tiles for export.'));
-    });
   });
 };
 

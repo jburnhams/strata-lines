@@ -211,8 +211,8 @@ describe('Subdivision Rendering with Leaflet-Node', () => {
 
   describe('Subdivision Size Constraints', () => {
     it.skip('should create containers matching subdivision pixel dimensions', () => {
-      // Note: Skipped because Leaflet map sizing doesn't work accurately in JSDOM
-      // This test would pass in a real browser environment
+      // Note: Skipped because JSDOM's map.getSize() doesn't match container dimensions
+      // The subdivision logic itself is tested by other tests in this suite
       const bounds = L.latLngBounds(
         L.latLng(51.5, -0.5),
         L.latLng(51.7, 0.5)
