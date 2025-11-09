@@ -18,7 +18,7 @@ if (typeof globalThis.ReadableStream === 'undefined') {
 
 // performance.markResourceTiming polyfill
 // undici captures a reference to this when it loads, so it must exist before leaflet-node loads
-if (typeof performance !== 'undefined' && !performance.markResourceTiming) {
+if (typeof performance !== 'undefined' && !(performance as any).markResourceTiming) {
   (performance as any).markResourceTiming = () => {};
 }
 

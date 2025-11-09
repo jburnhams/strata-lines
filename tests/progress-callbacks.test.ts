@@ -3,14 +3,14 @@ import type { Track } from '../types';
 // Mock track data for testing
 const createMockTrack = (): Track => ({
   id: '1',
-  filename: 'test-track.gpx',
+  name: 'test-track.gpx',
   color: '#ff0000',
   points: [
-    { lat: 51.505, lng: -0.09 },
-    { lat: 51.51, lng: -0.1 },
-    { lat: 51.515, lng: -0.11 },
+    [51.505, -0.09],
+    [51.51, -0.1],
+    [51.515, -0.11],
   ],
-  distance: 1000,
+  length: 1.0,
   isVisible: true,
 });
 
