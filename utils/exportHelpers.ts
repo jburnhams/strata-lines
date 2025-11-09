@@ -19,7 +19,10 @@ export const createPrintMap = (container: HTMLElement): L.Map => {
 /**
  * Waits for all tiles in a tile layer to load
  */
-export const waitForTiles = (tileLayer: L.TileLayer): Promise<void> => {
+export const waitForTiles = (
+  tileLayer: L.TileLayer,
+  onProgress?: (loaded: number, total: number) => void
+): Promise<void> => {
   return new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(
       () => reject(new Error('Map export timed out waiting for tiles.')),
@@ -34,6 +37,24 @@ export const waitForTiles = (tileLayer: L.TileLayer): Promise<void> => {
         setTimeout(resolve, 500); // Extra delay for rendering
       }
     };
+
+    // Track tile loading progress
+    let loadedCount = 0;
+    let totalCount = 0;
+
+    tileLayer.on('tileloadstart', () => {
+      totalCount++;
+      if (onProgress) {
+        onProgress(loadedCount, totalCount);
+      }
+    });
+
+    tileLayer.on('tileload', () => {
+      loadedCount++;
+      if (onProgress) {
+        onProgress(loadedCount, totalCount);
+      }
+    });
 
     tileLayer.on('load', loadHandler);
 
@@ -56,7 +77,10 @@ export const waitForTiles = (tileLayer: L.TileLayer): Promise<void> => {
 /**
  * Waits for canvas renderer to finish drawing all vector layers (polylines, polygons, etc.)
  */
-export const waitForCanvasRenderer = (map: L.Map): Promise<void> => {
+export const waitForCanvasRenderer = (
+  map: L.Map,
+  onProgress?: (checksCompleted: number, maxChecks: number) => void
+): Promise<void> => {
   return new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(
       () => reject(new Error('Map export timed out waiting for canvas renderer.')),
@@ -81,6 +105,11 @@ export const waitForCanvasRenderer = (map: L.Map): Promise<void> => {
     const checkRenderComplete = () => {
       if (isRendered) return;
       checkCount++;
+
+      // Report progress
+      if (onProgress) {
+        onProgress(checkCount, maxChecks);
+      }
 
       // @ts-ignore - Accessing internal canvas element
       const canvas = renderer._container as HTMLCanvasElement;
@@ -163,10 +192,19 @@ export interface WaitForRenderOptions {
   tileLayer?: L.TileLayer;
   hasVectorLayers?: boolean;
   timeoutMs?: number;
+  onTileProgress?: (loaded: number, total: number) => void;
+  onLineProgress?: (checksCompleted: number, maxChecks: number) => void;
 }
 
 export const waitForRender = async (options: WaitForRenderOptions): Promise<void> => {
-  const { map, tileLayer, hasVectorLayers = false, timeoutMs = 60000 } = options;
+  const {
+    map,
+    tileLayer,
+    hasVectorLayers = false,
+    timeoutMs = 60000,
+    onTileProgress,
+    onLineProgress,
+  } = options;
 
   console.log('🕐 Waiting for render to complete...', {
     hasTiles: !!tileLayer,
@@ -198,14 +236,14 @@ export const waitForRender = async (options: WaitForRenderOptions): Promise<void
     // Wait for tiles if present
     if (tileLayer) {
       console.log('⏳ Waiting for tiles...');
-      await Promise.race([waitForTiles(tileLayer), timeoutPromise!]);
+      await Promise.race([waitForTiles(tileLayer, onTileProgress), timeoutPromise!]);
       console.log(`✅ Tiles loaded (${Date.now() - startTime}ms)`);
     }
 
     // Wait for canvas renderer if vector layers are present
     if (hasVectorLayers) {
       console.log('⏳ Waiting for vector layers to render...');
-      await Promise.race([waitForCanvasRenderer(map), timeoutPromise!]);
+      await Promise.race([waitForCanvasRenderer(map, onLineProgress), timeoutPromise!]);
       console.log(`✅ Vector layers rendered (${Date.now() - startTime}ms)`);
     }
 
@@ -412,6 +450,8 @@ export interface RenderOptions {
   tileLayerKey?: string;
   lineThickness?: number;
   exportQuality?: number;
+  onTileProgress?: (loaded: number, total: number) => void;
+  onLineProgress?: (checksCompleted: number, maxChecks: number) => void;
 }
 
 /**
@@ -428,6 +468,8 @@ export const renderCanvasForBounds = async (
     tileLayerKey = 'esriImagery',
     lineThickness = 3,
     exportQuality = 2,
+    onTileProgress,
+    onLineProgress,
   } = options;
 
   const isTransparent = layerType === 'lines' || layerType === 'labels-only';
@@ -507,6 +549,8 @@ export const renderCanvasForBounds = async (
       map: printMap,
       tileLayer,
       hasVectorLayers,
+      onTileProgress,
+      onLineProgress,
     });
 
     // After rendering, check what bounds we actually got

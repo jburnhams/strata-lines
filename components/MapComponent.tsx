@@ -1,10 +1,11 @@
 
 import React, { useEffect, useCallback, useMemo } from 'react';
-import { MapContainer, TileLayer, Polyline, Rectangle, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, Rectangle, useMap, useMapEvents, Tooltip } from 'react-leaflet';
 import L, { type LatLngExpression, type LatLng, type LatLngBounds, type Point as LeafletPoint } from 'leaflet';
 import type { Track, TileLayerDefinition } from '../types';
 import { LABEL_TILE_URL_RETINA } from '../labelTiles';
 import { DraggableBoundsBox } from './DraggableBoundsBox';
+import type { ProgressInfo } from '../utils/progressTracker';
 
 interface MapComponentProps {
   tracks: Track[];
@@ -22,6 +23,7 @@ interface MapComponentProps {
   exportSubdivisions: LatLngBounds[];
   currentExportSubdivisionIndex: number;
   completedStitchedCount: number;
+  subdivisionProgress: Map<number, ProgressInfo>;
 }
 
 const FitBoundsManager: React.FC<{ bounds: LatLngBounds | null; onFitted: () => void }> = ({ bounds, onFitted }) => {
@@ -117,7 +119,7 @@ const MapSizeManager: React.FC = () => {
   return null;
 };
 
-export const MapComponent: React.FC<MapComponentProps> = ({ tracks, onUserMove, center, zoom, lineThickness, exportBounds, onExportBoundsChange, boundsToFit, onBoundsFitted, tileLayer, labelDensity, highlightedTrackId, exportSubdivisions, currentExportSubdivisionIndex, completedStitchedCount }) => {
+export const MapComponent: React.FC<MapComponentProps> = ({ tracks, onUserMove, center, zoom, lineThickness, exportBounds, onExportBoundsChange, boundsToFit, onBoundsFitted, tileLayer, labelDensity, highlightedTrackId, exportSubdivisions, currentExportSubdivisionIndex, completedStitchedCount, subdivisionProgress }) => {
   
   const highlightedTrack = useMemo(() => 
     highlightedTrackId ? tracks.find(t => t.id === highlightedTrackId) : null,
@@ -177,6 +179,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({ tracks, onUserMove, 
         const isCurrentlyRendering = index === currentExportSubdivisionIndex;
         const isStitched = index < completedStitchedCount;
         const isComplete = isStitched;
+        const progress = subdivisionProgress.get(index);
 
         return (
           <Rectangle
@@ -188,7 +191,35 @@ export const MapComponent: React.FC<MapComponentProps> = ({ tracks, onUserMove, 
               fillOpacity: isComplete ? 0.2 : (isCurrentlyRendering ? 0.3 : 0.1),
               dashArray: isComplete || isCurrentlyRendering ? undefined : '5, 5'
             }}
-          />
+          >
+            {isCurrentlyRendering && progress && (
+              <Tooltip
+                direction="center"
+                permanent
+                opacity={1}
+                className="subdivision-progress-tooltip"
+              >
+                <div style={{
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  fontSize: '14px',
+                  background: 'rgba(0, 0, 0, 0.8)',
+                  color: 'white',
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  whiteSpace: 'nowrap'
+                }}>
+                  <div>{progress.stageLabel}</div>
+                  <div>{progress.percentage}%</div>
+                  {progress.total > 0 && (
+                    <div style={{ fontSize: '12px', opacity: 0.8 }}>
+                      {progress.current}/{progress.total}
+                    </div>
+                  )}
+                </div>
+              </Tooltip>
+            )}
+          </Rectangle>
         );
       })}
 

@@ -3,6 +3,7 @@ import L from 'leaflet';
 import { useLocalStorage } from './useLocalStorage';
 import type { AspectRatio } from '../types';
 import { calculatePixelDimensions, calculateBoundsDimensions } from '../utils/mapCalculations';
+import type { ProgressInfo } from '../utils/progressTracker';
 
 /**
  * Custom hook for managing export-related state and calculations
@@ -52,6 +53,11 @@ export const useExportState = (
   const [exportSubdivisions, setExportSubdivisions] = useState<L.LatLngBounds[]>([]);
   const [currentExportSubdivisionIndex, setCurrentExportSubdivisionIndex] = useState<number>(-1);
   const [completedStitchedCount, setCompletedStitchedCount] = useState<number>(0);
+
+  // Progress information for each subdivision
+  const [subdivisionProgress, setSubdivisionProgress] = useState<Map<number, ProgressInfo>>(
+    new Map()
+  );
 
   // Save export bounds to localStorage
   useEffect(() => {
@@ -178,5 +184,7 @@ export const useExportState = (
     setCurrentExportSubdivisionIndex,
     completedStitchedCount,
     setCompletedStitchedCount,
+    subdivisionProgress,
+    setSubdivisionProgress,
   };
 };
