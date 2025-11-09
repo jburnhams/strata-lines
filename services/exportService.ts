@@ -59,6 +59,8 @@ export const performPngExport = async (
   } = callbacks;
 
   try {
+    const exportStartTime = performance.now();
+
     // Calculate subdivisions based on maxDimension
     const subdivisions = calculateSubdivisions(exportBounds, derivedExportZoom, maxDimension);
     console.log(
@@ -72,7 +74,9 @@ export const performPngExport = async (
     const subdivisionCanvases: HTMLCanvasElement[] = [];
 
     // Export each subdivision
+    const subdivisionsStartTime = performance.now();
     for (let i = 0; i < subdivisions.length; i++) {
+      const subdivisionStartTime = performance.now();
       const subdivisionBounds = subdivisions[i];
 
       // Highlight the current subdivision being rendered
@@ -199,21 +203,25 @@ export const performPngExport = async (
         finalCanvas = canvas;
       }
 
-      console.log('✅ Subdivision render complete, canvas size:', {
+      const subdivisionDuration = ((performance.now() - subdivisionStartTime) / 1000).toFixed(2);
+      console.log(`✅ Subdivision render complete (${i + 1}/${subdivisions.length}), canvas size:`, {
         width: finalCanvas.width,
         height: finalCanvas.height,
+        duration: `${subdivisionDuration}s`,
       });
 
       // Store the canvas for stitching (don't clean up yet if we have multiple subdivisions)
       subdivisionCanvases.push(finalCanvas);
     }
 
-    console.log('✅ All subdivisions rendered');
+    const subdivisionsTotal = ((performance.now() - subdivisionsStartTime) / 1000).toFixed(2);
+    console.log(`✅ All subdivisions rendered (${subdivisions.length} subdivision${subdivisions.length !== 1 ? 's' : ''}, ${subdivisionsTotal}s total)`);
 
     // Stitch subdivisions together if there are multiple
     let finalBlob: Blob;
 
     if (subdivisions.length > 1) {
+      const stitchStartTime = performance.now();
       console.log('🧵 Stitching subdivisions together...');
 
       // Calculate grid layout for stitching
@@ -265,7 +273,8 @@ export const performPngExport = async (
           : undefined,
       });
 
-      console.log('✅ Stitching complete, size:', stitchedImage.byteLength, 'bytes');
+      const stitchDuration = ((performance.now() - stitchStartTime) / 1000).toFixed(2);
+      console.log('✅ Stitching complete, size:', stitchedImage.byteLength, 'bytes,', `duration: ${stitchDuration}s`);
 
       // Convert Uint8Array to Blob
       // Create a new Uint8Array to ensure compatibility with Blob constructor
@@ -299,7 +308,8 @@ export const performPngExport = async (
     document.body.removeChild(link);
     URL.revokeObjectURL(link.href);
 
-    console.log('✅ Export complete');
+    const totalExportDuration = ((performance.now() - exportStartTime) / 1000).toFixed(2);
+    console.log(`✅ Export complete (total duration: ${totalExportDuration}s)`);
     onComplete();
   } catch (err) {
     onError(err instanceof Error ? err : new Error(String(err)));
