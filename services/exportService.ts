@@ -8,6 +8,7 @@ import {
   type RenderOptions,
 } from '../utils/exportHelpers';
 import { concatToBuffer } from 'image-stitch/bundle';
+import type { ProgressInfo } from '../utils/progressTracker';
 
 export interface ExportConfig {
   exportBounds: LatLngBounds;
@@ -25,6 +26,7 @@ export interface ExportCallbacks {
   onSubdivisionsCalculated: (subdivisions: LatLngBounds[]) => void;
   onSubdivisionProgress: (index: number) => void;
   onSubdivisionStitched?: (completed: number, total: number) => void;
+  onStageProgress?: (subdivisionIndex: number, progress: ProgressInfo) => void;
   onComplete: () => void;
   onError: (error: Error) => void;
 }
@@ -54,6 +56,7 @@ export const performPngExport = async (
     onSubdivisionsCalculated,
     onSubdivisionProgress,
     onSubdivisionStitched,
+    onStageProgress,
     onComplete,
     onError,
   } = callbacks;
@@ -89,13 +92,46 @@ export const performPngExport = async (
       if (type === 'combined') {
         console.log('🎯 Rendering combined export...');
 
+        // Base layer (1/3)
+        if (onStageProgress) {
+          onStageProgress(i, {
+            stage: 'base',
+            current: 0,
+            total: 0,
+            percentage: 0,
+            stageLabel: 'base 1/3',
+          });
+        }
+
         const baseOptions: RenderOptions = {
           bounds: subdivisionBounds,
           layerType: 'base',
           zoomForRender: derivedExportZoom,
           tileLayerKey,
+          onTileProgress: onStageProgress
+            ? (loaded, total) => {
+                onStageProgress(i, {
+                  stage: 'base',
+                  current: loaded,
+                  total,
+                  percentage: total > 0 ? Math.round((loaded / total) * 100) : 0,
+                  stageLabel: 'base 1/3',
+                });
+              }
+            : undefined,
         };
         const baseCanvas = await renderCanvasForBounds(baseOptions);
+
+        // Lines layer (2/3)
+        if (onStageProgress && visibleTracks.length > 0) {
+          onStageProgress(i, {
+            stage: 'lines',
+            current: 0,
+            total: 0,
+            percentage: 0,
+            stageLabel: 'lines 2/3',
+          });
+        }
 
         const linesOptions: RenderOptions = {
           bounds: subdivisionBounds,
@@ -104,16 +140,48 @@ export const performPngExport = async (
           visibleTracks,
           lineThickness,
           exportQuality,
+          onLineProgress: onStageProgress
+            ? (checksCompleted, maxChecks) => {
+                onStageProgress(i, {
+                  stage: 'lines',
+                  current: checksCompleted,
+                  total: maxChecks,
+                  percentage: Math.round((checksCompleted / maxChecks) * 100),
+                  stageLabel: 'lines 2/3',
+                });
+              }
+            : undefined,
         };
         const linesCanvas =
           visibleTracks.length > 0 ? await renderCanvasForBounds(linesOptions) : null;
 
-        // Labels are rendered at a different zoom level
+        // Labels are rendered at a different zoom level (3/3)
+        if (onStageProgress && tileLayerKey === 'esriImagery' && labelDensity >= 0) {
+          onStageProgress(i, {
+            stage: 'tiles',
+            current: 0,
+            total: 0,
+            percentage: 0,
+            stageLabel: 'labels 3/3',
+          });
+        }
+
         const labelZoom = (previewZoom || zoom) + labelDensity;
         const labelsOptions: RenderOptions = {
           bounds: subdivisionBounds,
           layerType: 'labels-only',
           zoomForRender: labelZoom,
+          onTileProgress: onStageProgress
+            ? (loaded, total) => {
+                onStageProgress(i, {
+                  stage: 'tiles',
+                  current: loaded,
+                  total,
+                  percentage: total > 0 ? Math.round((loaded / total) * 100) : 0,
+                  stageLabel: 'labels 3/3',
+                });
+              }
+            : undefined,
         };
         let labelsCanvas =
           tileLayerKey === 'esriImagery' && labelDensity >= 0
@@ -189,6 +257,17 @@ export const performPngExport = async (
           zoomForRender = (previewZoom || zoom) + labelDensity;
         }
 
+        // Set initial progress
+        if (onStageProgress) {
+          onStageProgress(i, {
+            stage: layerType === 'lines' ? 'lines' : layerType === 'base' ? 'base' : 'tiles',
+            current: 0,
+            total: 0,
+            percentage: 0,
+            stageLabel: type,
+          });
+        }
+
         const options: RenderOptions = {
           bounds: subdivisionBounds,
           layerType,
@@ -197,6 +276,30 @@ export const performPngExport = async (
           tileLayerKey,
           lineThickness,
           exportQuality,
+          onTileProgress:
+            onStageProgress && (layerType === 'base' || layerType === 'labels-only')
+              ? (loaded, total) => {
+                  onStageProgress(i, {
+                    stage: layerType === 'base' ? 'base' : 'tiles',
+                    current: loaded,
+                    total,
+                    percentage: total > 0 ? Math.round((loaded / total) * 100) : 0,
+                    stageLabel: type,
+                  });
+                }
+              : undefined,
+          onLineProgress:
+            onStageProgress && layerType === 'lines'
+              ? (checksCompleted, maxChecks) => {
+                  onStageProgress(i, {
+                    stage: 'lines',
+                    current: checksCompleted,
+                    total: maxChecks,
+                    percentage: Math.round((checksCompleted / maxChecks) * 100),
+                    stageLabel: type,
+                  });
+                }
+              : undefined,
         };
         const canvas = await renderCanvasForBounds(options);
         if (!canvas) throw new Error(`Failed to render ${layerType} layer`);

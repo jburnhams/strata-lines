@@ -564,4 +564,539 @@ describe('Export Service Integration Tests', () => {
       });
     });
   });
+
+  describe('Progress Callbacks - Combined Mode', () => {
+    it('should call onStageProgress for base layer in combined mode', async () => {
+      const onStageProgress = jest.fn();
+      const callbacksWithProgress = {
+        ...mockCallbacks,
+        onStageProgress,
+      };
+
+      await performPngExport('combined', [mockTrack], mockConfig, callbacksWithProgress);
+
+      // Should be called at least once for base stage
+      expect(onStageProgress).toHaveBeenCalledWith(
+        0, // subdivision index
+        expect.objectContaining({
+          stage: 'base',
+          stageLabel: 'base 1/3',
+        })
+      );
+    });
+
+    it('should call onTileProgress callback for base layer', async () => {
+      const onStageProgress = jest.fn();
+      const callbacksWithProgress = {
+        ...mockCallbacks,
+        onStageProgress,
+      };
+
+      // Mock renderCanvasForBounds to simulate tile loading progress
+      renderCanvasForBoundsMock.mockImplementation(async (options) => {
+        // Simulate tile progress callbacks
+        if (options.onTileProgress) {
+          options.onTileProgress(5, 10);
+          options.onTileProgress(10, 10);
+        }
+        const canvas = createCanvas(800, 600);
+        (canvas as any).toBlob = mockToBlob;
+        return canvas as any;
+      });
+
+      await performPngExport('combined', [mockTrack], mockConfig, callbacksWithProgress);
+
+      // Verify onStageProgress was called with tile progress
+      expect(onStageProgress).toHaveBeenCalledWith(
+        0,
+        expect.objectContaining({
+          stage: 'base',
+          current: expect.any(Number),
+          total: expect.any(Number),
+          percentage: expect.any(Number),
+        })
+      );
+    });
+
+    it('should call onStageProgress for lines layer when tracks exist', async () => {
+      const onStageProgress = jest.fn();
+      const callbacksWithProgress = {
+        ...mockCallbacks,
+        onStageProgress,
+      };
+
+      await performPngExport('combined', [mockTrack], mockConfig, callbacksWithProgress);
+
+      // Should be called for lines stage
+      expect(onStageProgress).toHaveBeenCalledWith(
+        0,
+        expect.objectContaining({
+          stage: 'lines',
+          stageLabel: 'lines 2/3',
+        })
+      );
+    });
+
+    it('should call onLineProgress callback for lines layer', async () => {
+      const onStageProgress = jest.fn();
+      const callbacksWithProgress = {
+        ...mockCallbacks,
+        onStageProgress,
+      };
+
+      // Mock renderCanvasForBounds to simulate line rendering progress
+      renderCanvasForBoundsMock.mockImplementation(async (options) => {
+        // Simulate line progress callbacks
+        if (options.onLineProgress) {
+          options.onLineProgress(25, 50);
+          options.onLineProgress(50, 50);
+        }
+        const canvas = createCanvas(800, 600);
+        (canvas as any).toBlob = mockToBlob;
+        return canvas as any;
+      });
+
+      await performPngExport('combined', [mockTrack], mockConfig, callbacksWithProgress);
+
+      // Verify onStageProgress was called with line progress
+      expect(onStageProgress).toHaveBeenCalledWith(
+        0,
+        expect.objectContaining({
+          stage: 'lines',
+          current: expect.any(Number),
+          total: expect.any(Number),
+          percentage: expect.any(Number),
+        })
+      );
+    });
+
+    it('should call onStageProgress for labels layer', async () => {
+      const onStageProgress = jest.fn();
+      const callbacksWithProgress = {
+        ...mockCallbacks,
+        onStageProgress,
+      };
+
+      await performPngExport('combined', [mockTrack], mockConfig, callbacksWithProgress);
+
+      // Should be called for labels stage (tiles)
+      expect(onStageProgress).toHaveBeenCalledWith(
+        0,
+        expect.objectContaining({
+          stage: 'tiles',
+          stageLabel: 'labels 3/3',
+        })
+      );
+    });
+
+    it('should call onTileProgress callback for labels layer', async () => {
+      const onStageProgress = jest.fn();
+      const callbacksWithProgress = {
+        ...mockCallbacks,
+        onStageProgress,
+      };
+
+      // Mock renderCanvasForBounds to simulate tile loading progress
+      let callCount = 0;
+      renderCanvasForBoundsMock.mockImplementation(async (options) => {
+        // Simulate tile progress for labels (third call)
+        if (callCount === 2 && options.onTileProgress) {
+          options.onTileProgress(3, 6);
+          options.onTileProgress(6, 6);
+        }
+        callCount++;
+        const canvas = createCanvas(800, 600);
+        (canvas as any).toBlob = mockToBlob;
+        return canvas as any;
+      });
+
+      await performPngExport('combined', [mockTrack], mockConfig, callbacksWithProgress);
+
+      // Verify onStageProgress was called with tile progress for labels
+      const labelsStageCalls = onStageProgress.mock.calls.filter(
+        (call: any) => call[1].stage === 'tiles'
+      );
+      expect(labelsStageCalls.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Progress Callbacks - Non-Combined Mode', () => {
+    it('should call onStageProgress for base export type', async () => {
+      const onStageProgress = jest.fn();
+      const callbacksWithProgress = {
+        ...mockCallbacks,
+        onStageProgress,
+      };
+
+      await performPngExport('base', [mockTrack], mockConfig, callbacksWithProgress);
+
+      // Should be called for base stage
+      expect(onStageProgress).toHaveBeenCalledWith(
+        0,
+        expect.objectContaining({
+          stage: 'base',
+          stageLabel: 'base',
+        })
+      );
+    });
+
+    it('should call onTileProgress for base export type', async () => {
+      const onStageProgress = jest.fn();
+      const callbacksWithProgress = {
+        ...mockCallbacks,
+        onStageProgress,
+      };
+
+      // Mock to simulate tile progress
+      renderCanvasForBoundsMock.mockImplementation(async (options) => {
+        if (options.onTileProgress) {
+          options.onTileProgress(4, 8);
+        }
+        const canvas = createCanvas(800, 600);
+        (canvas as any).toBlob = mockToBlob;
+        return canvas as any;
+      });
+
+      await performPngExport('base', [mockTrack], mockConfig, callbacksWithProgress);
+
+      expect(onStageProgress).toHaveBeenCalledWith(
+        0,
+        expect.objectContaining({
+          stage: 'base',
+          current: 4,
+          total: 8,
+          percentage: 50,
+        })
+      );
+    });
+
+    it('should call onLineProgress for lines export type', async () => {
+      const onStageProgress = jest.fn();
+      const callbacksWithProgress = {
+        ...mockCallbacks,
+        onStageProgress,
+      };
+
+      // Mock to simulate line progress
+      renderCanvasForBoundsMock.mockImplementation(async (options) => {
+        if (options.onLineProgress) {
+          options.onLineProgress(30, 60);
+        }
+        const canvas = createCanvas(800, 600);
+        (canvas as any).toBlob = mockToBlob;
+        return canvas as any;
+      });
+
+      await performPngExport('lines', [mockTrack], mockConfig, callbacksWithProgress);
+
+      expect(onStageProgress).toHaveBeenCalledWith(
+        0,
+        expect.objectContaining({
+          stage: 'lines',
+          current: 30,
+          total: 60,
+          percentage: 50,
+        })
+      );
+    });
+
+    it('should call onStageProgress for labels export type', async () => {
+      const onStageProgress = jest.fn();
+      const callbacksWithProgress = {
+        ...mockCallbacks,
+        onStageProgress,
+      };
+
+      await performPngExport('labels', [mockTrack], mockConfig, callbacksWithProgress);
+
+      // Should be called for tiles stage
+      expect(onStageProgress).toHaveBeenCalledWith(
+        0,
+        expect.objectContaining({
+          stage: 'tiles',
+          stageLabel: 'labels',
+        })
+      );
+    });
+
+    it('should call onTileProgress for labels export type', async () => {
+      const onStageProgress = jest.fn();
+      const callbacksWithProgress = {
+        ...mockCallbacks,
+        onStageProgress,
+      };
+
+      // Mock to simulate tile progress
+      renderCanvasForBoundsMock.mockImplementation(async (options) => {
+        if (options.onTileProgress) {
+          options.onTileProgress(2, 4);
+        }
+        const canvas = createCanvas(800, 600);
+        (canvas as any).toBlob = mockToBlob;
+        return canvas as any;
+      });
+
+      await performPngExport('labels', [mockTrack], mockConfig, callbacksWithProgress);
+
+      expect(onStageProgress).toHaveBeenCalledWith(
+        0,
+        expect.objectContaining({
+          stage: 'tiles',
+          current: 2,
+          total: 4,
+          percentage: 50,
+        })
+      );
+    });
+  });
+
+  describe('Canvas Resizing Logic', () => {
+    it('should resize labels canvas when dimensions do not match base', async () => {
+      // Mock renderCanvasForBounds to return canvases with different dimensions
+      let callCount = 0;
+      renderCanvasForBoundsMock.mockImplementation(async (options) => {
+        callCount++;
+        if (callCount === 1) {
+          // Base layer: 800x600
+          const canvas = createCanvas(800, 600);
+          (canvas as any).toBlob = mockToBlob;
+          return canvas as any;
+        } else if (callCount === 2) {
+          // Lines layer: 800x600
+          const canvas = createCanvas(800, 600);
+          (canvas as any).toBlob = mockToBlob;
+          return canvas as any;
+        } else {
+          // Labels layer: different size 1600x1200 (at higher zoom)
+          const canvas = createCanvas(1600, 1200);
+          (canvas as any).toBlob = mockToBlob;
+          return canvas as any;
+        }
+      });
+
+      await performPngExport('combined', [mockTrack], mockConfig, mockCallbacks);
+
+      // resizeCanvas should have been called to match dimensions
+      expect(resizeCanvasMock).toHaveBeenCalledWith(
+        expect.anything(),
+        800, // target width
+        600  // target height
+      );
+      expect(mockCallbacks.onComplete).toHaveBeenCalled();
+    });
+
+    it('should not resize labels canvas when dimensions already match', async () => {
+      // Mock all canvases to have same dimensions
+      renderCanvasForBoundsMock.mockImplementation(async () => {
+        const canvas = createCanvas(800, 600);
+        (canvas as any).toBlob = mockToBlob;
+        return canvas as any;
+      });
+
+      await performPngExport('combined', [mockTrack], mockConfig, mockCallbacks);
+
+      // resizeCanvas should NOT be called
+      expect(resizeCanvasMock).not.toHaveBeenCalled();
+      expect(mockCallbacks.onComplete).toHaveBeenCalled();
+    });
+
+    it('should handle both width and height mismatches', async () => {
+      let callCount = 0;
+      renderCanvasForBoundsMock.mockImplementation(async (options) => {
+        callCount++;
+        if (callCount === 1) {
+          // Base layer: 1000x500
+          const canvas = createCanvas(1000, 500);
+          (canvas as any).toBlob = mockToBlob;
+          return canvas as any;
+        } else if (callCount === 2) {
+          // Lines layer: 1000x500
+          const canvas = createCanvas(1000, 500);
+          (canvas as any).toBlob = mockToBlob;
+          return canvas as any;
+        } else {
+          // Labels layer: different size 2000x1500
+          const canvas = createCanvas(2000, 1500);
+          (canvas as any).toBlob = mockToBlob;
+          return canvas as any;
+        }
+      });
+
+      await performPngExport('combined', [mockTrack], mockConfig, mockCallbacks);
+
+      expect(resizeCanvasMock).toHaveBeenCalledWith(
+        expect.anything(),
+        1000,
+        500
+      );
+      expect(mockCallbacks.onComplete).toHaveBeenCalled();
+    });
+  });
+
+  describe('Subdivision Stitching Progress', () => {
+    it('should call onSubdivisionStitched during stitching', async () => {
+      const onSubdivisionStitched = jest.fn();
+      const callbacksWithStitching = {
+        ...mockCallbacks,
+        onSubdivisionStitched,
+      };
+
+      const configWithSubdivisions = {
+        ...mockConfig,
+        maxDimension: 100,
+      };
+
+      // Override mock to return 4 subdivisions
+      const bounds = mockConfig.exportBounds;
+      const center = bounds.getCenter();
+      const subdivisions = [
+        L.latLngBounds(bounds.getSouthWest(), center),
+        L.latLngBounds(L.latLng(center.lat, bounds.getWest()), L.latLng(bounds.getNorth(), center.lng)),
+        L.latLngBounds(L.latLng(bounds.getSouth(), center.lng), L.latLng(center.lat, bounds.getEast())),
+        L.latLngBounds(center, bounds.getNorthEast()),
+      ];
+      calculateSubdivisionsMock.mockReturnValueOnce(subdivisions);
+
+      // Mock concatToBuffer to simulate progress
+      concatToBufferMock.mockImplementation(async (options: any) => {
+        if (options.onProgress) {
+          options.onProgress(1, 4);
+          options.onProgress(2, 4);
+          options.onProgress(3, 4);
+          options.onProgress(4, 4);
+        }
+        return new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]) as any;
+      });
+
+      await performPngExport('base', [mockTrack], configWithSubdivisions, callbacksWithStitching);
+
+      // Should have been called with progress updates
+      expect(onSubdivisionStitched).toHaveBeenCalledWith(1, 4);
+      expect(onSubdivisionStitched).toHaveBeenCalledWith(2, 4);
+      expect(onSubdivisionStitched).toHaveBeenCalledWith(3, 4);
+      expect(onSubdivisionStitched).toHaveBeenCalledWith(4, 4);
+    });
+
+    it('should handle stitching without progress callback', async () => {
+      // No onSubdivisionStitched callback provided
+      const configWithSubdivisions = {
+        ...mockConfig,
+        maxDimension: 100,
+      };
+
+      const bounds = mockConfig.exportBounds;
+      const center = bounds.getCenter();
+      const subdivisions = [
+        L.latLngBounds(bounds.getSouthWest(), center),
+        L.latLngBounds(L.latLng(center.lat, bounds.getWest()), L.latLng(bounds.getNorth(), center.lng)),
+        L.latLngBounds(L.latLng(bounds.getSouth(), center.lng), L.latLng(center.lat, bounds.getEast())),
+        L.latLngBounds(center, bounds.getNorthEast()),
+      ];
+      calculateSubdivisionsMock.mockReturnValueOnce(subdivisions);
+
+      // Should complete without errors even though no callback provided
+      await performPngExport('base', [mockTrack], configWithSubdivisions, mockCallbacks);
+
+      expect(mockCallbacks.onComplete).toHaveBeenCalled();
+      expect(mockCallbacks.onError).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Edge Cases with Progress Callbacks', () => {
+    it('should handle combined export with no tracks and progress callbacks', async () => {
+      const onStageProgress = jest.fn();
+      const callbacksWithProgress = {
+        ...mockCallbacks,
+        onStageProgress,
+      };
+
+      await performPngExport('combined', [], mockConfig, callbacksWithProgress);
+
+      // Should call progress for base and labels, but not lines
+      const stages = onStageProgress.mock.calls.map((call: any) => call[1].stage);
+      expect(stages).toContain('base');
+      expect(stages).toContain('tiles'); // labels
+      // Lines stage should not be called since no tracks
+      const linesCalls = onStageProgress.mock.calls.filter((call: any) => call[1].stage === 'lines');
+      expect(linesCalls.length).toBe(0);
+    });
+
+    it('should handle all three stages in combined mode with all callbacks', async () => {
+      const onStageProgress = jest.fn();
+      const onSubdivisionStitched = jest.fn();
+      const callbacksWithAll = {
+        ...mockCallbacks,
+        onStageProgress,
+        onSubdivisionStitched,
+      };
+
+      // Mock to trigger all progress callbacks
+      let callCount = 0;
+      renderCanvasForBoundsMock.mockImplementation(async (options) => {
+        callCount++;
+        if (options.onTileProgress) {
+          options.onTileProgress(1, 2);
+        }
+        if (options.onLineProgress) {
+          options.onLineProgress(10, 20);
+        }
+        const canvas = createCanvas(800, 600);
+        (canvas as any).toBlob = mockToBlob;
+        return canvas as any;
+      });
+
+      await performPngExport('combined', [mockTrack], mockConfig, callbacksWithAll);
+
+      // Verify all three stages were tracked
+      const stages = new Set(onStageProgress.mock.calls.map((call: any) => call[1].stage));
+      expect(stages.has('base')).toBe(true);
+      expect(stages.has('lines')).toBe(true);
+      expect(stages.has('tiles')).toBe(true); // labels
+
+      expect(mockCallbacks.onComplete).toHaveBeenCalled();
+    });
+
+    it('should track progress across multiple subdivisions', async () => {
+      const onStageProgress = jest.fn();
+      const onSubdivisionStitched = jest.fn();
+      const callbacksWithAll = {
+        ...mockCallbacks,
+        onStageProgress,
+        onSubdivisionStitched,
+      };
+
+      const configWithSubdivisions = {
+        ...mockConfig,
+        maxDimension: 100,
+      };
+
+      // Create 2 subdivisions
+      const bounds = mockConfig.exportBounds;
+      const center = bounds.getCenter();
+      const subdivisions = [
+        L.latLngBounds(bounds.getSouthWest(), L.latLng(bounds.getNorth(), center.lng)),
+        L.latLngBounds(L.latLng(bounds.getSouth(), center.lng), bounds.getNorthEast()),
+      ];
+      calculateSubdivisionsMock.mockReturnValueOnce(subdivisions);
+
+      concatToBufferMock.mockImplementation(async (options: any) => {
+        if (options.onProgress) {
+          options.onProgress(1, 2);
+          options.onProgress(2, 2);
+        }
+        return new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]) as any;
+      });
+
+      await performPngExport('combined', [mockTrack], configWithSubdivisions, callbacksWithAll);
+
+      // Should track progress for each subdivision (index 0 and 1)
+      const subdivisionIndices = onStageProgress.mock.calls.map((call: any) => call[0]);
+      expect(subdivisionIndices).toContain(0);
+      expect(subdivisionIndices).toContain(1);
+
+      // Should track stitching progress
+      expect(onSubdivisionStitched).toHaveBeenCalledWith(1, 2);
+      expect(onSubdivisionStitched).toHaveBeenCalledWith(2, 2);
+    });
+  });
 });
