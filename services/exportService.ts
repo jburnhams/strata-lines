@@ -171,6 +171,7 @@ export const performPngExport = async (
           bounds: subdivisionBounds,
           layerType: 'labels-only',
           zoomForRender: labelZoom,
+          renderScale: 2, // Render at 2x scale to benefit from retina @2x tiles
           onTileProgress: onStageProgress
             ? (loaded, total) => {
                 onStageProgress(i, {

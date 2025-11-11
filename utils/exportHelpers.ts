@@ -469,6 +469,7 @@ export interface RenderOptions {
   tileLayerKey?: string;
   lineThickness?: number;
   exportQuality?: number;
+  renderScale?: number; // Scale factor for html2canvas (1 for standard, 2 for retina)
   onTileProgress?: (loaded: number, total: number) => void;
   onLineProgress?: (checksCompleted: number, maxChecks: number) => void;
 }
@@ -489,13 +490,14 @@ export const renderCanvasForBounds = async (
     tileLayerKey = 'esriImagery',
     lineThickness = 3,
     exportQuality = 2,
+    renderScale = 1,
     onTileProgress,
     onLineProgress,
   } = options;
 
   const isTransparent = layerType === 'lines' || layerType === 'labels-only';
 
-  console.group(`🎨 Rendering ${layerType} at zoom ${zoomForRender}`);
+  console.group(`🎨 Rendering ${layerType} at zoom ${zoomForRender}${renderScale > 1 ? ` (${renderScale}x scale)` : ''}`);
   console.log('Target bounds:', {
     north: bounds.getNorth(),
     south: bounds.getSouth(),
@@ -601,7 +603,7 @@ export const renderCanvasForBounds = async (
       allowTaint: true,
       logging: false,
       backgroundColor: isTransparent ? null : '#000',
-      scale: 1,
+      scale: renderScale,
       width: paddedWidth,
       height: paddedHeight,
       windowWidth: paddedWidth,
@@ -611,17 +613,18 @@ export const renderCanvasForBounds = async (
     console.log('Captured canvas size:', { width: paddedCanvas.width, height: paddedCanvas.height });
 
     // Now crop to the exact target bounds
-    const cropX = Math.round(targetNW.x);
-    const cropY = Math.round(targetNW.y);
-    const cropWidth = Math.round(targetSE.x - targetNW.x);
-    const cropHeight = Math.round(targetSE.y - targetNW.y);
+    // When renderScale > 1, all coordinates are scaled up proportionally
+    const cropX = Math.round(targetNW.x * renderScale);
+    const cropY = Math.round(targetNW.y * renderScale);
+    const cropWidth = Math.round((targetSE.x - targetNW.x) * renderScale);
+    const cropHeight = Math.round((targetSE.y - targetNW.y) * renderScale);
 
     console.log('Cropping to:', { x: cropX, y: cropY, width: cropWidth, height: cropHeight });
 
-    // Create final canvas with exact target dimensions
+    // Create final canvas with exact target dimensions (scaled)
     const finalCanvas = document.createElement('canvas');
-    finalCanvas.width = targetWidth;
-    finalCanvas.height = targetHeight;
+    finalCanvas.width = targetWidth * renderScale;
+    finalCanvas.height = targetHeight * renderScale;
     const ctx = finalCanvas.getContext('2d');
 
     if (!ctx) {
@@ -636,11 +639,11 @@ export const renderCanvasForBounds = async (
       cropX,
       cropY,
       cropWidth,
-      cropHeight, // Source rectangle
+      cropHeight, // Source rectangle (scaled)
       0,
       0,
-      targetWidth,
-      targetHeight // Destination rectangle
+      targetWidth * renderScale,
+      targetHeight * renderScale // Destination rectangle (scaled)
     );
 
     const renderDuration = ((performance.now() - renderStartTime) / 1000).toFixed(2);
