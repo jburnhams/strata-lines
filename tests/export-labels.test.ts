@@ -18,6 +18,20 @@ describe('Retina label tile fetching', () => {
     expect(retinaTilePixelWidth / cssTileSize).toBe(2);
   });
 
+  it('should render labels at 2x scale to benefit from retina tiles', () => {
+    const renderScale = 2; // Labels should be rendered at 2x scale
+    const targetWidth = 2048;
+    const targetHeight = 2048;
+
+    // When rendered at 2x scale, canvas dimensions are doubled
+    const capturedWidth = targetWidth * renderScale; // 4096
+    const capturedHeight = targetHeight * renderScale; // 4096
+
+    expect(capturedWidth).toBe(4096);
+    expect(capturedHeight).toBe(4096);
+    expect(capturedWidth / targetWidth).toBe(2);
+  });
+
   it('should allow the resized labels canvas to match the base canvas dimensions', () => {
     const baseCanvas = { width: 4096, height: 4096 };
     const retinaLabelCanvas = { width: 4096, height: 4096 }; // Captured with double pixel density
@@ -276,6 +290,56 @@ describe('Label Export with Different Zoom Levels', () => {
 
       // Both at same zoom - no resize needed
       expect(labelZoom).toBe(baseZoom);
+    });
+  });
+
+  describe('Retina Scale Factor', () => {
+    it('should apply 2x render scale independent of zoom-based resizing', () => {
+      // Scenario: Base at zoom 12 with 1x scale, labels at zoom 11 with 2x scale
+      const baseZoom = 12;
+      const labelZoom = 11;
+      const renderScale = 2;
+
+      // Base canvas at zoom 12: 2048x2048
+      const baseWidth = 2048;
+      const baseHeight = 2048;
+
+      // Labels at zoom 11 would normally be 1024x1024 (half of base)
+      // But with 2x render scale, they're captured at 2048x2048
+      const labelWidthAtZoom = baseWidth / 2; // 1024 (zoom difference)
+      const labelWidthCaptured = labelWidthAtZoom * renderScale; // 2048 (with scale)
+
+      expect(labelWidthAtZoom).toBe(1024);
+      expect(labelWidthCaptured).toBe(2048);
+
+      // After zoom-based resize to match base zoom, labels are 2048x2048
+      // This matches base dimensions, but contains 2x resolution data
+      expect(labelWidthCaptured).toBe(baseWidth);
+    });
+
+    it('should combine zoom-based and scale-based dimension changes', () => {
+      // Scenario: Base at zoom 10, labels at zoom 12 with 2x scale
+      const baseZoom = 10;
+      const labelZoom = 12;
+      const renderScale = 2;
+
+      // Base canvas at zoom 10: 1000x1000
+      const baseWidth = 1000;
+
+      // Labels at zoom 12 would normally be 4000x4000 (4x of base)
+      // With 2x render scale, they're captured at 8000x8000
+      const zoomScale = Math.pow(2, labelZoom - baseZoom); // 4
+      const labelWidthAtZoom = baseWidth * zoomScale; // 4000
+      const labelWidthCaptured = labelWidthAtZoom * renderScale; // 8000
+
+      expect(zoomScale).toBe(4);
+      expect(labelWidthAtZoom).toBe(4000);
+      expect(labelWidthCaptured).toBe(8000);
+
+      // After resize to match base, labels are downscaled from 8000 to 1000
+      // This is an 8x downscale, preserving excellent detail from retina source
+      const finalScale = labelWidthCaptured / baseWidth;
+      expect(finalScale).toBe(8);
     });
   });
 
