@@ -1,9 +1,9 @@
 import React from 'react';
 import { render } from '@testing-library/react';
-import { MapComponent } from '../components/MapComponent';
+import { MapComponent } from '../../components/MapComponent';
 import L from 'leaflet';
-import type { Track, TileLayerDefinition } from '../types';
-import type { ProgressInfo } from '../utils/progressTracker';
+import type { Track, TileLayerDefinition } from '../../types';
+import type { ProgressInfo } from '../../utils/progressTracker';
 
 // Mock react-leaflet components
 jest.mock('react-leaflet', () => {

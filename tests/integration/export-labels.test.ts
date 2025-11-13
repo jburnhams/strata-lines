@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { LABEL_TILE_URL_RETINA } from '../labelTiles';
+import { LABEL_TILE_URL_RETINA } from '../../labelTiles';
 
 describe('Retina label tile fetching', () => {
   it('should request tiles with @2x suffix for higher pixel density', () => {

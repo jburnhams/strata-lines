@@ -1,4 +1,4 @@
-import { afterEach } from '@jest/globals';
+import { afterEach, beforeEach } from '@jest/globals';
 import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { TextEncoder, TextDecoder } from 'util';
@@ -84,6 +84,7 @@ const originalClearTimeout = globalThis.clearTimeout;
 
 const nodeRequire = eval('require') as NodeJS.Require;
 
+// Setup font paths before loading leaflet-node
 let fontAssetPath: string | undefined;
 try {
   fontAssetPath = nodeRequire.resolve(
@@ -103,25 +104,20 @@ const fontBasePathKey = 'LEAFLET_NODE_FONT_BASE_PATH';
 const globalConfig = globalThis as Record<string, unknown>;
 
 if (fontAssetPath) {
-  // leaflet-node 2.0.7 suppresses the final fallback warning when no base path is
-  // configured, but the module still logs resolution errors while importing unless
-  // a base path is present ahead of time. Seed the global hook so the helper below
-  // can re-register without spamming the console.
   globalConfig[fontBasePathKey] = fontAssetPath;
 } else {
   delete globalConfig[fontBasePathKey];
 }
 
-const {
-  default: leafletNodeModule,
-  setFontAssetBasePath,
-} = nodeRequire('leaflet-node');
+// leaflet-node 2.0.21+ automatically detects jsdom and provides real canvas via @napi-rs/canvas
+// Load AFTER jsdom environment is ready (setup.ts runs after jsdom is initialized)
+const leafletNodeModule = nodeRequire('leaflet-node');
+const leafletNodeTesting = nodeRequire('leaflet-node/testing');
 
-if (fontAssetPath) {
-  setFontAssetBasePath(fontAssetPath);
-}
-
+// Use jest.doMock (not jest.mock) - runs during setup, AFTER jsdom exists
 jest.doMock('leaflet', () => leafletNodeModule);
+jest.doMock('leaflet-node', () => leafletNodeModule);
+jest.doMock('leaflet-node/testing', () => leafletNodeTesting);
 
 const installMatchMedia = () => {
   Object.defineProperty(window, 'matchMedia', {

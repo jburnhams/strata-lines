@@ -4,7 +4,7 @@ import {
   formatStageLabel,
   calculateProgress,
   type ProgressInfo,
-} from '../utils/progressTracker';
+} from '../../utils/progressTracker';
 
 describe('progressTracker utility functions', () => {
   describe('formatStageLabel', () => {

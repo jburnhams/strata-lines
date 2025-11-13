@@ -1,4 +1,4 @@
-import type { Track } from '../types';
+import type { Track } from '../../types';
 
 // Mock track data for testing
 const createMockTrack = (): Track => ({
@@ -26,7 +26,7 @@ describe('Progress Callbacks Integration Tests', () => {
     (global as any).L = L;
 
     // Now we can safely import modules that depend on DOM/Leaflet
-    const exportHelpers = await import('../utils/exportHelpers');
+    const exportHelpers = await import('../../utils/exportHelpers');
     waitForRender = exportHelpers.waitForRender;
 
     // Create a container for the map

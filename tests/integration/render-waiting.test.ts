@@ -1,9 +1,5 @@
-/**
- * @jest-environment node
- */
-
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { waitForCanvasRenderer, waitForRender } from '../utils/exportHelpers';
+import { waitForCanvasRenderer, waitForRender } from '../../utils/exportHelpers';
 
 /**
  * Tests for render waiting functionality

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { renderHook, act } from '@testing-library/react';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
 
 describe('useLocalStorage', () => {
   beforeEach(() => {

@@ -1,13 +1,9 @@
-/**
- * @jest-environment node
- */
-
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import {
   calculateSubdivisions,
   resizeCanvas,
-} from '../utils/exportHelpers';
-import { calculatePixelDimensions } from '../utils/mapCalculations';
+} from '../../utils/exportHelpers';
+import { calculatePixelDimensions } from '../../utils/mapCalculations';
 import { createCanvas } from '@napi-rs/canvas';
 import L from 'leaflet';
 

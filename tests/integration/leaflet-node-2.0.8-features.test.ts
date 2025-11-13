@@ -1,7 +1,3 @@
-/**
- * @jest-environment node
- */
-
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import {
   createTestMap,
@@ -14,6 +10,7 @@ import type { TileLoadProgress } from 'leaflet-node/testing';
 import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
+
 
 /**
  * Tests for new leaflet-node 2.0.8 features

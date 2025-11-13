@@ -1,9 +1,5 @@
-/**
- * @jest-environment node
- */
-
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { calculatePixelDimensions } from '../utils/mapCalculations';
+import { calculatePixelDimensions } from '../../utils/mapCalculations';
 
 /**
  * Subdivision rendering tests using leaflet-node

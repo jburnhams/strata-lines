@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import type { Track } from '../types';
+import type { Track } from '../../types';
 
 // We'll test the database module by mocking IndexedDB with a simpler approach
 // that focuses on the logic rather than the actual async callback mechanism
@@ -63,7 +63,7 @@ describe('Database Service', () => {
   describe('Database operations structure', () => {
     it('verifies database constants are defined correctly', async () => {
       // Test that the module exports the expected functions
-      const { getTracks, addTrack, deleteTrack, clearTracks } = await import('../services/db');
+      const { getTracks, addTrack, deleteTrack, clearTracks } = await import('../../services/db');
 
       expect(typeof getTracks).toBe('function');
       expect(typeof addTrack).toBe('function');
