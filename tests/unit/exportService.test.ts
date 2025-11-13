@@ -4,44 +4,46 @@ import { createCanvas } from '@napi-rs/canvas';
 import type { Track } from '../../types';
 import type { ExportConfig, ExportCallbacks } from '../../services/exportService';
 
+// UNIT TEST - Uses mocks, no real leaflet-node or real canvas from leaflet-node
+// Real @napi-rs/canvas is OK for creating mock canvas objects that have working methods
+
 // Mock the browser-specific APIs first, before any imports
 const mockToBlob = jest.fn((callback: (blob: Blob | null) => void) => {
-  const mockBlob = new Blob(['mock'], { type: 'image/png' });
+  // Create a proper mock blob with arrayBuffer method for stitching
+  const mockBlobData = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]); // PNG header
+  const mockBlob = new Blob([mockBlobData], { type: 'image/png' });
   callback(mockBlob);
 });
 
-const mockCreateElement = jest.fn((tagName: string) => {
-  if (tagName === 'canvas') {
+const originalCreateElement = document.createElement.bind(document);
+
+// Spy on document.createElement to provide mock canvas elements
+const mockCreateElement = jest.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+  if (tagName.toLowerCase() === 'canvas') {
     const canvas = createCanvas(100, 100);
     (canvas as any).toBlob = mockToBlob;
-    return canvas;
+    return canvas as any;
   }
-  if (tagName === 'a') {
+  if (tagName.toLowerCase() === 'a') {
     return {
       download: '',
       href: '',
       click: jest.fn(),
-    };
+      style: {},
+    } as any;
   }
-  if (tagName === 'div') {
+  if (tagName.toLowerCase() === 'div') {
     return {
       style: {},
       classList: { add: jest.fn(), remove: jest.fn() },
-    };
+    } as any;
   }
-  return {};
+  return originalCreateElement(tagName);
 });
 
-const mockBody = {
-  appendChild: jest.fn(),
-  removeChild: jest.fn(),
-};
-
-// Set up global mocks
-(global as any).document = {
-  createElement: mockCreateElement,
-  body: mockBody,
-};
+// Mock document.body methods
+const mockAppendChild = jest.spyOn(document.body, 'appendChild').mockImplementation(() => null as any);
+const mockRemoveChild = jest.spyOn(document.body, 'removeChild').mockImplementation(() => null as any);
 
 (global as any).URL = {
   createObjectURL: jest.fn(() => 'blob:mock-url'),
@@ -406,8 +408,8 @@ describe('Export Service Integration Tests', () => {
       expect(mockToBlob).toHaveBeenCalled();
       expect(mockCreateElement).toHaveBeenCalledWith('a');
       expect(global.URL.createObjectURL).toHaveBeenCalled();
-      expect(mockBody.appendChild).toHaveBeenCalled();
-      expect(mockBody.removeChild).toHaveBeenCalled();
+      expect(mockAppendChild).toHaveBeenCalled();
+      expect(mockRemoveChild).toHaveBeenCalled();
       expect(global.URL.revokeObjectURL).toHaveBeenCalled();
     });
 
