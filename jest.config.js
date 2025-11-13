@@ -35,7 +35,6 @@ export default {
       testEnvironment: 'jsdom',
       extensionsToTreatAsEsm: ['.ts', '.tsx'],
       moduleNameMapper: {
-        '^leaflet$': 'leaflet-node',
         '^@/(.*)$': '<rootDir>/$1',
         '^(\\.{1,2}/.*)\\.js$': '$1',
       },

@@ -1,4 +1,4 @@
-import { afterEach } from '@jest/globals';
+import { afterEach, beforeEach } from '@jest/globals';
 import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { TextEncoder, TextDecoder } from 'util';
@@ -112,8 +112,12 @@ if (fontAssetPath) {
   delete globalConfig[fontBasePathKey];
 }
 
-// leaflet-node 2.0.16+ automatically detects jsdom and provides real canvas via @napi-rs/canvas
-// No manual polyfills needed - just import 'leaflet' (mapped to 'leaflet-node' in jest.config.js)
+// leaflet-node 2.0.20+ automatically detects jsdom and provides real canvas via @napi-rs/canvas
+// Initialize leaflet-node after environment setup (fonts, etc.) and make it available
+const leafletNodeModule = nodeRequire('leaflet-node');
+
+// Mock 'leaflet' imports to return the initialized leaflet-node
+jest.doMock('leaflet', () => leafletNodeModule);
 
 const installMatchMedia = () => {
   Object.defineProperty(window, 'matchMedia', {
