@@ -1,6 +1,5 @@
 const PLACEHOLDER = '__BUILD_TIMESTAMP__';
 const BADGE_SELECTOR = '[data-build-timestamp]';
-const FALLBACK_TEXT = 'Build: unavailable';
 
 const formatTimestamp = (rawValue: string): string | null => {
   if (!rawValue || rawValue === PLACEHOLDER) {
@@ -32,13 +31,12 @@ const updateBadges = () => {
 
   badges.forEach((badge) => {
     const formatted = formatTimestamp(badge.dataset.buildTimestamp ?? '');
-    if (formatted) {
-      badge.textContent = formatted;
-      badge.setAttribute('title', formatted);
-    } else {
-      badge.textContent = FALLBACK_TEXT;
-      badge.setAttribute('title', FALLBACK_TEXT);
+    if (!formatted) {
+      return;
     }
+
+    badge.textContent = formatted;
+    badge.setAttribute('title', formatted);
   });
 };
 
