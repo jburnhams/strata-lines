@@ -71,7 +71,7 @@ describe('Leaflet-Node Full Rendering', () => {
     });
 
     it('should render multiple tracks with different colors', () => {
-      const tracks = [
+      const tracks: Array<{ points: [number, number][]; color: string }> = [
         {
           points: [[51.5, -0.1], [51.51, -0.09], [51.52, -0.08]],
           color: '#ff0000',
