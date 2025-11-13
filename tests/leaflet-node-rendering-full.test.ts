@@ -1,7 +1,3 @@
-/**
- * @jest-environment node
- */
-
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 
 /**
@@ -9,9 +5,6 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
  *
  * These tests verify that leaflet-node can actually render maps with tracks,
  * tile layers, and labels for server-side export functionality.
- *
- * Note: This test file uses node environment to let leaflet-node create
- * its own jsdom with canvas support.
  */
 
 describe('Leaflet-Node Full Rendering', () => {

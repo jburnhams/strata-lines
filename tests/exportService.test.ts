@@ -1,7 +1,3 @@
-/**
- * @jest-environment node
- */
-
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import L from 'leaflet';
 import { createCanvas } from '@napi-rs/canvas';
