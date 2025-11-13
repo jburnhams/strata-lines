@@ -19,38 +19,6 @@ import { join } from 'path';
  */
 
 describe('Leaflet-Node 2.0.8 New Features', () => {
-  /**
-   * NOTE ON CLEANUP: We intentionally do NOT call cleanupTestMaps() in afterEach hooks
-   *
-   * ROOT CAUSE ANALYSIS OF ORIGINAL ISSUE:
-   * When cleanupTestMaps() was called in afterEach, 3 tests consistently failed with:
-   * "TypeError: Cannot read properties of undefined (reading 'save')" in Canvas._clear()
-   *
-   * The issue occurs because:
-   * 1. Test adds polyline → Leaflet's Canvas renderer created → _redrawRequest animation frame scheduled
-   * 2. afterEach calls cleanupTestMaps() → tries to cancel frames and removes canvas DOM elements
-   * 3. Animation frame fires AFTER cleanup → tries to access this._ctx which is now undefined
-   *
-   * The problem is that Leaflet's Canvas renderer stores animation frames in renderer._redrawRequest,
-   * but cleanupTestMaps() only checks layer._frame, missing the Canvas renderer's pending frames.
-   *
-   * Attempted fixes:
-   * - Manually canceling renderer._redrawRequest before cleanup: Didn't prevent errors
-   * - Adding delays after cleanup: Made it WORSE (4 failures instead of 3)
-   * - NOT calling cleanupTestMaps(): ALL 20 tests pass ✓
-   *
-   * SOLUTION: Don't call cleanupTestMaps() in afterEach. Maps are cleaned up naturally when
-   * Jest resets the jsdom environment between test files. This is safe and avoids the race
-   * condition with animation frames.
-   *
-   * RECOMMENDATION FOR LEAFLET-NODE:
-   * The cleanupTestMaps() function should be enhanced to:
-   * 1. Collect all Canvas/SVG renderers from vector layers (via layer._renderer)
-   * 2. Cancel renderer._redrawRequest explicitly (not just layer._frame)
-   * 3. Ensure all pending animation frames complete before removing DOM elements
-   * 4. Consider using a more robust synchronization mechanism in jsdom environments
-   */
-
   describe('Testing Utilities', () => {
     describe('createTestMap', () => {
       it('should create a map with default dimensions', () => {
@@ -218,7 +186,7 @@ describe('Leaflet-Node 2.0.8 New Features', () => {
       } catch (e) {
         // Ignore cleanup errors
       }
-      // NOTE: We do NOT call cleanupTestMaps() here - see comment at top of file
+      await cleanupTestMaps();
     });
 
     describe('map.saveImage', () => {
@@ -373,7 +341,7 @@ describe('Leaflet-Node 2.0.8 New Features', () => {
       } catch (e) {
         // Ignore
       }
-      // NOTE: We do NOT call cleanupTestMaps() here - see comment at top of file
+      await cleanupTestMaps();
     });
 
     it('should export a complete map with tiles and tracks', async () => {
