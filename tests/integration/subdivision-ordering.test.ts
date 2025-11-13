@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from '@jest/globals';
 import L from 'leaflet';
-import { calculateSubdivisions, calculateGridLayout } from '../utils/exportHelpers';
+import { calculateSubdivisions, calculateGridLayout } from '../../utils/exportHelpers';
 
 describe('Subdivision Ordering Integration Tests', () => {
   describe('2x2 Grid (4 subdivisions)', () => {

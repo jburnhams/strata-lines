@@ -112,19 +112,44 @@ if (fontAssetPath) {
   delete globalConfig[fontBasePathKey];
 }
 
-const {
-  default: leafletNodeModule,
-  setFontAssetBasePath,
-} = nodeRequire('leaflet-node');
+// leaflet-node cannot run in jsdom as it expects Node.js environment
+// Instead, we polyfill canvas methods to use real @napi-rs/canvas
+const { Canvas, Image: CanvasImage } = nodeRequire('@napi-rs/canvas');
 
-if (fontAssetPath) {
-  setFontAssetBasePath(fontAssetPath);
-}
+// Override HTMLCanvasElement.prototype.getContext to return real canvas context
+const originalGetContext = HTMLCanvasElement.prototype.getContext;
+HTMLCanvasElement.prototype.getContext = function(contextType: string, options?: any) {
+  if (contextType === '2d') {
+    // Create a real @napi-rs/canvas Canvas
+    const realCanvas = new Canvas(this.width || 300, this.height || 150);
+    const ctx = realCanvas.getContext('2d');
 
-jest.doMock('leaflet', () => leafletNodeModule);
+    // Sync dimensions when they change
+    Object.defineProperty(this, 'width', {
+      get() { return realCanvas.width; },
+      set(value) { realCanvas.width = value; }
+    });
+    Object.defineProperty(this, 'height', {
+      get() { return realCanvas.height; },
+      set(value) { realCanvas.height = value; }
+    });
 
-// Note: leaflet-node provides real canvas via @napi-rs/canvas
-// No canvas polyfills needed - use the real thing!
+    // Add toBlob method using real canvas
+    this.toBlob = function(callback: BlobCallback, type?: string, quality?: any) {
+      const buffer = realCanvas.toBuffer(type === 'image/jpeg' ? 'image/jpeg' : 'image/png');
+      const blob = new Blob([buffer], { type: type || 'image/png' });
+      setTimeout(() => callback(blob), 0);
+    };
+
+    // Add toDataURL method
+    this.toDataURL = function(type?: string, quality?: any) {
+      return realCanvas.toDataURL(type, quality);
+    };
+
+    return ctx;
+  }
+  return originalGetContext.call(this, contextType, options);
+} as any;
 
 const installMatchMedia = () => {
   Object.defineProperty(window, 'matchMedia', {

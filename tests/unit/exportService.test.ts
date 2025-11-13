@@ -1,8 +1,8 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import L from 'leaflet';
 import { createCanvas } from '@napi-rs/canvas';
-import type { Track } from '../types';
-import type { ExportConfig, ExportCallbacks } from '../services/exportService';
+import type { Track } from '../../types';
+import type { ExportConfig, ExportCallbacks } from '../../services/exportService';
 
 // Mock the browser-specific APIs first, before any imports
 const mockToBlob = jest.fn((callback: (blob: Blob | null) => void) => {
@@ -49,7 +49,7 @@ const mockBody = {
 };
 
 // Mock the exportHelpers module completely
-jest.mock('../utils/exportHelpers', () => ({
+jest.mock('../../utils/exportHelpers', () => ({
   renderCanvasForBounds: jest.fn(),
   calculateSubdivisions: jest.fn(),
   calculateGridLayout: jest.fn(),
@@ -62,8 +62,8 @@ jest.mock('image-stitch/bundle', () => ({
 }));
 
 // Now import after mocks are set up
-import { performPngExport } from '../services/exportService';
-import * as exportHelpers from '../utils/exportHelpers';
+import { performPngExport } from '../../services/exportService';
+import * as exportHelpers from '../../utils/exportHelpers';
 import * as imageStitch from 'image-stitch/bundle';
 
 describe('Export Service Integration Tests', () => {

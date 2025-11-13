@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
 import L from 'leaflet';
-import { calculatePixelDimensions } from '../utils/mapCalculations';
+import { calculatePixelDimensions } from '../../utils/mapCalculations';
 
 /**
  * Tests for the subdivision calculation algorithm

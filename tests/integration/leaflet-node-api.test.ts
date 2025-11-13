@@ -1,7 +1,7 @@
 import { describe, it, expect } from '@jest/globals';
 import L from 'leaflet';
-import { TILE_LAYERS } from '../constants';
-import { LABEL_TILE_URL_RETINA } from '../labelTiles';
+import { TILE_LAYERS } from '../../constants';
+import { LABEL_TILE_URL_RETINA } from '../../labelTiles';
 
 /**
  * Tests for leaflet-node API compatibility
