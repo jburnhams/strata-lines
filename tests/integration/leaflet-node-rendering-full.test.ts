@@ -1,75 +1,54 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { createTestMap, cleanupTestMaps, Leaflet as L } from 'leaflet-node/testing';
 
 /**
- * Full rendering tests using leaflet-node directly
+ * Full rendering tests using leaflet-node testing utilities
  *
  * These tests verify that leaflet-node can actually render maps with tracks,
  * tile layers, and labels for server-side export functionality.
+ *
+ * Note: Uses createTestMap() and cleanupTestMaps() from leaflet-node/testing
+ * to avoid Canvas animation frame race conditions during cleanup.
  */
 
 describe('Leaflet-Node Full Rendering', () => {
-  let L: any;
-  let container: HTMLDivElement;
   let map: any;
 
-  beforeEach(async () => {
-    // Import leaflet-node dynamically to ensure it sets up its own environment
-    const leafletNode = await import('leaflet-node');
-    L = leafletNode.default;
-
-    // Create a container for the map
-    container = document.createElement('div');
-    container.style.width = '800px';
-    container.style.height = '600px';
-    container.style.position = 'absolute';
-    container.style.left = '-9999px';
-    container.style.top = '-9999px';
-    document.body.appendChild(container);
-  });
-
   afterEach(async () => {
-    // Clean up
-    if (map) {
-      map.remove();
-      map = null;
-    }
-    // Small delay to let async rendering complete
-    await new Promise(resolve => setTimeout(resolve, 10));
-    if (container && container.parentNode) {
-      container.parentNode.removeChild(container);
-    }
+    await cleanupTestMaps();
   });
 
   describe('Map Creation and Rendering', () => {
     it('should create a map instance', () => {
-      map = L.map(container, {
-        preferCanvas: true,
-        attributionControl: false,
-        zoomControl: false,
+      map = createTestMap({
+        mapOptions: {
+          preferCanvas: true,
+          attributionControl: false,
+          zoomControl: false,
+        }
       });
 
       expect(map).toBeDefined();
-      expect(map.getContainer()).toBe(container);
+      expect(map.getContainer()).toBeDefined();
     });
 
     it('should set map view and zoom', () => {
-      map = L.map(container);
-      const center = L.latLng(51.505, -0.09);
-      const zoom = 13;
-
-      map.setView(center, zoom);
+      map = createTestMap({ center: [51.505, -0.09], zoom: 13 });
 
       const mapCenter = map.getCenter();
       expect(mapCenter.lat).toBeCloseTo(51.505, 5);
       expect(mapCenter.lng).toBeCloseTo(-0.09, 5);
-      expect(map.getZoom()).toBe(zoom);
+      expect(map.getZoom()).toBe(13);
     });
   });
 
   describe('Track Rendering', () => {
     beforeEach(() => {
-      map = L.map(container, { preferCanvas: true });
-      map.setView([51.505, -0.09], 13);
+      map = createTestMap({
+        center: [51.505, -0.09],
+        zoom: 13,
+        mapOptions: { preferCanvas: true }
+      });
     });
 
     it('should render a polyline track', () => {
@@ -146,8 +125,7 @@ describe('Leaflet-Node Full Rendering', () => {
 
   describe('Tile Layer Creation', () => {
     beforeEach(() => {
-      map = L.map(container);
-      map.setView([51.505, -0.09], 13);
+      map = createTestMap({ center: [51.505, -0.09], zoom: 13 });
     });
 
     it('should create and add a tile layer', () => {
@@ -178,14 +156,13 @@ describe('Leaflet-Node Full Rendering', () => {
       const exportWidth = 1920;
       const exportHeight = 1080;
 
-      container.style.width = `${exportWidth}px`;
-      container.style.height = `${exportHeight}px`;
-
-      map = L.map(container, { preferCanvas: true });
-      map.setView([51.505, -0.09], 13);
-
-      // Set size explicitly after creation
-      map.setSize(exportWidth, exportHeight);
+      map = createTestMap({
+        width: exportWidth,
+        height: exportHeight,
+        center: [51.505, -0.09],
+        zoom: 13,
+        mapOptions: { preferCanvas: true }
+      });
 
       const size = map.getSize();
       expect(size.x).toBe(exportWidth);
@@ -193,19 +170,21 @@ describe('Leaflet-Node Full Rendering', () => {
     });
 
     it('should render at high export zoom level', () => {
-      map = L.map(container);
       const previewZoom = 10;
       const exportQuality = 2;
       const exportZoom = previewZoom + exportQuality;
 
-      map.setView([51.505, -0.09], exportZoom);
+      map = createTestMap({ center: [51.505, -0.09], zoom: exportZoom });
 
       expect(map.getZoom()).toBe(12);
     });
 
     it('should render tracks at export quality', () => {
-      map = L.map(container, { preferCanvas: true });
-      map.setView([51.505, -0.09], 13);
+      map = createTestMap({
+        center: [51.505, -0.09],
+        zoom: 13,
+        mapOptions: { preferCanvas: true }
+      });
 
       const baseThickness = 3;
       const exportQuality = 2;
@@ -231,8 +210,11 @@ describe('Leaflet-Node Full Rendering', () => {
 
   describe('Canvas and Context', () => {
     beforeEach(() => {
-      map = L.map(container, { preferCanvas: true });
-      map.setView([51.505, -0.09], 13);
+      map = createTestMap({
+        center: [51.505, -0.09],
+        zoom: 13,
+        mapOptions: { preferCanvas: true }
+      });
     });
 
     it('should have working canvas context', () => {
