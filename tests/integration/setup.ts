@@ -115,9 +115,12 @@ if (fontAssetPath) {
 // leaflet-node 2.0.20+ automatically detects jsdom and provides real canvas via @napi-rs/canvas
 // Initialize leaflet-node after environment setup (fonts, etc.) and make it available
 const leafletNodeModule = nodeRequire('leaflet-node');
+const leafletNodeTesting = nodeRequire('leaflet-node/testing');
 
-// Mock 'leaflet' imports to return the initialized leaflet-node
+// Mock all leaflet-node imports to return the initialized modules
 jest.doMock('leaflet', () => leafletNodeModule);
+jest.doMock('leaflet-node', () => leafletNodeModule);
+jest.doMock('leaflet-node/testing', () => leafletNodeTesting);
 
 const installMatchMedia = () => {
   Object.defineProperty(window, 'matchMedia', {
