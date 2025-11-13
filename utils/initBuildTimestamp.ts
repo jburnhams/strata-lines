@@ -1,4 +1,4 @@
-const PLACEHOLDER = '__BUILD_TIMESTAMP__';
+const PLACEHOLDER = '__BUILD' + '_TIMESTAMP__';
 const BADGE_SELECTOR = '[data-build-timestamp]';
 
 const formatTimestamp = (rawValue: string): string | null => {
