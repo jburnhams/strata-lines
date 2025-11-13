@@ -82,45 +82,25 @@ const originalClearTimeout = globalThis.clearTimeout;
   return originalClearTimeout(timer);
 };
 
-const nodeRequire = eval('require') as NodeJS.Require;
+// leaflet-node 2.0.21+ automatically detects jsdom and provides real canvas via @napi-rs/canvas
+// Mock 'leaflet' to use leaflet-node (jest.mock is hoisted)
+jest.mock('leaflet', () => {
+  const nodeRequire = eval('require') as NodeJS.Require;
 
-let fontAssetPath: string | undefined;
-try {
-  fontAssetPath = nodeRequire.resolve(
-    '@fontsource/noto-sans/files/noto-sans-latin-400-normal.woff2'
-  );
-} catch {
+  // Setup font path FIRST
   try {
-    fontAssetPath = nodeRequire.resolve(
-      '@fontsource/noto-sans/files/noto-sans-latin-400-normal.woff'
-    );
+    const fontPath = nodeRequire.resolve('@fontsource/noto-sans/files/noto-sans-latin-400-normal.woff2')
+      || nodeRequire.resolve('@fontsource/noto-sans/files/noto-sans-latin-400-normal.woff');
+    (globalThis as any)['LEAFLET_NODE_FONT_BASE_PATH'] = fontPath;
   } catch {
-    fontAssetPath = undefined;
+    // Font not found, leaflet-node will use fallback
   }
-}
 
-const fontBasePathKey = 'LEAFLET_NODE_FONT_BASE_PATH';
-const globalConfig = globalThis as Record<string, unknown>;
+  // Now load leaflet-node with fonts configured
+  return nodeRequire('leaflet-node');
+});
 
-if (fontAssetPath) {
-  // leaflet-node 2.0.7 suppresses the final fallback warning when no base path is
-  // configured, but the module still logs resolution errors while importing unless
-  // a base path is present ahead of time. Seed the global hook so the helper below
-  // can re-register without spamming the console.
-  globalConfig[fontBasePathKey] = fontAssetPath;
-} else {
-  delete globalConfig[fontBasePathKey];
-}
-
-// leaflet-node 2.0.20+ automatically detects jsdom and provides real canvas via @napi-rs/canvas
-// Initialize leaflet-node after environment setup (fonts, etc.) and make it available
-const leafletNodeModule = nodeRequire('leaflet-node');
-const leafletNodeTesting = nodeRequire('leaflet-node/testing');
-
-// Mock all leaflet-node imports to return the initialized modules
-jest.doMock('leaflet', () => leafletNodeModule);
-jest.doMock('leaflet-node', () => leafletNodeModule);
-jest.doMock('leaflet-node/testing', () => leafletNodeTesting);
+const nodeRequire = eval('require') as NodeJS.Require;
 
 const installMatchMedia = () => {
   Object.defineProperty(window, 'matchMedia', {
