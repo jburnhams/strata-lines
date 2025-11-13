@@ -7,29 +7,55 @@
     <title>StrataLines - GPS Track Visualizer</title>
     <meta name="description" content="Visualize and analyze GPS tracks from GPX, TCX, and FIT files" />
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-      crossorigin=""/>
+      crossorigin=""
+    />
     <style>
       .leaflet-container {
         height: 100%;
         width: 100%;
       }
-      .leaflet-control-attribution, .leaflet-control-zoom {
+      .leaflet-control-attribution,
+      .leaflet-control-zoom {
         filter: invert(1) hue-rotate(180deg);
       }
       .blinking-track {
         animation: blinker 1.5s ease-in-out infinite;
       }
       @keyframes blinker {
-        0% { opacity: 0.8; }
-        50% { opacity: 0.2; }
-        100% { opacity: 0.8; }
+        0% {
+          opacity: 0.8;
+        }
+        50% {
+          opacity: 0.2;
+        }
+        100% {
+          opacity: 0.8;
+        }
+      }
+      .build-badge {
+        position: fixed;
+        bottom: 0.75rem;
+        right: 0.75rem;
+        background: rgba(17, 24, 39, 0.85);
+        color: #f9fafb;
+        padding: 0.2rem 0.6rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+          sans-serif;
+        box-shadow: 0 4px 8px rgba(15, 23, 42, 0.25);
+        z-index: 1000;
+        pointer-events: none;
       }
     </style>
   </head>
   <body>
     <div id="root"></div>
+    <div class="build-badge" data-build-timestamp="__BUILD_TIMESTAMP__">Build: pending</div>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>
