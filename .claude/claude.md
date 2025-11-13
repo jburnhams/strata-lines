@@ -1,59 +1,33 @@
-# Claude AI Assistant Instructions for Strata Lines
+# Claude AI Assistant Instructions
 
 ## Project Overview
-Strata Lines is a web application for visualizing GPS tracks on maps with export capabilities using Leaflet and leaflet-node for server-side rendering.
+Web app for visualizing GPS tracks on maps with export capabilities using Leaflet and leaflet-node.
 
-## Important Documentation
+## Important: Read First
+**[Test Organization](.claude/test-organization.md)** - Test structure and best practices
 
-Before working with tests, **always read**:
-- [Test Organization Guide](.claude/test-organization.md) - Explains test setup, categories, and best practices
+## Test Structure
 
-## Key Technologies
+- `tests/unit/` - Unit tests with mocks, minimal setup
+- `tests/integration/` - Integration tests with real leaflet-node, no mocking canvas/DOM
 
-- **Leaflet** - Map rendering library
-- **leaflet-node** - Server-side Leaflet with real canvas support (@napi-rs/canvas)
-- **React** - UI framework
-- **Jest** - Testing framework
-- **jsdom** - Test environment (with real canvas override)
+**Key:** Unit tests mock dependencies; integration tests use real leaflet-node and canvas.
 
-## Test Environment
-
-All tests run in **jsdom environment** with:
-- Real canvas from `@napi-rs/canvas` (not jsdom's incomplete canvas)
-- localStorage support (required by leaflet-node)
-- DOM APIs for component testing
-
-**NEVER** add `@jest-environment node` to test files - it breaks localStorage support.
-
-## Working with Tests
-
-1. **Unit tests** - Mock dependencies, test logic in isolation
-2. **Integration tests** - Use real leaflet-node, minimal mocks
-
-See [Test Organization Guide](.claude/test-organization.md) for full details.
-
-## Common Commands
+## Commands
 
 ```bash
-npm test                    # Run all tests
-npm run test:unit          # Run unit tests only
-npm run test:coverage      # Run with coverage
-npm run dev                 # Start dev server
-npm run build              # Build for production
+npm test                  # All tests
+npm run test:unit         # Unit tests only
+npm run test:integration  # Integration tests only
+npm run dev               # Dev server
+npm run build             # Production build
 ```
 
-## Code Style
+## Critical Rules
 
-- TypeScript with strict mode
-- Functional React components with hooks
-- Descriptive variable names
-- Comments for complex logic
+1. **Never add `@jest-environment node`** - breaks localStorage
+2. **Unit tests** - Mock freely
+3. **Integration tests** - Never mock canvas, DOM, or leaflet
+4. **Both use jsdom** - Provides localStorage and DOM APIs
 
-## When Fixing Test Issues
-
-1. Check if `@jest-environment node` is present (should not be!)
-2. Verify `tests/setup.ts` properly overrides HTMLCanvasElement
-3. For unit tests: mock dependencies
-4. For integration tests: use real leaflet-node
-
-See troubleshooting section in [Test Organization Guide](.claude/test-organization.md).
+See [Test Organization](.claude/test-organization.md) for full details.

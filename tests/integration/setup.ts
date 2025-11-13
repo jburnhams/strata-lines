@@ -112,14 +112,6 @@ if (fontAssetPath) {
   delete globalConfig[fontBasePathKey];
 }
 
-// Import canvas from @napi-rs/canvas (used by leaflet-node)
-const { Canvas, Image, ImageData } = nodeRequire('@napi-rs/canvas');
-
-// Override jsdom's canvas with real canvas implementation from @napi-rs/canvas
-(global as any).HTMLCanvasElement = Canvas;
-(global as any).HTMLImageElement = Image;
-(global as any).ImageData = ImageData;
-
 const {
   default: leafletNodeModule,
   setFontAssetBasePath,
@@ -130,6 +122,9 @@ if (fontAssetPath) {
 }
 
 jest.doMock('leaflet', () => leafletNodeModule);
+
+// Note: leaflet-node provides real canvas via @napi-rs/canvas
+// No canvas polyfills needed - use the real thing!
 
 const installMatchMedia = () => {
   Object.defineProperty(window, 'matchMedia', {

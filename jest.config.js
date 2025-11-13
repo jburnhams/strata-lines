@@ -1,28 +1,64 @@
 export default {
-  preset: 'ts-jest/presets/default-esm',
-  testEnvironment: 'jsdom',
-  extensionsToTreatAsEsm: ['.ts', '.tsx'],
-  moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/$1',
-    '^(\\.{1,2}/.*)\\.js$': '$1',
-  },
-  transform: {
-    '^.+\\.(ts|tsx|js|jsx)$': [
-      'babel-jest',
-      {
-        presets: [
-          ['@babel/preset-env', { targets: { node: 'current' } }],
-          ['@babel/preset-react', { runtime: 'automatic' }],
-          '@babel/preset-typescript',
+  projects: [
+    {
+      displayName: 'unit',
+      preset: 'ts-jest/presets/default-esm',
+      testEnvironment: 'jsdom',
+      extensionsToTreatAsEsm: ['.ts', '.tsx'],
+      moduleNameMapper: {
+        '^@/(.*)$': '<rootDir>/$1',
+        '^(\\.{1,2}/.*)\\.js$': '$1',
+      },
+      transform: {
+        '^.+\\.(ts|tsx|js|jsx)$': [
+          'babel-jest',
+          {
+            presets: [
+              ['@babel/preset-env', { targets: { node: 'current' } }],
+              ['@babel/preset-react', { runtime: 'automatic' }],
+              '@babel/preset-typescript',
+            ],
+          },
         ],
       },
-    ],
-  },
-  transformIgnorePatterns: [
-    'node_modules/(?!(gpxparser|jsdom|parse5|@garmin/fitsdk)/)',
+      transformIgnorePatterns: [
+        'node_modules/(?!(gpxparser|jsdom|parse5|@garmin/fitsdk)/)',
+      ],
+      setupFilesAfterEnv: ['<rootDir>/tests/unit/setup.ts'],
+      testMatch: ['<rootDir>/tests/unit/**/*.test.{ts,tsx}'],
+      maxWorkers: 2,
+      workerIdleMemoryLimit: '512MB',
+    },
+    {
+      displayName: 'integration',
+      preset: 'ts-jest/presets/default-esm',
+      testEnvironment: 'jsdom',
+      extensionsToTreatAsEsm: ['.ts', '.tsx'],
+      moduleNameMapper: {
+        '^@/(.*)$': '<rootDir>/$1',
+        '^(\\.{1,2}/.*)\\.js$': '$1',
+      },
+      transform: {
+        '^.+\\.(ts|tsx|js|jsx)$': [
+          'babel-jest',
+          {
+            presets: [
+              ['@babel/preset-env', { targets: { node: 'current' } }],
+              ['@babel/preset-react', { runtime: 'automatic' }],
+              '@babel/preset-typescript',
+            ],
+          },
+        ],
+      },
+      transformIgnorePatterns: [
+        'node_modules/(?!(gpxparser|jsdom|parse5|@garmin/fitsdk)/)',
+      ],
+      setupFilesAfterEnv: ['<rootDir>/tests/integration/setup.ts'],
+      testMatch: ['<rootDir>/tests/integration/**/*.test.{ts,tsx}'],
+      maxWorkers: 2,
+      workerIdleMemoryLimit: '512MB',
+    },
   ],
-  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
-  testMatch: ['<rootDir>/tests/**/*.test.{ts,tsx}'],
   collectCoverageFrom: [
     'services/**/*.{ts,tsx}',
     '!services/db.ts',
@@ -38,6 +74,4 @@ export default {
     },
   },
   coverageReporters: ['text', 'lcov', 'html'],
-  maxWorkers: 2,
-  workerIdleMemoryLimit: '512MB',
 };
