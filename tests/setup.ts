@@ -112,6 +112,14 @@ if (fontAssetPath) {
   delete globalConfig[fontBasePathKey];
 }
 
+// Import canvas from @napi-rs/canvas (used by leaflet-node)
+const { Canvas, Image, ImageData } = nodeRequire('@napi-rs/canvas');
+
+// Override jsdom's canvas with real canvas implementation from @napi-rs/canvas
+(global as any).HTMLCanvasElement = Canvas;
+(global as any).HTMLImageElement = Image;
+(global as any).ImageData = ImageData;
+
 const {
   default: leafletNodeModule,
   setFontAssetBasePath,
