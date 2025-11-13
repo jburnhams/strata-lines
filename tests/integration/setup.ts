@@ -82,25 +82,42 @@ const originalClearTimeout = globalThis.clearTimeout;
   return originalClearTimeout(timer);
 };
 
-// leaflet-node 2.0.21+ automatically detects jsdom and provides real canvas via @napi-rs/canvas
-// Mock 'leaflet' to use leaflet-node (jest.mock is hoisted)
-jest.mock('leaflet', () => {
-  const nodeRequire = eval('require') as NodeJS.Require;
-
-  // Setup font path FIRST
-  try {
-    const fontPath = nodeRequire.resolve('@fontsource/noto-sans/files/noto-sans-latin-400-normal.woff2')
-      || nodeRequire.resolve('@fontsource/noto-sans/files/noto-sans-latin-400-normal.woff');
-    (globalThis as any)['LEAFLET_NODE_FONT_BASE_PATH'] = fontPath;
-  } catch {
-    // Font not found, leaflet-node will use fallback
-  }
-
-  // Now load leaflet-node with fonts configured
-  return nodeRequire('leaflet-node');
-});
-
 const nodeRequire = eval('require') as NodeJS.Require;
+
+// Setup font paths before loading leaflet-node
+let fontAssetPath: string | undefined;
+try {
+  fontAssetPath = nodeRequire.resolve(
+    '@fontsource/noto-sans/files/noto-sans-latin-400-normal.woff2'
+  );
+} catch {
+  try {
+    fontAssetPath = nodeRequire.resolve(
+      '@fontsource/noto-sans/files/noto-sans-latin-400-normal.woff'
+    );
+  } catch {
+    fontAssetPath = undefined;
+  }
+}
+
+const fontBasePathKey = 'LEAFLET_NODE_FONT_BASE_PATH';
+const globalConfig = globalThis as Record<string, unknown>;
+
+if (fontAssetPath) {
+  globalConfig[fontBasePathKey] = fontAssetPath;
+} else {
+  delete globalConfig[fontBasePathKey];
+}
+
+// leaflet-node 2.0.21+ automatically detects jsdom and provides real canvas via @napi-rs/canvas
+// Load AFTER jsdom environment is ready (setup.ts runs after jsdom is initialized)
+const leafletNodeModule = nodeRequire('leaflet-node');
+const leafletNodeTesting = nodeRequire('leaflet-node/testing');
+
+// Use jest.doMock (not jest.mock) - runs during setup, AFTER jsdom exists
+jest.doMock('leaflet', () => leafletNodeModule);
+jest.doMock('leaflet-node', () => leafletNodeModule);
+jest.doMock('leaflet-node/testing', () => leafletNodeTesting);
 
 const installMatchMedia = () => {
   Object.defineProperty(window, 'matchMedia', {
