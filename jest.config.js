@@ -6,7 +6,7 @@ export default {
       testEnvironment: 'jsdom',
       extensionsToTreatAsEsm: ['.ts', '.tsx'],
       moduleNameMapper: {
-        '^@/(.*)$': '<rootDir>/$1',
+        '^@/(.*)$': '<rootDir>/src/$1',
         '^(\\.{1,2}/.*)\\.js$': '$1',
       },
       transform: {
@@ -35,7 +35,7 @@ export default {
       testEnvironment: 'jsdom',
       extensionsToTreatAsEsm: ['.ts', '.tsx'],
       moduleNameMapper: {
-        '^@/(.*)$': '<rootDir>/$1',
+        '^@/(.*)$': '<rootDir>/src/$1',
         '^(\\.{1,2}/.*)\\.js$': '$1',
       },
       transform: {
@@ -60,8 +60,8 @@ export default {
     },
   ],
   collectCoverageFrom: [
-    'services/**/*.{ts,tsx}',
-    '!services/db.ts',
+    'src/services/**/*.{ts,tsx}',
+    '!src/services/db.ts',
     '!**/*.d.ts',
     '!**/node_modules/**',
   ],

@@ -2,7 +2,7 @@
 
 
 import L from 'leaflet';
-import type { TileLayerDefinition } from './types';
+import type { TileLayerDefinition } from '@/types';
 
 // A stable center point for initial map load and calculations
 export const UK_CENTER_LATLNG = new L.LatLng(54.5, -2.5);

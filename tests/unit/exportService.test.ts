@@ -1,7 +1,7 @@
 import { describe, it, expect, jest, beforeEach, afterEach, afterAll } from '@jest/globals';
 import L from 'leaflet';
-import type { Track } from '../../types';
-import type { ExportConfig, ExportCallbacks } from '../../services/exportService';
+import type { Track } from '@/types';
+import type { ExportConfig, ExportCallbacks } from '@/services/exportService';
 import {
   createMockBlob,
   createMockCanvas,
@@ -32,7 +32,7 @@ const { createElementSpy: mockCreateElement, appendChildSpy: mockAppendChild, re
 };
 
 // Mock the exportHelpers module completely
-jest.mock('../../utils/exportHelpers', () => ({
+jest.mock('@/utils/exportHelpers', () => ({
   renderCanvasForBounds: jest.fn(),
   calculateSubdivisions: jest.fn(),
   calculateGridLayout: jest.fn(),
@@ -45,8 +45,8 @@ jest.mock('image-stitch/bundle', () => ({
 }));
 
 // Now import after mocks are set up
-import { performPngExport } from '../../services/exportService';
-import * as exportHelpers from '../../utils/exportHelpers';
+import { performPngExport } from '@/services/exportService';
+import * as exportHelpers from '@/utils/exportHelpers';
 import * as imageStitch from 'image-stitch/bundle';
 
 describe('Export Service unit tests', () => {
