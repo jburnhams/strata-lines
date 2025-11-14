@@ -10,19 +10,6 @@ global.TextDecoder = TextDecoder as any;
 // IMPORTANT: Unit tests should NOT load leaflet-node or @napi-rs/canvas
 // These are for integration tests only. Unit tests use mocks.
 
-// Mock console methods to keep test output clean
-// Note: console.error is NOT mocked so real errors are visible for debugging
-global.console = {
-  ...console,
-  log: jest.fn(),
-  debug: jest.fn(),
-  info: jest.fn(),
-  warn: jest.fn(),
-  group: jest.fn(),
-  groupCollapsed: jest.fn(),
-  groupEnd: jest.fn(),
-};
-
 // Polyfill Blob.arrayBuffer() for jsdom (not available in older versions)
 if (typeof Blob !== 'undefined' && !Blob.prototype.arrayBuffer) {
   Blob.prototype.arrayBuffer = async function() {
