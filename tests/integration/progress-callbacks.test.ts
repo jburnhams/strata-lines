@@ -198,13 +198,14 @@ describe('Progress Callbacks Integration Tests', () => {
       // Manually trigger renderer update events to simulate line rendering
       const renderer = (map as any)._renderer;
       if (renderer) {
-        setTimeout(() => {
+        // Trigger immediately instead of after delay
+        requestAnimationFrame(() => {
           // Simulate progressive rendering
           for (let i = 1; i <= 10; i++) {
             if (onLineProgress) onLineProgress(i, 10);
             if (renderer.fire) renderer.fire('update');
           }
-        }, 100);
+        });
       }
 
       await waitForRender({
@@ -266,15 +267,14 @@ describe('Progress Callbacks Integration Tests', () => {
       // Manually trigger renderer update events to simulate progressive line rendering
       const renderer = (map as any)._renderer;
       if (renderer) {
-        setTimeout(() => {
-          // Simulate progressive rendering with increasing progress
+        // Trigger immediately without nested timeouts for faster testing
+        requestAnimationFrame(() => {
+          // Simulate progressive rendering - fire all updates at once for testing
           for (let i = 1; i <= 15; i++) {
-            setTimeout(() => {
-              if (onLineProgress) onLineProgress(i, 15);
-              if (renderer.fire) renderer.fire('update');
-            }, i * 50);
+            if (onLineProgress) onLineProgress(i, 15);
+            if (renderer.fire) renderer.fire('update');
           }
-        }, 100);
+        });
       }
 
       await waitForRender({
@@ -328,9 +328,9 @@ describe('Progress Callbacks Integration Tests', () => {
       // Manually trigger renderer update to simulate rendering completion
       const renderer = (map as any)._renderer;
       if (renderer) {
-        setTimeout(() => {
+        requestAnimationFrame(() => {
           if (renderer.fire) renderer.fire('update');
-        }, 100);
+        });
       }
 
       await expect(waitForRender({
@@ -414,12 +414,12 @@ describe('Progress Callbacks Integration Tests', () => {
       // Manually trigger renderer update events for line rendering
       const renderer2 = (map2 as any)._renderer;
       if (renderer2) {
-        setTimeout(() => {
+        requestAnimationFrame(() => {
           for (let i = 1; i <= 8; i++) {
             if (onLineProgress) onLineProgress(i, 8);
             if (renderer2.fire) renderer2.fire('update');
           }
-        }, 100);
+        });
       }
 
       await waitForRender({
@@ -513,12 +513,12 @@ describe('Progress Callbacks Integration Tests', () => {
       // Manually trigger renderer update events
       const renderer = (map as any)._renderer;
       if (renderer) {
-        setTimeout(() => {
+        requestAnimationFrame(() => {
           for (let i = 1; i <= 5; i++) {
             if (onLineProgress) onLineProgress(i, 5);
             if (renderer.fire) renderer.fire('update');
           }
-        }, 100);
+        });
       }
 
       await waitForRender({

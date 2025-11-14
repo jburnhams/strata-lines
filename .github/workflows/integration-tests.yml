@@ -1,0 +1,49 @@
+# Integration Tests - Run comprehensive integration tests with real network access
+# These tests verify integration with Leaflet, leaflet-node, and tile servers
+
+name: Integration Tests
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [25.x]
+        # Integration tests use latest Node.js for best compatibility with leaflet-node
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run integration tests
+      run: npm run test:integration
+      env:
+        NODE_OPTIONS: "--max-old-space-size=2048"
+      timeout-minutes: 10
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: integration-test-results
+        path: |
+          coverage/
+          test-results/
+        retention-days: 7

@@ -58,12 +58,11 @@ describe('Subdivision Rendering with Leaflet-Node', () => {
     document.body.appendChild(container);
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     if (map) {
       map.remove();
       map = null;
     }
-    await new Promise(resolve => setTimeout(resolve, 10));
     if (container && container.parentNode) {
       container.parentNode.removeChild(container);
     }
@@ -206,44 +205,6 @@ describe('Subdivision Rendering with Leaflet-Node', () => {
   });
 
   describe('Subdivision Size Constraints', () => {
-    it.skip('should create containers matching subdivision pixel dimensions', () => {
-      // Note: Skipped because JSDOM's map.getSize() doesn't match container dimensions
-      // The subdivision logic itself is tested by other tests in this suite
-      const bounds = L.latLngBounds(
-        L.latLng(51.5, -0.5),
-        L.latLng(51.7, 0.5)
-      );
-      const zoom = 13;
-      const maxDim = 1500;
-
-      const subdivisions = calculateSubdivisions(bounds, zoom, maxDim);
-
-      subdivisions.forEach(subdivisionBounds => {
-        const dimensions = calculatePixelDimensions(subdivisionBounds, zoom);
-
-        // Verify dimensions are within constraint
-        expect(dimensions.width).toBeLessThanOrEqual(maxDim);
-        expect(dimensions.height).toBeLessThanOrEqual(maxDim);
-
-        // Create a container matching these dimensions
-        const subContainer = document.createElement('div');
-        subContainer.style.width = `${dimensions.width}px`;
-        subContainer.style.height = `${dimensions.height}px`;
-        document.body.appendChild(subContainer);
-
-        const subMap = L.map(subContainer);
-        subMap.fitBounds(subdivisionBounds);
-
-        const size = subMap.getSize();
-        expect(size.x).toBe(dimensions.width);
-        expect(size.y).toBe(dimensions.height);
-
-        // Clean up
-        subMap.remove();
-        document.body.removeChild(subContainer);
-      });
-    });
-
     it('should handle very small subdivisions', () => {
       const bounds = L.latLngBounds(
         L.latLng(51.5, -0.1),
@@ -523,9 +484,6 @@ describe('Subdivision Rendering with Leaflet-Node', () => {
         // Clean up
         subMap.remove();
         document.body.removeChild(subContainer);
-
-        // Small delay to simulate async rendering
-        await new Promise(resolve => setTimeout(resolve, 10));
       }
     });
   });
