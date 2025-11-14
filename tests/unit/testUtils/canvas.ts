@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals';
+import type { Mock } from 'jest-mock';
 
 type ToBlobCallback = (blob: Blob | null) => void;
 type ToBlobFn = (callback: ToBlobCallback, type?: string, quality?: any) => void;
@@ -61,9 +62,9 @@ export interface InstallCanvasSpiesOptions {
 }
 
 export interface CanvasSpyHandles {
-  createElementSpy: jest.SpyInstance;
-  appendChildSpy: jest.SpyInstance;
-  removeChildSpy: jest.SpyInstance;
+  createElementSpy: ReturnType<typeof jest.spyOn>;
+  appendChildSpy: ReturnType<typeof jest.spyOn>;
+  removeChildSpy: ReturnType<typeof jest.spyOn>;
   restore: () => void;
 }
 
@@ -89,7 +90,7 @@ export const installMockCanvasSpies = (
           href: '',
           click: jest.fn(),
           style: {},
-        } as HTMLAnchorElement;
+        } as unknown as HTMLAnchorElement;
       }
       if (lower === 'div') {
         if (containerFactory) {
@@ -98,7 +99,7 @@ export const installMockCanvasSpies = (
         return {
           style: {},
           classList: { add: jest.fn(), remove: jest.fn() },
-        } as HTMLDivElement;
+        } as unknown as HTMLDivElement;
       }
       return originalCreateElement(tagName);
     });
