@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { processGpxFiles } from '../../services/gpxProcessor';
+import { processGpxFiles } from '@/services/gpxProcessor';
 import pako from 'pako';
 
 // Test data

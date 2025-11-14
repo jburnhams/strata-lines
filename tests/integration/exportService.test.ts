@@ -1,7 +1,7 @@
 import { describe, it, expect, jest } from '@jest/globals';
 import L from 'leaflet';
-import type { Track } from '../../types';
-import { performPngExport, type ExportConfig, type ExportCallbacks } from '../../services/exportService';
+import type { Track } from '@/types';
+import { performPngExport, type ExportConfig, type ExportCallbacks } from '@/services/exportService';
 
 jest.setTimeout(60000);
 
