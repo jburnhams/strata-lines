@@ -1,9 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
 import L from 'leaflet';
 import { useLocalStorage } from './useLocalStorage';
-import type { AspectRatio } from '../types';
-import { calculatePixelDimensions, calculateBoundsDimensions } from '../utils/mapCalculations';
-import type { ProgressInfo } from '../utils/progressTracker';
+import type { AspectRatio } from '@/types';
+import { calculatePixelDimensions, calculateBoundsDimensions } from '@/utils/mapCalculations';
+import type { ProgressInfo } from '@/utils/progressTracker';
 
 /**
  * Custom hook for managing export-related state and calculations

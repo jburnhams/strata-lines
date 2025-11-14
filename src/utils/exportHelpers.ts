@@ -1,8 +1,8 @@
 import L from 'leaflet';
 import html2canvas from 'html2canvas';
-import type { Track } from '../types';
-import { TILE_LAYERS } from '../constants';
-import { LABEL_TILE_URL_RETINA } from '../labelTiles';
+import type { Track } from '@/types';
+import { TILE_LAYERS } from '@/constants';
+import { LABEL_TILE_URL_RETINA } from '@/labelTiles';
 import { calculatePixelDimensions } from './mapCalculations';
 
 /**

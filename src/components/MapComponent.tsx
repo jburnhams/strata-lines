@@ -2,10 +2,10 @@
 import React, { useEffect, useCallback, useMemo } from 'react';
 import { MapContainer, TileLayer, Polyline, Rectangle, useMap, useMapEvents, Tooltip } from 'react-leaflet';
 import L, { type LatLngExpression, type LatLng, type LatLngBounds, type Point as LeafletPoint } from 'leaflet';
-import type { Track, TileLayerDefinition } from '../types';
-import { LABEL_TILE_URL_RETINA } from '../labelTiles';
+import type { Track, TileLayerDefinition } from '@/types';
+import { LABEL_TILE_URL_RETINA } from '@/labelTiles';
 import { DraggableBoundsBox } from './DraggableBoundsBox';
-import type { ProgressInfo } from '../utils/progressTracker';
+import type { ProgressInfo } from '@/utils/progressTracker';
 
 interface MapComponentProps {
   tracks: Track[];

@@ -1,5 +1,5 @@
-import type { Track } from '../types';
-import { hexToRgb, rgbToHsv, hsvToRgb, rgbToHex } from '../services/utils';
+import type { Track } from '@/types';
+import { hexToRgb, rgbToHsv, hsvToRgb, rgbToHex } from '@/services/utils';
 
 /**
  * Calculate perceptual color distance in HSV space

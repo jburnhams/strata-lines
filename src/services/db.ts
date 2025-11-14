@@ -1,5 +1,5 @@
 
-import type { Track } from '../types';
+import type { Track } from '@/types';
 
 const DB_NAME = 'gpx-track-db';
 const DB_VERSION = 1;

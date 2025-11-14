@@ -2,7 +2,7 @@ import L from 'leaflet';
 import { parseGPX } from '@we-gold/gpxjs';
 import pako from 'pako';
 import { Stream, Decoder } from '@garmin/fitsdk';
-import type { UnprocessedTrack, Point } from '../types';
+import type { UnprocessedTrack, Point } from '@/types';
 
 function calculateTrackLength(points: Point[]): number {
   if (points.length < 2) {

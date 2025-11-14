@@ -2,14 +2,14 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import L from 'leaflet';
 import type { LatLng, LatLngBounds, Point as LeafletPoint } from 'leaflet';
-import { MapComponent } from './components/MapComponent';
-import { ControlsPanel } from './components/ControlsPanel';
-import * as db from './services/db';
-import { UK_CENTER_LATLNG, TILE_LAYERS } from './constants';
-import { useLocalStorage } from './hooks/useLocalStorage';
-import { useExportState } from './hooks/useExportState';
-import { useTrackManagement } from './hooks/useTrackManagement';
-import { performPngExport } from './services/exportService';
+import { MapComponent } from '@/components/MapComponent';
+import { ControlsPanel } from '@/components/ControlsPanel';
+import * as db from '@/services/db';
+import { UK_CENTER_LATLNG, TILE_LAYERS } from '@/constants';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useExportState } from '@/hooks/useExportState';
+import { useTrackManagement } from '@/hooks/useTrackManagement';
+import { performPngExport } from '@/services/exportService';
 
 export const MERGE_PIXEL_LIMIT = 8000 * 8000; // Approx 64 megapixels
 
