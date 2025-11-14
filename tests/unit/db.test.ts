@@ -1,230 +1,226 @@
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import type { Track } from '@/types';
 
-// We'll test the database module by mocking IndexedDB with a simpler approach
-// that focuses on the logic rather than the actual async callback mechanism
+type StoreRequestConfig<T> =
+  | { kind: 'success'; value: T }
+  | { kind: 'error'; error: Error };
+
+type IndexedDBMockConfig = {
+  getAll?: StoreRequestConfig<Track[]>;
+  put?: StoreRequestConfig<void>;
+  delete?: StoreRequestConfig<void>;
+  clear?: StoreRequestConfig<void>;
+  failOpen?: Error;
+  triggerUpgrade?: boolean;
+};
+
+const originalIndexedDB = globalThis.indexedDB;
+
+function createRequest<T>(config: StoreRequestConfig<T>): IDBRequest<T> {
+  const request: Partial<IDBRequest<T>> & { result?: T; error?: Error } = {
+    result: config.kind === 'success' ? config.value : undefined,
+    error: config.kind === 'error' ? config.error : undefined,
+    onsuccess: null,
+    onerror: null,
+  };
+
+  setTimeout(() => {
+    if (config.kind === 'success') {
+      request.onsuccess?.({ target: { result: config.value } } as unknown as Event);
+    } else {
+      request.onerror?.({ target: { error: config.error } } as unknown as Event);
+    }
+  }, 0);
+
+  return request as IDBRequest<T>;
+}
+
+function setupIndexedDB(config: IndexedDBMockConfig = {}) {
+  const store = {
+    getAll: jest.fn(() => createRequest(config.getAll ?? { kind: 'success', value: [] })),
+    put: jest.fn(() => createRequest(config.put ?? { kind: 'success', value: undefined })),
+    delete: jest.fn(() => createRequest(config.delete ?? { kind: 'success', value: undefined })),
+    clear: jest.fn(() => createRequest(config.clear ?? { kind: 'success', value: undefined })),
+  };
+
+  const objectStore = jest.fn(() => store);
+  const transaction = jest.fn((_name: string, _mode: IDBTransactionMode) => ({ objectStore }));
+
+  const createObjectStore = jest.fn();
+  const contains = jest.fn(() => !config.triggerUpgrade);
+
+  const dbInstance = {
+    transaction: transaction as unknown as IDBDatabase['transaction'],
+    objectStoreNames: { contains } as unknown as DOMStringList,
+    createObjectStore: createObjectStore as unknown as IDBDatabase['createObjectStore'],
+    close: jest.fn(),
+    name: 'gpx-track-db',
+    version: 1,
+    onabort: null,
+    onclose: null,
+    onerror: null,
+    onversionchange: null,
+  } as unknown as IDBDatabase;
+
+  const openRequest: Partial<IDBOpenDBRequest> & { result: IDBDatabase; error?: Error } = {
+    result: dbInstance,
+    error: config.failOpen,
+    onsuccess: null,
+    onerror: null,
+    onupgradeneeded: null,
+  };
+
+  (globalThis as any).indexedDB = {
+    open: jest.fn(() => {
+      setTimeout(() => {
+        if (config.triggerUpgrade) {
+          openRequest.onupgradeneeded?.({
+            target: {
+              result: dbInstance,
+            },
+          } as unknown as IDBVersionChangeEvent);
+        }
+
+        if (config.failOpen) {
+          openRequest.onerror?.({ target: { error: config.failOpen } } as unknown as Event);
+        } else {
+          openRequest.onsuccess?.({ target: { result: dbInstance } } as unknown as Event);
+        }
+      }, 0);
+
+      return openRequest as IDBOpenDBRequest;
+    }),
+  } as IDBFactory;
+
+  return {
+    store,
+    transaction,
+    objectStore,
+    createObjectStore,
+    contains,
+  };
+}
+
+async function importDBModule() {
+  return await import('@/services/db');
+}
 
 describe('Database Service', () => {
-  describe('Track validation', () => {
-    it('validates track structure', () => {
-      const track: Track = {
-        id: 'test-id',
-        name: 'Test Track',
-        points: [[51.5, -0.1], [51.6, -0.2]],
-        length: 10.5,
-        isVisible: true,
-      };
-
-      expect(track.id).toBeDefined();
-      expect(track.name).toBeDefined();
-      expect(track.points).toBeInstanceOf(Array);
-      expect(track.length).toBeGreaterThanOrEqual(0);
-      expect(typeof track.isVisible).toBe('boolean');
-    });
-
-    it('validates track point structure', () => {
-      const track: Track = {
-        id: 'test-id',
-        name: 'Test Track',
-        points: [[51.5, -0.1]],
-        length: 0,
-        isVisible: true,
-      };
-
-      expect(track.points[0]).toHaveLength(2);
-      expect(typeof track.points[0][0]).toBe('number');
-      expect(typeof track.points[0][1]).toBe('number');
-    });
-
-    it('validates optional track properties', () => {
-      const trackWithColor: Track = {
-        id: 'test-id',
-        name: 'Test Track',
-        points: [[51.5, -0.1]],
-        length: 0,
-        isVisible: true,
-        color: '#ff0000',
-      };
-
-      expect(trackWithColor.color).toBe('#ff0000');
-
-      const trackWithoutColor: Track = {
-        id: 'test-id',
-        name: 'Test Track',
-        points: [[51.5, -0.1]],
-        length: 0,
-        isVisible: true,
-      };
-
-      expect(trackWithoutColor.color).toBeUndefined();
-    });
+  beforeEach(() => {
+    jest.resetModules();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
-  describe('Database operations structure', () => {
-    it('verifies database constants are defined correctly', async () => {
-      // Test that the module exports the expected functions
-      const { getTracks, addTrack, deleteTrack, clearTracks } = await import('@/services/db');
-
-      expect(typeof getTracks).toBe('function');
-      expect(typeof addTrack).toBe('function');
-      expect(typeof deleteTrack).toBe('function');
-      expect(typeof clearTracks).toBe('function');
-    });
+  afterEach(() => {
+    jest.restoreAllMocks();
+    if (originalIndexedDB) {
+      globalThis.indexedDB = originalIndexedDB;
+    } else {
+      delete (globalThis as any).indexedDB;
+    }
   });
 
-  describe('IndexedDB API structure', () => {
-    let mockDB: any;
-    let mockStore: any;
-    let mockTransaction: any;
+  it('creates the tracks store during upgrade if it does not exist', async () => {
+    const { createObjectStore, contains } = setupIndexedDB({ triggerUpgrade: true });
+    const { getTracks } = await importDBModule();
 
-    beforeEach(() => {
-      // Create a basic mock structure
-      mockStore = {
-        getAll: jest.fn(),
-        put: jest.fn(),
-        delete: jest.fn(),
-        clear: jest.fn(),
-      };
+    const tracksPromise = getTracks();
+    await expect(tracksPromise).resolves.toEqual([]);
 
-      mockTransaction = {
-        objectStore: jest.fn(() => mockStore),
-      };
-
-      mockDB = {
-        transaction: jest.fn(() => mockTransaction),
-        objectStoreNames: {
-          contains: jest.fn(() => true),
-        },
-      };
-    });
-
-    it('validates IndexedDB transaction structure', () => {
-      const transaction = mockDB.transaction('tracks', 'readonly');
-      expect(transaction).toBeDefined();
-      expect(mockDB.transaction).toHaveBeenCalledWith('tracks', 'readonly');
-    });
-
-    it('validates IndexedDB object store operations', () => {
-      const transaction = mockDB.transaction('tracks', 'readwrite');
-      const store = transaction.objectStore('tracks');
-
-      expect(store.put).toBeDefined();
-      expect(store.delete).toBeDefined();
-      expect(store.clear).toBeDefined();
-      expect(store.getAll).toBeDefined();
-    });
-
-    it('validates track data for IndexedDB storage', () => {
-      const track: Track = {
-        id: 'storage-test',
-        name: 'Storage Test Track',
-        points: [[51.5, -0.1], [51.6, -0.2]],
-        length: 10.5,
-        isVisible: true,
-        color: '#3388ff',
-      };
-
-      // Verify the track has the required keyPath
-      expect(track.id).toBeDefined();
-      expect(typeof track.id).toBe('string');
-
-      // Verify track can be serialized for storage
-      const serialized = JSON.stringify(track);
-      const deserialized = JSON.parse(serialized);
-
-      expect(deserialized).toEqual(track);
-    });
-
-    it('validates database name and store name constants', () => {
-      // These constants should be used consistently
-      const expectedDBName = 'gpx-track-db';
-      const expectedStoreName = 'tracks';
-      const expectedVersion = 1;
-
-      expect(expectedDBName).toBe('gpx-track-db');
-      expect(expectedStoreName).toBe('tracks');
-      expect(expectedVersion).toBe(1);
-    });
+    expect(contains).toHaveBeenCalledWith('tracks');
+    expect(createObjectStore).toHaveBeenCalledWith('tracks', { keyPath: 'id' });
   });
 
-  describe('Database error handling patterns', () => {
-    it('validates error message format for database operations', () => {
-      const errorMessages = [
-        'Error opening database',
-        'Error fetching tracks',
-        'Error adding track',
-        'Error deleting track',
-        'Error clearing tracks',
-      ];
+  it('rejects when the database cannot be opened', async () => {
+    setupIndexedDB({ failOpen: new Error('boom') });
+    const { getTracks } = await importDBModule();
 
-      errorMessages.forEach(msg => {
-        expect(typeof msg).toBe('string');
-        expect(msg.length).toBeGreaterThan(0);
-      });
-    });
+    await expect(getTracks()).rejects.toBe('Error opening database');
+  });
 
-    it('validates track array structure for storage', () => {
-      const tracks: Track[] = [
-        {
-          id: 'track-1',
-          name: 'Track 1',
-          points: [[51.5, -0.1]],
-          length: 5.0,
-          isVisible: true,
-        },
-        {
-          id: 'track-2',
-          name: 'Track 2',
-          points: [[52.5, -1.1]],
-          length: 10.0,
-          isVisible: false,
-          color: '#ff0000',
-        },
-      ];
-
-      expect(Array.isArray(tracks)).toBe(true);
-      expect(tracks).toHaveLength(2);
-      tracks.forEach(track => {
-        expect(track.id).toBeDefined();
-        expect(track.name).toBeDefined();
-        expect(Array.isArray(track.points)).toBe(true);
-      });
-    });
-
-    it('validates unique IDs for tracks', () => {
-      const track1: Track = {
-        id: 'unique-id-1',
-        name: 'Track 1',
+  it('retrieves tracks from the object store', async () => {
+    const tracks: Track[] = [
+      {
+        id: 'track-1',
+        name: 'Morning Ride',
         points: [[51.5, -0.1]],
-        length: 5.0,
+        length: 10,
         isVisible: true,
-      };
+      },
+    ];
 
-      const track2: Track = {
-        id: 'unique-id-2',
-        name: 'Track 2',
-        points: [[52.5, -1.1]],
-        length: 10.0,
-        isVisible: true,
-      };
-
-      expect(track1.id).not.toBe(track2.id);
+    const { store } = setupIndexedDB({
+      getAll: { kind: 'success', value: tracks },
     });
+
+    const { getTracks } = await importDBModule();
+    await expect(getTracks()).resolves.toEqual(tracks);
+    expect(store.getAll).toHaveBeenCalledTimes(1);
   });
 
-  describe('IndexedDB upgrade pattern', () => {
-    it('validates object store creation parameters', () => {
-      const storeName = 'tracks';
-      const keyPathOptions = { keyPath: 'id' };
+  it('propagates read failures from the object store', async () => {
+    setupIndexedDB({ getAll: { kind: 'error', error: new Error('read failed') } });
+    const { getTracks } = await importDBModule();
 
-      expect(storeName).toBe('tracks');
-      expect(keyPathOptions.keyPath).toBe('id');
-    });
+    await expect(getTracks()).rejects.toBe('Error fetching tracks');
+  });
 
-    it('validates database version management', () => {
-      const currentVersion = 1;
-      expect(currentVersion).toBeGreaterThan(0);
-      expect(Number.isInteger(currentVersion)).toBe(true);
-    });
+  it('stores tracks successfully', async () => {
+    const track: Track = {
+      id: 'track-1',
+      name: 'Commute',
+      points: [[51.5, -0.1]],
+      length: 12.5,
+      isVisible: true,
+    };
+
+    const { store } = setupIndexedDB();
+    const { addTrack } = await importDBModule();
+
+    await expect(addTrack(track)).resolves.toBeUndefined();
+    expect(store.put).toHaveBeenCalledWith(track);
+  });
+
+  it('rejects when storing tracks fails', async () => {
+    setupIndexedDB({ put: { kind: 'error', error: new Error('write failed') } });
+    const { addTrack } = await importDBModule();
+
+    await expect(addTrack({
+      id: 'track-1',
+      name: 'Commute',
+      points: [[51.5, -0.1]],
+      length: 12.5,
+      isVisible: true,
+    })).rejects.toBe('Error adding track');
+  });
+
+  it('deletes a track by id', async () => {
+    const { store } = setupIndexedDB();
+    const { deleteTrack } = await importDBModule();
+
+    await expect(deleteTrack('track-1')).resolves.toBeUndefined();
+    expect(store.delete).toHaveBeenCalledWith('track-1');
+  });
+
+  it('rejects when deleting a track fails', async () => {
+    setupIndexedDB({ delete: { kind: 'error', error: new Error('delete failed') } });
+    const { deleteTrack } = await importDBModule();
+
+    await expect(deleteTrack('track-1')).rejects.toBe('Error deleting track');
+  });
+
+  it('clears all tracks', async () => {
+    const { store } = setupIndexedDB();
+    const { clearTracks } = await importDBModule();
+
+    await expect(clearTracks()).resolves.toBeUndefined();
+    expect(store.clear).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects when clearing tracks fails', async () => {
+    setupIndexedDB({ clear: { kind: 'error', error: new Error('clear failed') } });
+    const { clearTracks } = await importDBModule();
+
+    await expect(clearTracks()).rejects.toBe('Error clearing tracks');
   });
 });
