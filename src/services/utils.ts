@@ -1,5 +1,5 @@
 import L from 'leaflet';
-import type { Track, UnprocessedTrack } from '../types';
+import type { Track, UnprocessedTrack } from '@/types';
 
 // Color utility functions
 export const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {

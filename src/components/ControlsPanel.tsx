@@ -1,7 +1,7 @@
 
 import React, { useRef, useState, useEffect } from 'react';
-import type { AspectRatio, Track } from '../types';
-import { ASPECT_RATIOS, TILE_LAYERS } from '../constants';
+import type { AspectRatio, Track } from '@/types';
+import { ASPECT_RATIOS, TILE_LAYERS } from '@/constants';
 
 type Notification = {
   type: 'error' | 'info';

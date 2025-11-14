@@ -1,11 +1,11 @@
 import { useState, useCallback, useMemo } from 'react';
 import JSZip from 'jszip';
-import { processGpxFiles } from '../services/gpxProcessor';
-import * as db from '../services/db';
-import type { Track, UnprocessedTrack } from '../types';
-import { trackToGpxString } from '../services/gpxGenerator';
-import { getTracksBounds } from '../services/utils';
-import { assignTrackColors } from '../utils/colorAssignment';
+import { processGpxFiles } from '@/services/gpxProcessor';
+import * as db from '@/services/db';
+import type { Track, UnprocessedTrack } from '@/types';
+import { trackToGpxString } from '@/services/gpxGenerator';
+import { getTracksBounds } from '@/services/utils';
+import { assignTrackColors } from '@/utils/colorAssignment';
 import type { LatLngBounds } from 'leaflet';
 
 type Notification = {

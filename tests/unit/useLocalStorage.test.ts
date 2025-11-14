@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { renderHook, act } from '@testing-library/react';
-import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 
 describe('useLocalStorage', () => {
   beforeEach(() => {
@@ -104,7 +104,7 @@ describe('useLocalStorage', () => {
 
   it('should return initial value when localStorage contains invalid JSON', () => {
     window.localStorage.setItem('test-key', 'invalid-json{');
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleErrorSpy = jest.spyOn(console, 'error');
 
     const { result } = renderHook(() => useLocalStorage('test-key', 'initial-value'));
 
@@ -115,7 +115,7 @@ describe('useLocalStorage', () => {
   });
 
   it('should handle localStorage being unavailable', () => {
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleErrorSpy = jest.spyOn(console, 'error');
     const getItemSpy = jest.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('localStorage is not available');
     });
@@ -125,12 +125,14 @@ describe('useLocalStorage', () => {
     // Should return initial value when localStorage fails
     expect(result.current[0]).toBe('initial-value');
 
+    expect(consoleErrorSpy).toHaveBeenCalled();
+
     getItemSpy.mockRestore();
     consoleErrorSpy.mockRestore();
   });
 
   it('should handle localStorage setItem errors gracefully', () => {
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleErrorSpy = jest.spyOn(console, 'error');
     const setItemSpy = jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('Quota exceeded');
     });
@@ -143,6 +145,8 @@ describe('useLocalStorage', () => {
 
     // Value should still update in state even if localStorage fails
     expect(result.current[0]).toBe('new-value');
+
+    expect(consoleErrorSpy).toHaveBeenCalled();
 
     setItemSpy.mockRestore();
     consoleErrorSpy.mockRestore();

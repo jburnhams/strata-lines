@@ -4,7 +4,7 @@ import {
   metersToMiles,
   calculateBoundsDimensions,
   calculatePixelDimensions,
-} from '../../utils/mapCalculations';
+} from '@/utils/mapCalculations';
 
 describe('Map Calculations', () => {
   describe('metersToMiles', () => {

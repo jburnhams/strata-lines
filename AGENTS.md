@@ -21,6 +21,7 @@
 1. Do **not** add `@jest-environment node`; jsdom is required for localStorage.
 2. Unit tests mock dependencies; integration tests do not mock Leaflet, canvas, or DOM.
 3. Both suites rely on jsdom so DOM APIs and localStorage are always available.
+4. Never mock or stub global `console` methods in tests—allow them to run normally, using spies only if you need to assert calls.
 
 ## Commands
 ```bash

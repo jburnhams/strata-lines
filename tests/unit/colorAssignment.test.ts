@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
-import { colorDistance, generateColorPalette, assignTrackColors } from '../../utils/colorAssignment';
-import type { Track } from '../../types';
+import { colorDistance, generateColorPalette, assignTrackColors } from '@/utils/colorAssignment';
+import type { Track } from '@/types';
 
 describe('Color Assignment', () => {
   describe('colorDistance', () => {

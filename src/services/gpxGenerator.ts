@@ -1,4 +1,4 @@
-import type { Track } from '../types';
+import type { Track } from '@/types';
 
 /**
  * Converts a track object into a GPX 1.1 formatted string.
