@@ -61,7 +61,7 @@ export default {
   ],
   collectCoverageFrom: [
     'src/services/**/*.{ts,tsx}',
-    '!services/db.ts',
+    '!src/services/db.ts',
     '!**/*.d.ts',
     '!**/node_modules/**',
   ],
