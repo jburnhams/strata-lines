@@ -1,14 +1,14 @@
-import type { Track } from '../types';
 import type { LatLngBounds } from 'leaflet';
+import type { Track } from '@/types';
 import {
   renderCanvasForBounds,
   resizeCanvas,
   calculateSubdivisions,
   calculateGridLayout,
   type RenderOptions,
-} from '../utils/exportHelpers';
+} from '@/utils/exportHelpers';
 import { concatToBuffer } from 'image-stitch/bundle';
-import type { ProgressInfo } from '../utils/progressTracker';
+import type { ProgressInfo } from '@/utils/progressTracker';
 
 export interface ExportConfig {
   exportBounds: LatLngBounds;
