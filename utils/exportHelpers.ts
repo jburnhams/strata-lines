@@ -84,13 +84,19 @@ export const waitForTiles = (
     tileLayer.on('load', loadCompleteHandler);
     tileLayer.on('tileerror', tileErrorHandler);
 
-    // Check if tiles are already loaded (synchronous check after attaching listeners)
-    // Use requestAnimationFrame for next frame check instead of setTimeout
-    requestAnimationFrame(() => {
-      if (tileLayer.isLoading() === false) {
+    // Check if tiles are already loaded after attaching listeners
+    // Small delay is needed because fitBounds() might finish and tiles are loading,
+    // but isLoading() might not be true for a few ms while Leaflet initializes.
+    // We need to verify both isLoading() and internal tile count to avoid resolving
+    // before tiles even start loading.
+    setTimeout(() => {
+      // @ts-ignore - Check internal Leaflet property for pending tiles
+      const hasTilesToLoad = tileLayer._tilesToLoad && tileLayer._tilesToLoad > 0;
+
+      if (!tileLayer.isLoading() && !hasTilesToLoad) {
         loadCompleteHandler();
       }
-    });
+    }, 50); // Reduced from 100ms, but still enough time for Leaflet to initialize
   });
 };
 
