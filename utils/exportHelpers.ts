@@ -65,7 +65,8 @@ export const waitForTiles = (
         loaded = true;
         cleanup();
         clearTimeout(timeout);
-        setTimeout(resolve, 500); // Extra delay for rendering
+        // Reduced delay - tiles are already loaded, minimal rendering time needed
+        setTimeout(resolve, 100);
       }
     };
 
@@ -83,13 +84,13 @@ export const waitForTiles = (
     tileLayer.on('load', loadCompleteHandler);
     tileLayer.on('tileerror', tileErrorHandler);
 
-    // This check is crucial. fitBounds() might finish and tiles are loading,
-    // but isLoading() might not be true for a few ms. A small delay helps.
-    setTimeout(() => {
+    // Check if tiles are already loaded (synchronous check after attaching listeners)
+    // Use requestAnimationFrame for next frame check instead of setTimeout
+    requestAnimationFrame(() => {
       if (tileLayer.isLoading() === false) {
         loadCompleteHandler();
       }
-    }, 100);
+    });
   });
 };
 
@@ -157,23 +158,29 @@ export const waitForCanvasRenderer = (
           if (hasContent || checkCount >= maxChecks) {
             isRendered = true;
             clearTimeout(timeout);
-            // Add a small delay to ensure rendering is fully complete
-            setTimeout(resolve, 200);
+            clearInterval(checkInterval);
+            // Minimal delay - content is already rendered
+            setTimeout(resolve, 50);
           }
         } catch (e) {
           // In case getImageData fails (e.g., in some test environments)
           console.warn('Could not check canvas content:', e);
           isRendered = true;
           clearTimeout(timeout);
-          setTimeout(resolve, 300);
+          clearInterval(checkInterval);
+          setTimeout(resolve, 50);
         }
       } else {
-        // No context available, just wait a bit
+        // No context available, resolve quickly
         isRendered = true;
         clearTimeout(timeout);
-        setTimeout(resolve, 300);
+        clearInterval(checkInterval);
+        setTimeout(resolve, 50);
       }
     };
+
+    // Declare interval variable at the top
+    let checkInterval: NodeJS.Timeout;
 
     // Listen for render updates
     // @ts-ignore - Accessing internal renderer events
@@ -181,24 +188,17 @@ export const waitForCanvasRenderer = (
       renderer.on('update', checkRenderComplete);
     }
 
-    // Initial check after a short delay to allow rendering to start
-    setTimeout(checkRenderComplete, 100);
+    // Initial check using requestAnimationFrame for better performance
+    requestAnimationFrame(() => checkRenderComplete());
 
-    // Also check periodically in case events are missed
-    const checkInterval = setInterval(() => {
+    // Also check periodically in case events are missed (reduced frequency)
+    checkInterval = setInterval(() => {
       if (isRendered) {
         clearInterval(checkInterval);
         return;
       }
       checkRenderComplete();
-    }, 200);
-
-    // Clear interval when done
-    const originalResolve = resolve;
-    resolve = () => {
-      clearInterval(checkInterval);
-      originalResolve();
-    };
+    }, 100);
   });
 };
 

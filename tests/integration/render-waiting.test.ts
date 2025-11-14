@@ -32,13 +32,12 @@ describe('Render Waiting', () => {
     document.body.appendChild(container);
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     // Clean up
     if (map) {
       map.remove();
       map = null;
     }
-    await new Promise(resolve => setTimeout(resolve, 10));
     if (container && container.parentNode) {
       container.parentNode.removeChild(container);
     }

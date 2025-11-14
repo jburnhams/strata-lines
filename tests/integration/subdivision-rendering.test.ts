@@ -58,12 +58,11 @@ describe('Subdivision Rendering with Leaflet-Node', () => {
     document.body.appendChild(container);
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     if (map) {
       map.remove();
       map = null;
     }
-    await new Promise(resolve => setTimeout(resolve, 10));
     if (container && container.parentNode) {
       container.parentNode.removeChild(container);
     }
@@ -523,9 +522,6 @@ describe('Subdivision Rendering with Leaflet-Node', () => {
         // Clean up
         subMap.remove();
         document.body.removeChild(subContainer);
-
-        // Small delay to simulate async rendering
-        await new Promise(resolve => setTimeout(resolve, 10));
       }
     });
   });
