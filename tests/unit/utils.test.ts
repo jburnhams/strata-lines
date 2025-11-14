@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
-import * as utils from '../../services/utils';
-import type { Track } from '../../types';
+import * as utils from '@/services/utils';
+import type { Track } from '@/types';
 
 describe('Color Utilities', () => {
   describe('hexToRgb', () => {
