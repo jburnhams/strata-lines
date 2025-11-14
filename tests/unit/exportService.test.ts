@@ -1,49 +1,30 @@
-import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, jest, beforeEach, afterEach, afterAll } from '@jest/globals';
 import L from 'leaflet';
-import { createCanvas } from '@napi-rs/canvas';
 import type { Track } from '../../types';
 import type { ExportConfig, ExportCallbacks } from '../../services/exportService';
+import {
+  createMockBlob,
+  createMockCanvas,
+  installMockCanvasSpies,
+} from './testUtils/canvas';
 
-// UNIT TEST - Uses mocks, no real leaflet-node or real canvas from leaflet-node
-// Real @napi-rs/canvas is OK for creating mock canvas objects that have working methods
-
+// UNIT TEST - Uses mocks, no real leaflet-node or real canvas implementations
 // Mock the browser-specific APIs first, before any imports
 const mockToBlob = jest.fn((callback: (blob: Blob | null) => void) => {
-  // Create a proper mock blob with arrayBuffer method for stitching
-  const mockBlobData = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]); // PNG header
-  const mockBlob = new Blob([mockBlobData], { type: 'image/png' });
-  callback(mockBlob);
+  callback(createMockBlob());
 });
 
-const originalCreateElement = document.createElement.bind(document);
+const createMockCanvasWithBlob = (width: number, height: number) =>
+  createMockCanvas(width, height, {
+    toBlob: (callback) => {
+      mockToBlob(callback);
+    },
+  });
 
-// Spy on document.createElement to provide mock canvas elements
-const mockCreateElement = jest.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
-  if (tagName.toLowerCase() === 'canvas') {
-    const canvas = createCanvas(100, 100);
-    (canvas as any).toBlob = mockToBlob;
-    return canvas as any;
-  }
-  if (tagName.toLowerCase() === 'a') {
-    return {
-      download: '',
-      href: '',
-      click: jest.fn(),
-      style: {},
-    } as any;
-  }
-  if (tagName.toLowerCase() === 'div') {
-    return {
-      style: {},
-      classList: { add: jest.fn(), remove: jest.fn() },
-    } as any;
-  }
-  return originalCreateElement(tagName);
-});
-
-// Mock document.body methods
-const mockAppendChild = jest.spyOn(document.body, 'appendChild').mockImplementation(() => null as any);
-const mockRemoveChild = jest.spyOn(document.body, 'removeChild').mockImplementation(() => null as any);
+const { createElementSpy: mockCreateElement, appendChildSpy: mockAppendChild, removeChildSpy: mockRemoveChild, restore: restoreCanvasSpies } =
+  installMockCanvasSpies({
+    canvasFactory: () => createMockCanvasWithBlob(100, 100),
+  });
 
 (global as any).URL = {
   createObjectURL: jest.fn(() => 'blob:mock-url'),
@@ -68,7 +49,7 @@ import { performPngExport } from '../../services/exportService';
 import * as exportHelpers from '../../utils/exportHelpers';
 import * as imageStitch from 'image-stitch/bundle';
 
-describe('Export Service Integration Tests', () => {
+describe('Export Service unit tests', () => {
   let mockTrack: Track;
   let mockConfig: ExportConfig;
   let mockCallbacks: ExportCallbacks;
@@ -120,9 +101,7 @@ describe('Export Service Integration Tests', () => {
     // Set up mock implementation to return canvases
     renderCanvasForBoundsMock = exportHelpers.renderCanvasForBounds as jest.MockedFunction<typeof exportHelpers.renderCanvasForBounds>;
     renderCanvasForBoundsMock.mockImplementation(async (options) => {
-      const canvas = createCanvas(800, 600);
-      (canvas as any).toBlob = mockToBlob;
-      return canvas as any;
+      return createMockCanvasWithBlob(800, 600);
     });
 
     // Mock calculateSubdivisions - default to single subdivision
@@ -134,9 +113,7 @@ describe('Export Service Integration Tests', () => {
     // Mock resizeCanvas
     resizeCanvasMock = exportHelpers.resizeCanvas as jest.MockedFunction<typeof exportHelpers.resizeCanvas>;
     resizeCanvasMock.mockImplementation((sourceCanvas, width, height) => {
-      const canvas = createCanvas(width, height);
-      (canvas as any).toBlob = mockToBlob;
-      return canvas as any;
+      return createMockCanvasWithBlob(width, height);
     });
 
     // Mock calculateGridLayout
@@ -162,6 +139,10 @@ describe('Export Service Integration Tests', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  afterAll(() => {
+    restoreCanvasSpies();
   });
 
   describe('performPngExport - combined type', () => {
@@ -597,8 +578,7 @@ describe('Export Service Integration Tests', () => {
           options.onTileProgress(5, 10);
           options.onTileProgress(10, 10);
         }
-        const canvas = createCanvas(800, 600);
-        (canvas as any).toBlob = mockToBlob;
+        const canvas = createMockCanvasWithBlob(800, 600);
         return canvas as any;
       });
 
@@ -649,8 +629,7 @@ describe('Export Service Integration Tests', () => {
           options.onLineProgress(25, 50);
           options.onLineProgress(50, 50);
         }
-        const canvas = createCanvas(800, 600);
-        (canvas as any).toBlob = mockToBlob;
+        const canvas = createMockCanvasWithBlob(800, 600);
         return canvas as any;
       });
 
@@ -703,8 +682,7 @@ describe('Export Service Integration Tests', () => {
           options.onTileProgress(6, 6);
         }
         callCount++;
-        const canvas = createCanvas(800, 600);
-        (canvas as any).toBlob = mockToBlob;
+        const canvas = createMockCanvasWithBlob(800, 600);
         return canvas as any;
       });
 
@@ -750,8 +728,7 @@ describe('Export Service Integration Tests', () => {
         if (options.onTileProgress) {
           options.onTileProgress(4, 8);
         }
-        const canvas = createCanvas(800, 600);
-        (canvas as any).toBlob = mockToBlob;
+        const canvas = createMockCanvasWithBlob(800, 600);
         return canvas as any;
       });
 
@@ -780,8 +757,7 @@ describe('Export Service Integration Tests', () => {
         if (options.onLineProgress) {
           options.onLineProgress(30, 60);
         }
-        const canvas = createCanvas(800, 600);
-        (canvas as any).toBlob = mockToBlob;
+        const canvas = createMockCanvasWithBlob(800, 600);
         return canvas as any;
       });
 
@@ -829,8 +805,7 @@ describe('Export Service Integration Tests', () => {
         if (options.onTileProgress) {
           options.onTileProgress(2, 4);
         }
-        const canvas = createCanvas(800, 600);
-        (canvas as any).toBlob = mockToBlob;
+        const canvas = createMockCanvasWithBlob(800, 600);
         return canvas as any;
       });
 
@@ -856,18 +831,15 @@ describe('Export Service Integration Tests', () => {
         callCount++;
         if (callCount === 1) {
           // Base layer: 800x600
-          const canvas = createCanvas(800, 600);
-          (canvas as any).toBlob = mockToBlob;
+          const canvas = createMockCanvasWithBlob(800, 600);
           return canvas as any;
         } else if (callCount === 2) {
           // Lines layer: 800x600
-          const canvas = createCanvas(800, 600);
-          (canvas as any).toBlob = mockToBlob;
+          const canvas = createMockCanvasWithBlob(800, 600);
           return canvas as any;
         } else {
           // Labels layer: different size 1600x1200 (at higher zoom)
-          const canvas = createCanvas(1600, 1200);
-          (canvas as any).toBlob = mockToBlob;
+          const canvas = createMockCanvasWithBlob(1600, 1200);
           return canvas as any;
         }
       });
@@ -886,8 +858,7 @@ describe('Export Service Integration Tests', () => {
     it('should not resize labels canvas when dimensions already match', async () => {
       // Mock all canvases to have same dimensions
       renderCanvasForBoundsMock.mockImplementation(async () => {
-        const canvas = createCanvas(800, 600);
-        (canvas as any).toBlob = mockToBlob;
+        const canvas = createMockCanvasWithBlob(800, 600);
         return canvas as any;
       });
 
@@ -904,18 +875,15 @@ describe('Export Service Integration Tests', () => {
         callCount++;
         if (callCount === 1) {
           // Base layer: 1000x500
-          const canvas = createCanvas(1000, 500);
-          (canvas as any).toBlob = mockToBlob;
+          const canvas = createMockCanvasWithBlob(1000, 500);
           return canvas as any;
         } else if (callCount === 2) {
           // Lines layer: 1000x500
-          const canvas = createCanvas(1000, 500);
-          (canvas as any).toBlob = mockToBlob;
+          const canvas = createMockCanvasWithBlob(1000, 500);
           return canvas as any;
         } else {
           // Labels layer: different size 2000x1500
-          const canvas = createCanvas(2000, 1500);
-          (canvas as any).toBlob = mockToBlob;
+          const canvas = createMockCanvasWithBlob(2000, 1500);
           return canvas as any;
         }
       });
@@ -1038,8 +1006,7 @@ describe('Export Service Integration Tests', () => {
         if (options.onLineProgress) {
           options.onLineProgress(10, 20);
         }
-        const canvas = createCanvas(800, 600);
-        (canvas as any).toBlob = mockToBlob;
+        const canvas = createMockCanvasWithBlob(800, 600);
         return canvas as any;
       });
 

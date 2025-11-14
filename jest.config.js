@@ -22,7 +22,7 @@ export default {
         ],
       },
       transformIgnorePatterns: [
-        'node_modules/(?!(gpxparser|jsdom|parse5|@garmin/fitsdk)/)',
+        'node_modules/(?!(gpxparser|jsdom|parse5|@garmin/fitsdk|image-stitch)/)',
       ],
       setupFilesAfterEnv: ['<rootDir>/tests/unit/setup.ts'],
       testMatch: ['<rootDir>/tests/unit/**/*.test.{ts,tsx}'],
@@ -51,7 +51,7 @@ export default {
         ],
       },
       transformIgnorePatterns: [
-        'node_modules/(?!(gpxparser|jsdom|parse5|@garmin/fitsdk)/)',
+        'node_modules/(?!(gpxparser|jsdom|parse5|@garmin/fitsdk|image-stitch)/)',
       ],
       setupFilesAfterEnv: ['<rootDir>/tests/integration/setup.ts'],
       testMatch: ['<rootDir>/tests/integration/**/*.test.{ts,tsx}'],
