@@ -13,7 +13,8 @@
     "test": "NODE_OPTIONS='--max-old-space-size=2048' jest --maxWorkers=1",
     "test:unit": "NODE_OPTIONS='--max-old-space-size=2048' jest --selectProjects unit --maxWorkers=1",
     "test:integration": "NODE_OPTIONS='--max-old-space-size=2048' jest --selectProjects integration --maxWorkers=1",
-    "test:coverage": "NODE_OPTIONS='--max-old-space-size=2048' jest --coverage --maxWorkers=1",
+    "test:coverage": "NODE_OPTIONS='--max-old-space-size=2048' jest --selectProjects unit --coverage --maxWorkers=1",
+    "test:coverage:full": "NODE_OPTIONS='--max-old-space-size=2048' jest --coverage --maxWorkers=1",
     "test:watch": "jest --watch --maxWorkers=1",
     "type-check": "tsc --noEmit",
     "lint": "tsc --noEmit"
