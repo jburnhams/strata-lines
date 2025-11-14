@@ -11,14 +11,13 @@ global.TextDecoder = TextDecoder as any;
 // These are for integration tests only. Unit tests use mocks.
 
 // Mock console methods to keep test output clean
-// This silences console output during tests for cleaner test results
+// Note: console.error is NOT mocked so real errors are visible for debugging
 global.console = {
   ...console,
   log: jest.fn(),
   debug: jest.fn(),
   info: jest.fn(),
   warn: jest.fn(),
-  error: jest.fn(), // Mock error to silence expected error logs in tests
   group: jest.fn(),
   groupCollapsed: jest.fn(),
   groupEnd: jest.fn(),
