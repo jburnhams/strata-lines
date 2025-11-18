@@ -14,8 +14,7 @@ dist-ssr
 coverage
 
 # Public assets (generated during build)
-public/*
-!public/_headers
+public/assets/jpeg_encoder_bg.wasm
 
 # Editor directories and files
 .vscode/*
