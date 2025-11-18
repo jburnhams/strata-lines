@@ -28,6 +28,11 @@ const estimateTileCount = (map: L.Map): number => {
 
     // Get pixel bounds of the visible area
     const pixelBounds = map.getPixelBounds();
+    if (!pixelBounds || !pixelBounds.max || !pixelBounds.min) {
+      console.warn('Could not get pixel bounds for tile estimation');
+      return 0;
+    }
+
     const width = pixelBounds.max.x - pixelBounds.min.x;
     const height = pixelBounds.max.y - pixelBounds.min.y;
 
