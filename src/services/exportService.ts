@@ -20,6 +20,8 @@ export interface ExportConfig {
   tileLayerKey: string;
   lineThickness: number;
   exportQuality: number;
+  outputFormat: 'png' | 'jpeg';
+  jpegQuality: number;
 }
 
 export interface ExportCallbacks {
@@ -50,6 +52,8 @@ export const performPngExport = async (
     tileLayerKey,
     lineThickness,
     exportQuality,
+    outputFormat,
+    jpegQuality,
   } = config;
 
   const {
@@ -223,18 +227,74 @@ export const performPngExport = async (
 
         // Stack layers
         console.log('📚 Stacking layers: base → lines → labels');
-        finalCanvas = document.createElement('canvas');
-        finalCanvas.width = baseCanvas.width;
-        finalCanvas.height = baseCanvas.height;
+
+        // Create canvas for stacking, using @napi-rs/canvas in integration test environments
+        // Skip in unit tests (detected by missing getImageData on mock contexts)
+        const createCanvas = (width: number, height: number): HTMLCanvasElement => {
+          // Only use @napi-rs/canvas in integration test environment
+          // Unit tests use mocks that don't have full canvas API
+          if (typeof require !== 'undefined') {
+            try {
+              // Check if we're in integration test environment (has real canvas API)
+              const testCanvas = document.createElement('canvas');
+              const testCtx = testCanvas.getContext('2d');
+              const hasRealCanvas = testCtx && typeof testCtx.getImageData === 'function';
+
+              if (hasRealCanvas) {
+                const { createCanvas: napiCreateCanvas } = require('@napi-rs/canvas');
+                return napiCreateCanvas(width, height) as unknown as HTMLCanvasElement;
+              }
+            } catch {
+              // @napi-rs/canvas not available or detection failed
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          return canvas;
+        };
+
+        finalCanvas = createCanvas(baseCanvas.width, baseCanvas.height);
         const ctx = finalCanvas.getContext('2d')!;
-        ctx.drawImage(baseCanvas, 0, 0);
+
+        // Helper to draw canvas with type conversion if needed
+        const drawLayer = (sourceCanvas: HTMLCanvasElement) => {
+          // @napi-rs/canvas uses "CanvasElement" constructor name
+          const isNapiTarget = finalCanvas.constructor.name === 'CanvasElement';
+          const isNapiSource = sourceCanvas.constructor.name === 'CanvasElement';
+
+          if (isNapiTarget && !isNapiSource) {
+            // Convert JSDOM source to @napi-rs via ImageData
+            try {
+              const sourceCtx = sourceCanvas.getContext('2d');
+              if (sourceCtx && typeof sourceCtx.getImageData === 'function') {
+                const imageData = sourceCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+                const { createCanvas: napiCreateCanvas } = require('@napi-rs/canvas');
+                const tempCanvas = napiCreateCanvas(sourceCanvas.width, sourceCanvas.height);
+                const tempCtx = tempCanvas.getContext('2d');
+                if (tempCtx) {
+                  tempCtx.putImageData(imageData, 0, 0);
+                  ctx.drawImage(tempCanvas as any, 0, 0);
+                  return;
+                }
+              }
+            } catch {
+              // Conversion failed, fall back to direct draw
+            }
+          }
+
+          // Standard canvas drawing or fallback
+          ctx.drawImage(sourceCanvas, 0, 0);
+        };
+
+        drawLayer(baseCanvas);
         if (linesCanvas) {
           console.log(`  + Lines layer (${linesCanvas.width}x${linesCanvas.height})`);
-          ctx.drawImage(linesCanvas, 0, 0);
+          drawLayer(linesCanvas);
         }
         if (labelsCanvas) {
           console.log(`  + Labels layer (${labelsCanvas.width}x${labelsCanvas.height})`);
-          ctx.drawImage(labelsCanvas, 0, 0);
+          drawLayer(labelsCanvas);
         }
 
         // Free memory
@@ -369,6 +429,8 @@ export const performPngExport = async (
           rows: gridLayout.rows,
           columns: gridLayout.columns,
         },
+        outputFormat,
+        jpegQuality: outputFormat === 'jpeg' ? jpegQuality : undefined,
         onProgress: onSubdivisionStitched
           ? (completed, total) => {
               console.log(`🧵 Stitching progress: ${completed}/${total}`);
@@ -383,7 +445,8 @@ export const performPngExport = async (
       // Convert Uint8Array to Blob
       // Create a new Uint8Array to ensure compatibility with Blob constructor
       const imageData = new Uint8Array(stitchedImage);
-      finalBlob = new Blob([imageData], { type: 'image/png' });
+      const mimeType = outputFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
+      finalBlob = new Blob([imageData], { type: mimeType });
 
       // Clean up subdivision canvases (all of them, regardless of order)
       subdivisionCanvases.forEach((canvas) => {
@@ -392,8 +455,10 @@ export const performPngExport = async (
       });
     } else {
       // Single subdivision - just convert to blob
+      const mimeType = outputFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
+      const quality = outputFormat === 'jpeg' ? jpegQuality / 100 : undefined;
       const blob = await new Promise<Blob | null>((resolve) =>
-        subdivisionCanvases[0].toBlob(resolve, 'image/png')
+        subdivisionCanvases[0].toBlob(resolve, mimeType, quality)
       );
       if (!blob) throw new Error('Failed to convert canvas to blob');
       finalBlob = blob;
@@ -405,7 +470,8 @@ export const performPngExport = async (
 
     // Download the final image
     const link = document.createElement('a');
-    link.download = `gpx-map-${type}-${Date.now()}.png`;
+    const extension = outputFormat === 'jpeg' ? 'jpg' : 'png';
+    link.download = `gpx-map-${type}-${Date.now()}.${extension}`;
     link.href = URL.createObjectURL(finalBlob);
     document.body.appendChild(link);
     link.click();

@@ -23,6 +23,10 @@ interface ControlsPanelProps {
   exportBoundsAspectRatio: number | null;
   exportQuality: number;
   setExportQuality: (quality: number) => void;
+  outputFormat: 'png' | 'jpeg';
+  setOutputFormat: (format: 'png' | 'jpeg') => void;
+  jpegQuality: number;
+  setJpegQuality: (quality: number) => void;
   derivedExportZoom: number | null;
   isLoading: boolean;
   isExporting: boolean;
@@ -87,6 +91,10 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
   exportBoundsAspectRatio,
   exportQuality,
   setExportQuality,
+  outputFormat,
+  setOutputFormat,
+  jpegQuality,
+  setJpegQuality,
   derivedExportZoom,
   isLoading,
   isExporting,
@@ -416,6 +424,41 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
                 />
             </div>
           </div>
+
+          <div>
+            <label htmlFor="output-format" className="block text-sm font-medium text-gray-400">Output Format</label>
+            <select
+                id="output-format"
+                value={outputFormat}
+                onChange={(e) => setOutputFormat(e.target.value as 'png' | 'jpeg')}
+                className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
+            >
+                <option value="png">PNG (Lossless)</option>
+                <option value="jpeg">JPEG (Lossy)</option>
+            </select>
+          </div>
+
+          {outputFormat === 'jpeg' && (
+            <div>
+              <label htmlFor="jpeg-quality" className="block text-sm font-medium text-gray-400">
+                JPEG Quality <span className="font-mono text-white">({jpegQuality})</span>
+              </label>
+              <input
+                type="range"
+                id="jpeg-quality"
+                min="1"
+                max="100"
+                step="1"
+                value={jpegQuality}
+                onChange={(e) => setJpegQuality(parseInt(e.target.value, 10))}
+                className="mt-1 block w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+              />
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>Lower size</span>
+                <span>Higher quality</span>
+              </div>
+            </div>
+          )}
 
            <div>
             <label htmlFor="export-quality" className="block text-sm font-medium text-gray-400">

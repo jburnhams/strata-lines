@@ -13,6 +13,9 @@ dist-ssr
 *.local
 coverage
 
+# Public assets (generated during build)
+public/assets/jpeg_encoder_bg.wasm
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

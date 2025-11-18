@@ -18,6 +18,20 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, './src'),
         }
+      },
+      assetsInclude: ['**/*.wasm'],
+      build: {
+        rollupOptions: {
+          output: {
+            assetFileNames: (assetInfo) => {
+              // Keep WASM files in assets with their original name
+              if (assetInfo.name && assetInfo.name.endsWith('.wasm')) {
+                return 'assets/[name][extname]';
+              }
+              return 'assets/[name]-[hash][extname]';
+            }
+          }
+        }
       }
     };
 });

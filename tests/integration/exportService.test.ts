@@ -51,6 +51,8 @@ describe('Export Service integration', () => {
       tileLayerKey: 'esriImagery',
       lineThickness: 3,
       exportQuality: 1,
+      outputFormat: 'png',
+      jpegQuality: 85,
     };
 
     const callbacks: ExportCallbacks = {

@@ -339,4 +339,114 @@ describe('useExportState', () => {
       expect(result.current.viewportMiles.height).toBeGreaterThan(0);
     });
   });
+
+  describe('Output Format', () => {
+    it('should initialize with default PNG format', () => {
+      const { result } = renderHook(() => useExportState(null, 6));
+
+      expect(result.current.outputFormat).toBe('png');
+    });
+
+    it('should update output format to JPEG', () => {
+      const { result } = renderHook(() => useExportState(null, 6));
+
+      act(() => {
+        result.current.setOutputFormat('jpeg');
+      });
+
+      expect(result.current.outputFormat).toBe('jpeg');
+    });
+
+    it('should update output format back to PNG', () => {
+      const { result } = renderHook(() => useExportState(null, 6));
+
+      act(() => {
+        result.current.setOutputFormat('jpeg');
+      });
+
+      expect(result.current.outputFormat).toBe('jpeg');
+
+      act(() => {
+        result.current.setOutputFormat('png');
+      });
+
+      expect(result.current.outputFormat).toBe('png');
+    });
+
+    it('should persist output format to localStorage', () => {
+      const { result } = renderHook(() => useExportState(null, 6));
+
+      act(() => {
+        result.current.setOutputFormat('jpeg');
+      });
+
+      expect(localStorage.getItem('outputFormat')).toBe('"jpeg"');
+    });
+
+    it('should restore output format from localStorage', () => {
+      localStorage.setItem('outputFormat', '"jpeg"');
+
+      const { result } = renderHook(() => useExportState(null, 6));
+
+      expect(result.current.outputFormat).toBe('jpeg');
+    });
+  });
+
+  describe('JPEG Quality', () => {
+    it('should initialize with default JPEG quality of 85', () => {
+      const { result } = renderHook(() => useExportState(null, 6));
+
+      expect(result.current.jpegQuality).toBe(85);
+    });
+
+    it('should update JPEG quality', () => {
+      const { result } = renderHook(() => useExportState(null, 6));
+
+      act(() => {
+        result.current.setJpegQuality(90);
+      });
+
+      expect(result.current.jpegQuality).toBe(90);
+    });
+
+    it('should persist JPEG quality to localStorage', () => {
+      const { result } = renderHook(() => useExportState(null, 6));
+
+      act(() => {
+        result.current.setJpegQuality(75);
+      });
+
+      expect(localStorage.getItem('jpegQuality')).toBe('75');
+    });
+
+    it('should restore JPEG quality from localStorage', () => {
+      localStorage.setItem('jpegQuality', '95');
+
+      const { result } = renderHook(() => useExportState(null, 6));
+
+      expect(result.current.jpegQuality).toBe(95);
+    });
+
+    it('should handle quality values at boundaries (1-100)', () => {
+      const { result } = renderHook(() => useExportState(null, 6));
+
+      act(() => {
+        result.current.setJpegQuality(1);
+      });
+
+      expect(result.current.jpegQuality).toBe(1);
+
+      act(() => {
+        result.current.setJpegQuality(100);
+      });
+
+      expect(result.current.jpegQuality).toBe(100);
+
+      act(() => {
+        result.current.setJpegQuality(50);
+      });
+
+      expect(result.current.jpegQuality).toBe(50);
+    });
+  });
 });
