@@ -7,8 +7,8 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "npm run copy-wasm && tsc && vite build && node scripts/inject-build-timestamp.mjs",
+    "dev": "npm run copy-wasm && vite",
+    "build": "npm run copy-wasm && tsc && vite build && node scripts/inject-build-timestamp.mjs && node scripts/verify-wasm-in-build.mjs",
     "preview": "vite preview",
     "copy-wasm": "mkdir -p public/assets && cp node_modules/image-stitch/dist/bundles/jpeg_encoder_bg.wasm public/assets/",
     "test": "NODE_OPTIONS='--max-old-space-size=2048' jest --maxWorkers=1",
@@ -17,7 +17,6 @@
     "test:coverage": "NODE_OPTIONS='--max-old-space-size=2048' jest --selectProjects unit --coverage --maxWorkers=1",
     "test:coverage:full": "NODE_OPTIONS='--max-old-space-size=2048' jest --coverage --maxWorkers=1",
     "test:watch": "jest --watch --maxWorkers=1",
-    "test:build": "npm run copy-wasm && node scripts/verify-wasm-in-build.mjs",
     "type-check": "tsc --noEmit",
     "lint": "tsc --noEmit"
   },
