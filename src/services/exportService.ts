@@ -227,18 +227,58 @@ export const performPngExport = async (
 
         // Stack layers
         console.log('📚 Stacking layers: base → lines → labels');
-        finalCanvas = document.createElement('canvas');
-        finalCanvas.width = baseCanvas.width;
-        finalCanvas.height = baseCanvas.height;
+
+        // Create canvas for stacking, using @napi-rs/canvas in test environments
+        const createCanvas = (width: number, height: number): HTMLCanvasElement => {
+          if (typeof require !== 'undefined') {
+            try {
+              const { createCanvas: napiCreateCanvas } = require('@napi-rs/canvas');
+              return napiCreateCanvas(width, height) as unknown as HTMLCanvasElement;
+            } catch {
+              // @napi-rs/canvas not available
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          return canvas;
+        };
+
+        finalCanvas = createCanvas(baseCanvas.width, baseCanvas.height);
         const ctx = finalCanvas.getContext('2d')!;
-        ctx.drawImage(baseCanvas, 0, 0);
+
+        // Helper to draw canvas with type conversion if needed
+        const drawLayer = (sourceCanvas: HTMLCanvasElement) => {
+          // @napi-rs/canvas uses "CanvasElement" constructor name
+          const isNapiTarget = finalCanvas.constructor.name === 'CanvasElement';
+          const isNapiSource = sourceCanvas.constructor.name === 'CanvasElement';
+
+          if (isNapiTarget && !isNapiSource) {
+            // Convert JSDOM source to @napi-rs via ImageData
+            const sourceCtx = sourceCanvas.getContext('2d');
+            if (sourceCtx) {
+              const imageData = sourceCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+              const { createCanvas: napiCreateCanvas } = require('@napi-rs/canvas');
+              const tempCanvas = napiCreateCanvas(sourceCanvas.width, sourceCanvas.height);
+              const tempCtx = tempCanvas.getContext('2d');
+              if (tempCtx) {
+                tempCtx.putImageData(imageData, 0, 0);
+                ctx.drawImage(tempCanvas as any, 0, 0);
+              }
+            }
+          } else {
+            ctx.drawImage(sourceCanvas, 0, 0);
+          }
+        };
+
+        drawLayer(baseCanvas);
         if (linesCanvas) {
           console.log(`  + Lines layer (${linesCanvas.width}x${linesCanvas.height})`);
-          ctx.drawImage(linesCanvas, 0, 0);
+          drawLayer(linesCanvas);
         }
         if (labelsCanvas) {
           console.log(`  + Labels layer (${labelsCanvas.width}x${labelsCanvas.height})`);
-          ctx.drawImage(labelsCanvas, 0, 0);
+          drawLayer(labelsCanvas);
         }
 
         // Free memory

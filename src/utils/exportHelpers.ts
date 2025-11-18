@@ -6,6 +6,25 @@ import { LABEL_TILE_URL_RETINA } from '@/labelTiles';
 import { calculatePixelDimensions } from './mapCalculations';
 
 /**
+ * Creates a canvas, preferring @napi-rs/canvas in test environments for consistency
+ */
+const createCompatibleCanvas = (width: number, height: number): HTMLCanvasElement => {
+  if (typeof require !== 'undefined') {
+    try {
+      const { createCanvas } = require('@napi-rs/canvas');
+      return createCanvas(width, height) as unknown as HTMLCanvasElement;
+    } catch {
+      // @napi-rs/canvas not available, use standard canvas
+    }
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  return canvas;
+};
+
+/**
  * Creates a Leaflet map configured for export/printing
  */
 export const createPrintMap = (container: HTMLElement): L.Map => {
@@ -374,10 +393,8 @@ export const resizeCanvas = (
     `📐 Resizing canvas from ${sourceCanvas.width}x${sourceCanvas.height} to ${targetWidth}x${targetHeight}`
   );
 
-  // Create new canvas at target size
-  const resizedCanvas = document.createElement('canvas');
-  resizedCanvas.width = targetWidth;
-  resizedCanvas.height = targetHeight;
+  // Create new canvas at target size using compatible canvas creation
+  const resizedCanvas = createCompatibleCanvas(targetWidth, targetHeight);
 
   const ctx = resizedCanvas.getContext('2d');
   if (!ctx) {
@@ -389,18 +406,52 @@ export const resizeCanvas = (
   ctx.imageSmoothingQuality = 'high';
 
   // Draw source canvas scaled to target dimensions
-  // Type assertion needed as both HTMLCanvasElement and Node.js Canvas work with drawImage
-  ctx.drawImage(
-    sourceCanvas as any,
-    0,
-    0,
-    sourceCanvas.width,
-    sourceCanvas.height, // Source rectangle
-    0,
-    0,
-    targetWidth,
-    targetHeight // Destination rectangle
-  );
+  // In test environment, may need to convert between canvas types via ImageData
+  // @napi-rs/canvas uses "CanvasElement" constructor name
+  const isNapiTarget = resizedCanvas.constructor.name === 'CanvasElement';
+  const isNapiSource = sourceCanvas.constructor.name === 'CanvasElement';
+
+  if (isNapiTarget && !isNapiSource) {
+    // Convert JSDOM source canvas to @napi-rs via ImageData
+    const sourceCtx = sourceCanvas.getContext('2d');
+    if (!sourceCtx) {
+      throw new Error('Failed to get source canvas context');
+    }
+    const imageData = sourceCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+    const { createCanvas } = require('@napi-rs/canvas');
+    const tempCanvas = createCanvas(sourceCanvas.width, sourceCanvas.height);
+    const tempCtx = tempCanvas.getContext('2d');
+    if (!tempCtx) {
+      throw new Error('Failed to get temp canvas context');
+    }
+    tempCtx.putImageData(imageData, 0, 0);
+
+    // Draw from temp canvas to resized canvas
+    ctx.drawImage(
+      tempCanvas as any,
+      0,
+      0,
+      sourceCanvas.width,
+      sourceCanvas.height,
+      0,
+      0,
+      targetWidth,
+      targetHeight
+    );
+  } else {
+    // Standard canvas drawing (both same type)
+    ctx.drawImage(
+      sourceCanvas as any,
+      0,
+      0,
+      sourceCanvas.width,
+      sourceCanvas.height, // Source rectangle
+      0,
+      0,
+      targetWidth,
+      targetHeight // Destination rectangle
+    );
+  }
 
   const scaleFactor = targetWidth / sourceCanvas.width;
   console.log(`✅ Resize complete, scale factor: ${scaleFactor.toFixed(2)}x`);
