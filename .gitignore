@@ -14,7 +14,8 @@ dist-ssr
 coverage
 
 # Public assets (generated during build)
-public/
+public/*
+!public/_headers
 
 # Editor directories and files
 .vscode/*
