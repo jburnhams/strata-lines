@@ -89,6 +89,8 @@ describe('Export Service unit tests', () => {
       tileLayerKey: 'esriImagery',
       lineThickness: 3,
       exportQuality: 2,
+      outputFormat: 'png',
+      jpegQuality: 85,
     };
 
     mockCallbacks = {

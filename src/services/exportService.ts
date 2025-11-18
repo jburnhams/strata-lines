@@ -20,6 +20,8 @@ export interface ExportConfig {
   tileLayerKey: string;
   lineThickness: number;
   exportQuality: number;
+  outputFormat: 'png' | 'jpeg';
+  jpegQuality: number;
 }
 
 export interface ExportCallbacks {
@@ -50,6 +52,8 @@ export const performPngExport = async (
     tileLayerKey,
     lineThickness,
     exportQuality,
+    outputFormat,
+    jpegQuality,
   } = config;
 
   const {
@@ -369,6 +373,8 @@ export const performPngExport = async (
           rows: gridLayout.rows,
           columns: gridLayout.columns,
         },
+        outputFormat,
+        jpegQuality: outputFormat === 'jpeg' ? jpegQuality : undefined,
         onProgress: onSubdivisionStitched
           ? (completed, total) => {
               console.log(`🧵 Stitching progress: ${completed}/${total}`);
@@ -383,7 +389,8 @@ export const performPngExport = async (
       // Convert Uint8Array to Blob
       // Create a new Uint8Array to ensure compatibility with Blob constructor
       const imageData = new Uint8Array(stitchedImage);
-      finalBlob = new Blob([imageData], { type: 'image/png' });
+      const mimeType = outputFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
+      finalBlob = new Blob([imageData], { type: mimeType });
 
       // Clean up subdivision canvases (all of them, regardless of order)
       subdivisionCanvases.forEach((canvas) => {
@@ -392,8 +399,10 @@ export const performPngExport = async (
       });
     } else {
       // Single subdivision - just convert to blob
+      const mimeType = outputFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
+      const quality = outputFormat === 'jpeg' ? jpegQuality / 100 : undefined;
       const blob = await new Promise<Blob | null>((resolve) =>
-        subdivisionCanvases[0].toBlob(resolve, 'image/png')
+        subdivisionCanvases[0].toBlob(resolve, mimeType, quality)
       );
       if (!blob) throw new Error('Failed to convert canvas to blob');
       finalBlob = blob;
@@ -405,7 +414,8 @@ export const performPngExport = async (
 
     // Download the final image
     const link = document.createElement('a');
-    link.download = `gpx-map-${type}-${Date.now()}.png`;
+    const extension = outputFormat === 'jpeg' ? 'jpg' : 'png';
+    link.download = `gpx-map-${type}-${Date.now()}.${extension}`;
     link.href = URL.createObjectURL(finalBlob);
     document.body.appendChild(link);
     link.click();

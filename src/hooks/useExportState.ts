@@ -14,6 +14,8 @@ export const useExportState = (
 ) => {
   const [exportQuality, setExportQuality] = useLocalStorage<number>('exportQuality', 2);
   const [maxDimension, setMaxDimension] = useLocalStorage<number>('maxDimension', 4000);
+  const [outputFormat, setOutputFormat] = useLocalStorage<'png' | 'jpeg'>('outputFormat', 'png');
+  const [jpegQuality, setJpegQuality] = useLocalStorage<number>('jpegQuality', 85);
   const [exportBoundsLocked, setExportBoundsLocked] = useLocalStorage('exportBoundsLocked', false);
   const [aspectRatio, setAspectRatioState] = useLocalStorage<AspectRatio>('exportAspectRatio', {
     width: 16,
@@ -168,6 +170,10 @@ export const useExportState = (
     setExportQuality,
     maxDimension,
     setMaxDimension,
+    outputFormat,
+    setOutputFormat,
+    jpegQuality,
+    setJpegQuality,
     exportBounds,
     setExportBounds,
     exportBoundsLocked,

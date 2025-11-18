@@ -184,6 +184,8 @@ const App: React.FC = () => {
           tileLayerKey,
           lineThickness,
           exportQuality: exportState.exportQuality,
+          outputFormat: exportState.outputFormat,
+          jpegQuality: exportState.jpegQuality,
         },
         {
           onSubdivisionsCalculated: exportState.setExportSubdivisions,
@@ -267,6 +269,10 @@ const App: React.FC = () => {
         exportBoundsAspectRatio={exportState.exportBoundsAspectRatio}
         exportQuality={exportState.exportQuality}
         setExportQuality={exportState.setExportQuality}
+        outputFormat={exportState.outputFormat}
+        setOutputFormat={exportState.setOutputFormat}
+        jpegQuality={exportState.jpegQuality}
+        setJpegQuality={exportState.setJpegQuality}
         derivedExportZoom={exportState.derivedExportZoom}
         isLoading={trackManagement.isLoading}
         isExporting={isExporting}
