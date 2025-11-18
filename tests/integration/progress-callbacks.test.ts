@@ -46,6 +46,57 @@ describe('Progress Callbacks Integration Tests', () => {
   });
 
   describe('Tile Progress Tracking', () => {
+    it('should provide initial tile count estimate before tiles start loading', async () => {
+      const progressUpdates: Array<{ loaded: number; total: number }> = [];
+      const onTileProgress = jest.fn((loaded, total) => {
+        progressUpdates.push({ loaded, total });
+      });
+
+      const map = L.map(container, {
+        preferCanvas: true,
+        attributionControl: false,
+        zoomControl: false,
+      });
+
+      const bounds = L.latLngBounds(
+        L.latLng(51.5, -0.1),
+        L.latLng(51.52, -0.08)
+      );
+
+      map.setView(bounds.getCenter(), 10, { animate: false });
+      map.invalidateSize({ pan: false });
+
+      const tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '',
+      });
+      tileLayer.addTo(map);
+
+      await waitForRender({
+        map,
+        tileLayer,
+        hasVectorLayers: false,
+        onTileProgress,
+      });
+
+      // Should have initial progress update with estimated total
+      expect(progressUpdates.length).toBeGreaterThan(0);
+      const firstUpdate = progressUpdates[0];
+
+      // First update should show 0 loaded with estimated total > 0
+      expect(firstUpdate.loaded).toBe(0);
+      expect(firstUpdate.total).toBeGreaterThan(0);
+
+      // Final update should show completion (loaded should equal or be close to total)
+      const lastUpdate = progressUpdates[progressUpdates.length - 1];
+      expect(lastUpdate.loaded).toBeGreaterThan(0);
+      expect(lastUpdate.total).toBeGreaterThan(0);
+      // Loaded should be close to total (within reasonable margin for tile loading)
+      expect(lastUpdate.loaded).toBeGreaterThanOrEqual(lastUpdate.total * 0.8);
+      expect(lastUpdate.loaded).toBeLessThanOrEqual(lastUpdate.total);
+
+      map.remove();
+    }, 30000);
+
     it('should call onTileProgress callback during tile loading', async () => {
       const onTileProgress = jest.fn();
 
@@ -126,6 +177,53 @@ describe('Progress Callbacks Integration Tests', () => {
         const firstUpdate = progressUpdates[0];
         const lastUpdate = progressUpdates[progressUpdates.length - 1];
         expect(lastUpdate.loaded).toBeGreaterThanOrEqual(firstUpdate.loaded);
+      }
+
+      map.remove();
+    }, 30000);
+
+    it('should never show 0% progress after initial estimate', async () => {
+      const progressUpdates: Array<{ loaded: number; total: number; percentage: number }> = [];
+      const onTileProgress = jest.fn((loaded, total) => {
+        const percentage = total > 0 ? Math.round((loaded / total) * 100) : 0;
+        progressUpdates.push({ loaded, total, percentage });
+      });
+
+      const map = L.map(container, {
+        preferCanvas: true,
+        attributionControl: false,
+        zoomControl: false,
+      });
+
+      const bounds = L.latLngBounds(
+        L.latLng(51.5, -0.1),
+        L.latLng(51.52, -0.08)
+      );
+
+      map.setView(bounds.getCenter(), 10, { animate: false });
+      map.invalidateSize({ pan: false });
+
+      const tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '',
+      });
+      tileLayer.addTo(map);
+
+      await waitForRender({
+        map,
+        tileLayer,
+        hasVectorLayers: false,
+        onTileProgress,
+      });
+
+      // After initial estimate, total should always be > 0
+      // This means percentage should be calculable (not stuck at 0% due to 0 total)
+      for (let i = 0; i < progressUpdates.length; i++) {
+        const update = progressUpdates[i];
+        expect(update.total).toBeGreaterThan(0);
+
+        // Percentage should be valid (0-100)
+        expect(update.percentage).toBeGreaterThanOrEqual(0);
+        expect(update.percentage).toBeLessThanOrEqual(100);
       }
 
       map.remove();
