@@ -228,14 +228,24 @@ export const performPngExport = async (
         // Stack layers
         console.log('📚 Stacking layers: base → lines → labels');
 
-        // Create canvas for stacking, using @napi-rs/canvas in test environments
+        // Create canvas for stacking, using @napi-rs/canvas in integration test environments
+        // Skip in unit tests (detected by missing getImageData on mock contexts)
         const createCanvas = (width: number, height: number): HTMLCanvasElement => {
+          // Only use @napi-rs/canvas in integration test environment
+          // Unit tests use mocks that don't have full canvas API
           if (typeof require !== 'undefined') {
             try {
-              const { createCanvas: napiCreateCanvas } = require('@napi-rs/canvas');
-              return napiCreateCanvas(width, height) as unknown as HTMLCanvasElement;
+              // Check if we're in integration test environment (has real canvas API)
+              const testCanvas = document.createElement('canvas');
+              const testCtx = testCanvas.getContext('2d');
+              const hasRealCanvas = testCtx && typeof testCtx.getImageData === 'function';
+
+              if (hasRealCanvas) {
+                const { createCanvas: napiCreateCanvas } = require('@napi-rs/canvas');
+                return napiCreateCanvas(width, height) as unknown as HTMLCanvasElement;
+              }
             } catch {
-              // @napi-rs/canvas not available
+              // @napi-rs/canvas not available or detection failed
             }
           }
           const canvas = document.createElement('canvas');
@@ -255,20 +265,26 @@ export const performPngExport = async (
 
           if (isNapiTarget && !isNapiSource) {
             // Convert JSDOM source to @napi-rs via ImageData
-            const sourceCtx = sourceCanvas.getContext('2d');
-            if (sourceCtx) {
-              const imageData = sourceCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
-              const { createCanvas: napiCreateCanvas } = require('@napi-rs/canvas');
-              const tempCanvas = napiCreateCanvas(sourceCanvas.width, sourceCanvas.height);
-              const tempCtx = tempCanvas.getContext('2d');
-              if (tempCtx) {
-                tempCtx.putImageData(imageData, 0, 0);
-                ctx.drawImage(tempCanvas as any, 0, 0);
+            try {
+              const sourceCtx = sourceCanvas.getContext('2d');
+              if (sourceCtx && typeof sourceCtx.getImageData === 'function') {
+                const imageData = sourceCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+                const { createCanvas: napiCreateCanvas } = require('@napi-rs/canvas');
+                const tempCanvas = napiCreateCanvas(sourceCanvas.width, sourceCanvas.height);
+                const tempCtx = tempCanvas.getContext('2d');
+                if (tempCtx) {
+                  tempCtx.putImageData(imageData, 0, 0);
+                  ctx.drawImage(tempCanvas as any, 0, 0);
+                  return;
+                }
               }
+            } catch {
+              // Conversion failed, fall back to direct draw
             }
-          } else {
-            ctx.drawImage(sourceCanvas, 0, 0);
           }
+
+          // Standard canvas drawing or fallback
+          ctx.drawImage(sourceCanvas, 0, 0);
         };
 
         drawLayer(baseCanvas);

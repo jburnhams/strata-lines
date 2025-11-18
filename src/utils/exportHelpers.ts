@@ -6,15 +6,23 @@ import { LABEL_TILE_URL_RETINA } from '@/labelTiles';
 import { calculatePixelDimensions } from './mapCalculations';
 
 /**
- * Creates a canvas, preferring @napi-rs/canvas in test environments for consistency
+ * Creates a canvas, preferring @napi-rs/canvas in integration test environments for consistency
+ * Unit tests use mocks, so we skip @napi-rs/canvas there
  */
 const createCompatibleCanvas = (width: number, height: number): HTMLCanvasElement => {
   if (typeof require !== 'undefined') {
     try {
-      const { createCanvas } = require('@napi-rs/canvas');
-      return createCanvas(width, height) as unknown as HTMLCanvasElement;
+      // Check if we're in integration test environment (has real canvas API)
+      const testCanvas = document.createElement('canvas');
+      const testCtx = testCanvas.getContext('2d');
+      const hasRealCanvas = testCtx && typeof testCtx.getImageData === 'function';
+
+      if (hasRealCanvas) {
+        const { createCanvas } = require('@napi-rs/canvas');
+        return createCanvas(width, height) as unknown as HTMLCanvasElement;
+      }
     } catch {
-      // @napi-rs/canvas not available, use standard canvas
+      // @napi-rs/canvas not available or detection failed
     }
   }
 
