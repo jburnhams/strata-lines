@@ -17,10 +17,40 @@ export const createPrintMap = (container: HTMLElement): L.Map => {
 };
 
 /**
+ * Estimates the number of tiles that will be loaded for a given map
+ * This provides a more accurate initial total for progress tracking
+ */
+const estimateTileCount = (map: L.Map): number => {
+  try {
+    const bounds = map.getBounds();
+    const zoom = map.getZoom();
+    const tileSize = 256; // Standard Leaflet tile size
+
+    // Get pixel bounds of the visible area
+    const pixelBounds = map.getPixelBounds();
+    const width = pixelBounds.max.x - pixelBounds.min.x;
+    const height = pixelBounds.max.y - pixelBounds.min.y;
+
+    // Calculate how many tiles are needed to cover this area
+    const tilesX = Math.ceil(width / tileSize);
+    const tilesY = Math.ceil(height / tileSize);
+
+    const estimatedCount = tilesX * tilesY;
+    console.log(`📊 Estimated tile count: ${estimatedCount} (${tilesX}×${tilesY} at zoom ${zoom})`);
+
+    return estimatedCount;
+  } catch (e) {
+    console.warn('Could not estimate tile count:', e);
+    return 0;
+  }
+};
+
+/**
  * Waits for all tiles in a tile layer to load
  */
 export const waitForTiles = (
   tileLayer: L.TileLayer,
+  map?: L.Map,
   onProgress?: (loaded: number, total: number) => void
 ): Promise<void> => {
   return new Promise<void>((resolve, reject) => {
@@ -36,11 +66,28 @@ export const waitForTiles = (
 
     // Track tile loading progress
     let loadedCount = 0;
-    let totalCount = 0;
+    let totalStartedCount = 0; // Tiles that have started loading
+    let estimatedTotal = 0;
+
+    // Estimate initial tile count for better progress indication
+    if (map) {
+      const estimated = estimateTileCount(map);
+      if (estimated > 0) {
+        estimatedTotal = estimated;
+        // Report initial estimated progress
+        if (onProgress) {
+          onProgress(0, estimatedTotal);
+        }
+      }
+    }
 
     // Define all handlers so we can clean them up later
     const tileLoadStartHandler = () => {
-      totalCount++;
+      totalStartedCount++;
+      // Use the max of estimated and actual started tiles
+      // Also ensure total is at least as large as loaded count
+      const totalCount = Math.max(estimatedTotal, totalStartedCount, loadedCount);
+
       if (onProgress) {
         onProgress(loadedCount, totalCount);
       }
@@ -48,6 +95,10 @@ export const waitForTiles = (
 
     const tileLoadHandler = () => {
       loadedCount++;
+      // Use the max of estimated, actual started tiles, and loaded count
+      // This ensures loaded never exceeds total
+      const totalCount = Math.max(estimatedTotal, totalStartedCount, loadedCount);
+
       if (onProgress) {
         onProgress(loadedCount, totalCount);
       }
@@ -261,7 +312,7 @@ export const waitForRender = async (options: WaitForRenderOptions): Promise<void
     // Wait for tiles if present
     if (tileLayer) {
       console.log('⏳ Waiting for tiles...');
-      await Promise.race([waitForTiles(tileLayer, onTileProgress), timeoutPromise!]);
+      await Promise.race([waitForTiles(tileLayer, map, onTileProgress), timeoutPromise!]);
       console.log(`✅ Tiles loaded (${Date.now() - startTime}ms)`);
     }
 
