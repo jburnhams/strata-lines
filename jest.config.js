@@ -9,6 +9,8 @@ export default {
         '^@/(.*)$': '<rootDir>/src/$1',
         '^(\\.{1,2}/.*)\\.js$': '$1',
         '^image-stitch/bundle$': '<rootDir>/node_modules/image-stitch/dist/cjs/index.cjs',
+        '^jpeg-encoder$': '<rootDir>/tests/__mocks__/jpeg-encoder.ts',
+        '^jpeg-encoder/pkg/jpeg_encoder\\.js$': '<rootDir>/tests/__mocks__/jpeg-encoder.ts',
       },
       transform: {
         '^.+\\.(ts|tsx|js|jsx)$': [
@@ -23,7 +25,7 @@ export default {
         ],
       },
       transformIgnorePatterns: [
-        'node_modules/(?!(gpxparser|jsdom|parse5|@garmin/fitsdk|image-stitch)/)',
+        'node_modules/(?!(gpxparser|jsdom|parse5|@garmin/fitsdk|image-stitch|jpeg-encoder)/)',
       ],
       setupFilesAfterEnv: ['<rootDir>/tests/unit/setup.ts'],
       testMatch: ['<rootDir>/tests/unit/**/*.test.{ts,tsx}'],
@@ -39,6 +41,8 @@ export default {
         '^@/(.*)$': '<rootDir>/src/$1',
         '^(\\.{1,2}/.*)\\.js$': '$1',
         '^image-stitch/bundle$': '<rootDir>/node_modules/image-stitch/dist/cjs/index.cjs',
+        '^jpeg-encoder$': '<rootDir>/tests/__mocks__/jpeg-encoder.ts',
+        '^jpeg-encoder/pkg/jpeg_encoder\\.js$': '<rootDir>/tests/__mocks__/jpeg-encoder.ts',
       },
       transform: {
         '^.+\\.(ts|tsx|js|jsx)$': [
@@ -53,7 +57,7 @@ export default {
         ],
       },
       transformIgnorePatterns: [
-        'node_modules/(?!(gpxparser|jsdom|parse5|@garmin/fitsdk|image-stitch)/)',
+        'node_modules/(?!(gpxparser|jsdom|parse5|@garmin/fitsdk|image-stitch|jpeg-encoder)/)',
       ],
       setupFilesAfterEnv: ['<rootDir>/tests/integration/setup.ts'],
       testMatch: ['<rootDir>/tests/integration/**/*.test.{ts,tsx}'],
