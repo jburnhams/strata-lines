@@ -8,6 +8,7 @@ export default {
       moduleNameMapper: {
         '^@/(.*)$': '<rootDir>/src/$1',
         '^(\\.{1,2}/.*)\\.js$': '$1',
+        '^image-stitch/bundle$': '<rootDir>/node_modules/image-stitch/dist/cjs/index.cjs',
       },
       transform: {
         '^.+\\.(ts|tsx|js|jsx)$': [
@@ -37,6 +38,7 @@ export default {
       moduleNameMapper: {
         '^@/(.*)$': '<rootDir>/src/$1',
         '^(\\.{1,2}/.*)\\.js$': '$1',
+        '^image-stitch/bundle$': '<rootDir>/node_modules/image-stitch/dist/cjs/index.cjs',
       },
       transform: {
         '^.+\\.(ts|tsx|js|jsx)$': [
