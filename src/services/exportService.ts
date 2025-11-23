@@ -22,6 +22,11 @@ export interface ExportConfig {
   exportQuality: number;
   outputFormat: 'png' | 'jpeg';
   jpegQuality: number;
+  includedLayers?: {
+    base: boolean;
+    lines: boolean;
+    labels: boolean;
+  };
 }
 
 export interface ExportCallbacks {
@@ -96,7 +101,11 @@ export const performPngExport = async (
       if (type === 'combined') {
         console.log('🎯 Rendering combined export...');
 
+      const { base = true, lines = true, labels = true } = config.includedLayers || {};
+
         // Base layer (1/3)
+      let baseCanvas: HTMLCanvasElement | null = null;
+      if (base) {
         if (onStageProgress) {
           onStageProgress(i, {
             stage: 'base',
@@ -124,9 +133,12 @@ export const performPngExport = async (
               }
             : undefined,
         };
-        const baseCanvas = await renderCanvasForBounds(baseOptions);
+        baseCanvas = await renderCanvasForBounds(baseOptions);
+        }
 
         // Lines layer (2/3)
+      let linesCanvas: HTMLCanvasElement | null = null;
+      if (lines) {
         if (onStageProgress && visibleTracks.length > 0) {
           onStageProgress(i, {
             stage: 'lines',
@@ -156,10 +168,13 @@ export const performPngExport = async (
               }
             : undefined,
         };
-        const linesCanvas =
+        linesCanvas =
           visibleTracks.length > 0 ? await renderCanvasForBounds(linesOptions) : null;
+        }
 
         // Labels are rendered at a different zoom level (3/3)
+      let labelsCanvas: HTMLCanvasElement | null = null;
+      if (labels) {
         if (onStageProgress && tileLayerKey === 'esriImagery' && labelDensity >= 0) {
           onStageProgress(i, {
             stage: 'tiles',
@@ -188,18 +203,17 @@ export const performPngExport = async (
               }
             : undefined,
         };
-        let labelsCanvas =
+        labelsCanvas =
           tileLayerKey === 'esriImagery' && labelDensity >= 0
             ? await renderCanvasForBounds(labelsOptions)
             : null;
-
-        if (!baseCanvas) throw new Error('Failed to render base layer');
+        }
 
         // CRITICAL: Resize labels to match base canvas dimensions
         // Labels are rendered at labelZoom but need to overlay at derivedExportZoom
-        if (labelsCanvas) {
+      if (labelsCanvas && baseCanvas) {
           console.group('🏷️  Processing labels layer');
-          console.log(`Base zoom: ${derivedExportZoom}, Label zoom: ${labelZoom}`);
+        console.log(`Base zoom: ${derivedExportZoom}, Label zoom: ${(previewZoom || zoom) + labelDensity}`);
           console.log(`Base dimensions: ${baseCanvas.width}x${baseCanvas.height}`);
           console.log(
             `Label dimensions (before resize): ${labelsCanvas.width}x${labelsCanvas.height}`
@@ -224,6 +238,14 @@ export const performPngExport = async (
           }
           console.groupEnd();
         }
+
+      // Determine canvas dimensions (prefer base, then lines, then labels)
+      const width = baseCanvas?.width || linesCanvas?.width || labelsCanvas?.width;
+      const height = baseCanvas?.height || linesCanvas?.height || labelsCanvas?.height;
+
+      if (!width || !height) {
+        throw new Error('No layers were rendered');
+      }
 
         // Stack layers
         console.log('📚 Stacking layers: base → lines → labels');
@@ -254,7 +276,7 @@ export const performPngExport = async (
           return canvas;
         };
 
-        finalCanvas = createCanvas(baseCanvas.width, baseCanvas.height);
+      finalCanvas = createCanvas(width, height);
         const ctx = finalCanvas.getContext('2d')!;
 
         // Helper to draw canvas with type conversion if needed
@@ -287,7 +309,7 @@ export const performPngExport = async (
           ctx.drawImage(sourceCanvas, 0, 0);
         };
 
-        drawLayer(baseCanvas);
+      if (baseCanvas) drawLayer(baseCanvas);
         if (linesCanvas) {
           console.log(`  + Lines layer (${linesCanvas.width}x${linesCanvas.height})`);
           drawLayer(linesCanvas);
@@ -298,8 +320,10 @@ export const performPngExport = async (
         }
 
         // Free memory
+      if (baseCanvas) {
         baseCanvas.width = 0;
         baseCanvas.height = 0;
+      }
         if (linesCanvas) {
           linesCanvas.width = 0;
           linesCanvas.height = 0;

@@ -27,3 +27,8 @@ export type TileLayerDefinition = {
   name: string;
   layers: SingleLayer[];
 };
+
+export type Notification = {
+  type: 'error' | 'info';
+  message: string;
+};

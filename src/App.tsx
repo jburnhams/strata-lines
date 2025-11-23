@@ -130,15 +130,19 @@ const App: React.FC = () => {
   }, []);
 
   // Export handlers
-  const handleExport = useCallback(async (type: 'combined' | 'base' | 'lines' | 'labels') => {
+  const handleExport = useCallback(async (type: 'combined' | 'base' | 'lines' | 'labels', includedLayers?: { base: boolean; lines: boolean; labels: boolean; }) => {
     const visibleTracks = trackManagement.coloredTracks.filter(t => t.isVisible);
 
     // Validation
-    if ((type === 'combined' || type === 'lines') && visibleTracks.length === 0) {
+    if (type === 'combined' && includedLayers?.lines && visibleTracks.length === 0) {
+        trackManagement.setNotification({ type: 'error', message: "Cannot export with lines without a visible track."});
+        return;
+    }
+    if (type === 'lines' && visibleTracks.length === 0) {
       trackManagement.setNotification({ type: 'error', message: "Cannot export with lines without a visible track."});
       return;
     }
-    if (type === 'labels' && (labelDensity < 0 || tileLayerKey !== 'esriImagery')) {
+    if ((type === 'labels' || (type === 'combined' && includedLayers?.labels)) && (labelDensity < 0 || tileLayerKey !== 'esriImagery')) {
       trackManagement.setNotification({ type: 'info', message: "Labels are off or unavailable for this map style." });
       return;
     }
@@ -150,6 +154,7 @@ const App: React.FC = () => {
 
     console.log('🚀 Starting export:', {
       type,
+      includedLayers,
       exportBounds: {
         north: exportState.exportBounds.getNorth(),
         south: exportState.exportBounds.getSouth(),
@@ -186,6 +191,7 @@ const App: React.FC = () => {
           exportQuality: exportState.exportQuality,
           outputFormat: exportState.outputFormat,
           jpegQuality: exportState.jpegQuality,
+          includedLayers,
         },
         {
           onSubdivisionsCalculated: exportState.setExportSubdivisions,
@@ -231,8 +237,8 @@ const App: React.FC = () => {
   const selectedTileLayer = TILE_LAYERS.find(l => l.key === tileLayerKey) || TILE_LAYERS[0];
 
   return (
-    <div className="bg-gray-900 text-white min-h-screen flex flex-col md:flex-row font-sans">
-      <div ref={mapContainerRef} className="w-full h-[50vh] md:h-screen md:flex-1 relative flex justify-center items-center bg-gray-900">
+    <div className="bg-gray-900 text-white min-h-screen flex flex-col md:flex-row font-sans relative overflow-hidden">
+      <div ref={mapContainerRef} className="w-full h-screen md:flex-1 relative flex justify-center items-center bg-gray-900">
         <div ref={mapWrapperRef} className="h-full w-full">
           <MapComponent
             tracks={trackManagement.coloredTracks}
@@ -260,7 +266,7 @@ const App: React.FC = () => {
         removeTrack={trackManagement.removeTrack}
         removeAllTracks={trackManagement.removeAllTracks}
         toggleTrackVisibility={trackManagement.toggleTrackVisibility}
-        handleExport={() => handleExport('combined')}
+        handleExport={handleExport}
         handleExportBase={() => handleExport('base')}
         handleExportLines={() => handleExport('lines')}
         handleExportLabels={() => handleExport('labels')}
