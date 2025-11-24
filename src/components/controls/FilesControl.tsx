@@ -1,10 +1,10 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import type { Track } from '@/types';
 import { EyeIcon, EyeOffIcon } from '@/components/Icons';
 
 interface FilesControlProps {
   tracks: Track[];
-  handleFiles: (files: FileList | null) => void;
+  onAddFileClick: () => void;
   removeTrack: (trackId: string) => void;
   removeAllTracks: () => void;
   toggleTrackVisibility: (trackId: string) => void;
@@ -20,7 +20,7 @@ interface FilesControlProps {
 
 export const FilesControl: React.FC<FilesControlProps> = ({
   tracks,
-  handleFiles,
+  onAddFileClick,
   removeTrack,
   removeAllTracks,
   toggleTrackVisibility,
@@ -33,18 +33,12 @@ export const FilesControl: React.FC<FilesControlProps> = ({
   anyExporting,
   isAdvancedMode,
 }) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFileClick = () => {
-    fileInputRef.current?.click();
-  };
-
   return (
     <section>
         <h2 className="text-xl font-semibold text-gray-200 mb-3">1. Manage GPX / TCX / FIT Files</h2>
         <div className="grid grid-cols-3 gap-2">
             <button
-              onClick={handleFileClick}
+              onClick={onAddFileClick}
               disabled={isLoading}
               className={`${isAdvancedMode ? 'col-span-2' : 'col-span-3'} w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 text-white font-bold py-3 px-4 rounded transition-colors duration-200 flex items-center justify-center`}
             >
@@ -72,15 +66,6 @@ export const FilesControl: React.FC<FilesControlProps> = ({
                 </div>
             )}
         </div>
-        <input
-          type="file"
-          accept=".gpx,.tcx,.fit,.gz"
-          multiple
-          onChange={(e) => handleFiles(e.target.files)}
-          className="hidden"
-          ref={fileInputRef}
-        />
-
 
         {tracks.length > 0 && (
             <div className="mt-4">
