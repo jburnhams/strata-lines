@@ -95,7 +95,7 @@ export const ExportConfigControl: React.FC<ExportConfigControlProps> = ({
 
   return (
       <section>
-        <h2 className="text-xl font-semibold text-gray-200 mb-3">3. Configure Export</h2>
+        <h2 className="text-xl font-semibold text-gray-200 mb-3">Configure Export</h2>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-1">

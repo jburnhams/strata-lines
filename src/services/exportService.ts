@@ -254,6 +254,7 @@ export const performPngExport = async (
         // Create canvas for stacking, using @napi-rs/canvas in integration test environments
         // Skip in unit tests (detected by missing getImageData on mock contexts)
         const createCanvas = (width: number, height: number): HTMLCanvasElement => {
+          /*
           // Only use @napi-rs/canvas in integration test environment
           // Unit tests use mocks that don't have full canvas API
           if (typeof require !== 'undefined') {
@@ -271,6 +272,7 @@ export const performPngExport = async (
               // @napi-rs/canvas not available or detection failed
             }
           }
+          */
           const canvas = document.createElement('canvas');
           canvas.width = width;
           canvas.height = height;
@@ -279,6 +281,12 @@ export const performPngExport = async (
 
       finalCanvas = createCanvas(width, height);
         const ctx = finalCanvas.getContext('2d')!;
+
+        // Handle background color logic
+        if (outputFormat === 'jpeg' && !base) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+        }
 
         // Helper to draw canvas with type conversion if needed
         const drawLayer = (sourceCanvas: HTMLCanvasElement) => {

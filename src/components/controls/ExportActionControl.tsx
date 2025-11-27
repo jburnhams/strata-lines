@@ -105,7 +105,7 @@ export const ExportActionControl: React.FC<ExportActionControlProps> = ({
                     </svg>
                     Exporting...
                 </>
-                ) : isAdvancedMode ? 'Export Selected' : '4. Export PNG (Merged)'}
+                ) : isAdvancedMode ? 'Export Selected' : 'Export'}
             </button>
         </div>
       </section>
