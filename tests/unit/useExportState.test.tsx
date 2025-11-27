@@ -341,8 +341,18 @@ describe('useExportState', () => {
   });
 
   describe('Output Format', () => {
-    it('should initialize with default PNG format', () => {
+    it('should initialize with default JPEG format', () => {
       const { result } = renderHook(() => useExportState(null, 6));
+
+      expect(result.current.outputFormat).toBe('jpeg');
+    });
+
+    it('should update output format to PNG', () => {
+      const { result } = renderHook(() => useExportState(null, 6));
+
+      act(() => {
+        result.current.setOutputFormat('png');
+      });
 
       expect(result.current.outputFormat).toBe('png');
     });

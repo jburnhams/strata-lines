@@ -30,7 +30,7 @@ export const MapStyleControl: React.FC<MapStyleControlProps> = ({
 
   return (
       <section>
-          <h2 className="text-xl font-semibold text-gray-200 mb-3">2. Map & Line Style</h2>
+          <h2 className="text-xl font-semibold text-gray-200 mb-3">Map & Line Style</h2>
           <div className="space-y-4">
             <div>
               <label htmlFor="tile-layer" className="block text-sm font-medium text-gray-400">Map Style</label>

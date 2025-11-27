@@ -35,7 +35,7 @@ export const FilesControl: React.FC<FilesControlProps> = ({
 }) => {
   return (
     <section>
-        <h2 className="text-xl font-semibold text-gray-200 mb-3">1. Manage GPX / TCX / FIT Files</h2>
+        <h2 className="text-xl font-semibold text-gray-200 mb-3">Manage GPX / TCX / FIT Files</h2>
         <div className="grid grid-cols-3 gap-2">
             <button
               onClick={onAddFileClick}
