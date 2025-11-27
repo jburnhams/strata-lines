@@ -278,7 +278,7 @@ const MobileLayout: React.FC<LayoutProps> = (props) => {
     );
 
     return (
-        <div className={`absolute inset-0 z-20 pointer-events-none flex ${isLandscape ? 'flex-row' : 'flex-col'} justify-between overflow-hidden`}>
+        <div className={`absolute inset-0 z-[2000] pointer-events-none flex ${isLandscape ? 'flex-row' : 'flex-col'} justify-between overflow-hidden`}>
 
             {/* Conditional Rendering: If drawer is active, show overlay. Else show bars. */}
             {activeDrawer ? (
