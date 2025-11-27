@@ -9,11 +9,15 @@ import { UK_CENTER_LATLNG, TILE_LAYERS } from '@/constants';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useExportState } from '@/hooks/useExportState';
 import { useTrackManagement } from '@/hooks/useTrackManagement';
+import { useIsMobile, useIsLandscape } from '@/hooks/useMediaQuery';
 import { performPngExport } from '@/services/exportService';
 
 export const MERGE_PIXEL_LIMIT = 8000 * 8000; // Approx 64 megapixels
 
 const App: React.FC = () => {
+  const isMobile = useIsMobile();
+  const isLandscape = useIsLandscape();
+
   // Export state flags
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [isExportingBase, setIsExportingBase] = useState<boolean>(false);
@@ -236,9 +240,13 @@ const App: React.FC = () => {
 
   const selectedTileLayer = TILE_LAYERS.find(l => l.key === tileLayerKey) || TILE_LAYERS[0];
 
+  const mapContainerPadding = isMobile
+    ? (isLandscape ? 'pl-16 pr-16' : 'pt-16 pb-16')
+    : '';
+
   return (
     <div className="bg-gray-900 text-white min-h-screen flex flex-col md:flex-row font-sans relative overflow-hidden">
-      <div ref={mapContainerRef} className="w-full h-screen md:flex-1 relative flex justify-center items-center bg-gray-900">
+      <div ref={mapContainerRef} className={`w-full h-screen md:flex-1 relative flex justify-center items-center bg-gray-900 ${mapContainerPadding}`}>
         <div ref={mapWrapperRef} className="h-full w-full">
           <MapComponent
             tracks={trackManagement.coloredTracks}
