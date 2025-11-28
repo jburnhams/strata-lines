@@ -235,21 +235,42 @@ export const waitForCanvasRenderer = (
       const ctx = canvas.getContext('2d');
       if (ctx) {
         try {
-          // Only check a sample of pixels for performance
-          const sampleSize = Math.min(canvas.width * canvas.height, 10000);
-          const imageData = ctx.getImageData(0, 0, canvas.width, Math.min(canvas.height, Math.ceil(sampleSize / canvas.width)));
-          const hasContent = imageData.data.some((value, index) => {
-            // Check alpha channel (every 4th value starting at index 3)
-            return index % 4 === 3 && value > 0;
-          });
+          // Staggered Moving Slice Algorithm
+          // Instead of checking just the top left, we scan a different horizontal slice of the canvas in each frame.
+          // This allows us to detect content anywhere on the map (needle in a haystack) without scanning the entire image every time.
 
-          // Resolve if content found OR if we've checked many times (assume empty or problematic render)
-          if (hasContent || checkCount >= maxChecks) {
-            isRendered = true;
-            clearTimeout(timeout);
-            clearInterval(checkInterval);
-            // Minimal delay - content is already rendered
-            setTimeout(resolve, 50);
+          // 1. Calculate number of slices (min 10, max 50 to match maxChecks, target ~100px height)
+          // We clamp to 50 so that we are guaranteed to check the entire image at least once within the timeout.
+          const targetSliceHeight = 100;
+          const calculatedSlices = Math.ceil(canvas.height / targetSliceHeight);
+          const numSlices = Math.max(10, Math.min(maxChecks, calculatedSlices));
+          const sliceHeight = Math.ceil(canvas.height / numSlices);
+
+          // 2. Determine which slice to check using a prime stride
+          // A stride of 7 (coprime to most small numbers) ensures we jump around the image
+          // rather than scanning top-to-bottom. This helps find content quickly regardless of where it is.
+          // Note: checkCount starts at 1, so we subtract 1 to start scanning at slice index 0
+          const stride = 7;
+          const sliceIndex = ((checkCount - 1) * stride) % numSlices;
+          const sliceY = sliceIndex * sliceHeight;
+          const actualSliceHeight = Math.min(sliceHeight, canvas.height - sliceY);
+
+          // 3. Fetch and scan only that slice
+          if (actualSliceHeight > 0) {
+            const imageData = ctx.getImageData(0, sliceY, canvas.width, actualSliceHeight);
+            const hasContent = imageData.data.some((value, index) => {
+              // Check alpha channel (every 4th value starting at index 3)
+              return index % 4 === 3 && value > 0;
+            });
+
+            // Resolve if content found OR if we've checked many times (assume empty or problematic render)
+            if (hasContent || checkCount >= maxChecks) {
+              isRendered = true;
+              clearTimeout(timeout);
+              clearInterval(checkInterval);
+              // Minimal delay - content is already rendered
+              setTimeout(resolve, 50);
+            }
           }
         } catch (e) {
           // In case getImageData fails (e.g., in some test environments)
