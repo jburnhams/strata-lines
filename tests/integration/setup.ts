@@ -8,6 +8,24 @@ import { ReadableStream } from 'stream/web';
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder as any;
 
+// Polyfill Blob.prototype.arrayBuffer if missing (JSDOM)
+if (!Blob.prototype.arrayBuffer) {
+  Blob.prototype.arrayBuffer = function() {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (reader.result) {
+          resolve(reader.result as ArrayBuffer);
+        } else {
+          reject(new Error('Failed to read blob'));
+        }
+      };
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(this);
+    });
+  };
+}
+
 // Add polyfills BEFORE loading leaflet-node
 // These are needed because undici (required at top of leaflet-node) uses them immediately
 
