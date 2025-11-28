@@ -48,7 +48,7 @@ async function* renderSubdivisionsGenerator(
   config: ExportConfig,
   type: 'combined' | 'base' | 'lines' | 'labels',
   callbacks: ExportCallbacks
-): AsyncGenerator<Blob> {
+): AsyncGenerator<ArrayBuffer> { // Yield ArrayBuffer for better compatibility
   const {
     derivedExportZoom,
     previewZoom,
@@ -397,7 +397,7 @@ async function* renderSubdivisionsGenerator(
       }
     );
 
-    // Convert to Blob
+    // Convert to ArrayBuffer
     const mimeType = outputFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
     const quality = outputFormat === 'jpeg' ? jpegQuality / 100 : undefined; // quality is 0-1
     const blob = await new Promise<Blob | null>((resolve) =>
@@ -410,7 +410,8 @@ async function* renderSubdivisionsGenerator(
     finalCanvas.width = 0;
     finalCanvas.height = 0;
 
-    yield blob;
+    // Yield ArrayBuffer instead of Blob for better compatibility with image-stitch in Node/Jest
+    yield await blob.arrayBuffer();
   }
 }
 
@@ -476,7 +477,7 @@ export const performPngExport = async (
 
       // Start streaming stitch
       const stitchedStream = concatStreaming({
-        inputs: inputsGenerator,
+        inputs: inputsGenerator as any, // Cast to any to satisfy strict type check
         layout: {
           rows: gridLayout.rows,
           columns: gridLayout.columns,
@@ -504,7 +505,7 @@ export const performPngExport = async (
       console.log('✅ Stitching complete, size:', totalSize, 'bytes,', `duration: ${stitchDuration}s`);
 
       const mimeType = outputFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
-      finalBlob = new Blob(chunks, { type: mimeType });
+      finalBlob = new Blob(chunks as BlobPart[], { type: mimeType });
 
     } else {
       // Single subdivision - no need for image-stitch
@@ -521,7 +522,8 @@ export const performPngExport = async (
 
       const result = await generator.next();
       if (result.done) throw new Error('Generator failed to yield result');
-      finalBlob = result.value;
+      // result.value is ArrayBuffer now
+      finalBlob = new Blob([result.value], { type: outputFormat === 'jpeg' ? 'image/jpeg' : 'image/png' });
     }
 
     // Download the final image
