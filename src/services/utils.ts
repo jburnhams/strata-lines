@@ -100,3 +100,12 @@ export const getTracksBounds = (tracks: (Track | UnprocessedTrack)[]): L.LatLngB
     }
     return L.latLngBounds(points);
 };
+
+export const normalizeActivityType = (type?: string | null): string => {
+    if (!type || !type.trim()) {
+        return 'Unknown';
+    }
+    // Normalize to Title Case
+    const normalized = type.trim().toLowerCase();
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};

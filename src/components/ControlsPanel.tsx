@@ -53,6 +53,9 @@ interface ControlsPanelProps {
   isDownloading: boolean;
   maxDimension: number;
   setMaxDimension: (dimension: number) => void;
+  activityCounts: Record<string, number>;
+  hiddenActivityTypes: Set<string>;
+  toggleActivityFilter: (type: string) => void;
 }
 
 // Common Subcomponents
@@ -128,6 +131,9 @@ const DesktopLayout: React.FC<LayoutProps> = (props) => {
                 isDownloading={props.isDownloading}
                 anyExporting={anyExporting}
                 isAdvancedMode={isAdvancedMode}
+                activityCounts={props.activityCounts}
+                hiddenActivityTypes={props.hiddenActivityTypes}
+                toggleActivityFilter={props.toggleActivityFilter}
             />
 
             {isAdvancedMode && (
@@ -298,6 +304,9 @@ const MobileLayout: React.FC<LayoutProps> = (props) => {
                             isDownloading={props.isDownloading}
                             anyExporting={anyExporting}
                             isAdvancedMode={isAdvancedMode}
+                            activityCounts={props.activityCounts}
+                            hiddenActivityTypes={props.hiddenActivityTypes}
+                            toggleActivityFilter={props.toggleActivityFilter}
                         />
                     ) : (
                         <>
