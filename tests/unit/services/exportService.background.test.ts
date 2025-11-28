@@ -1,6 +1,11 @@
 
 import { performPngExport, ExportConfig, ExportCallbacks } from '@/services/exportService';
-import { renderCanvasForBounds } from '@/utils/exportHelpers';
+import { renderCanvasForBounds, createCompatibleCanvas } from '@/utils/exportHelpers';
+
+// Mock mapCalculations
+jest.mock('@/utils/mapCalculations', () => ({
+  calculatePixelDimensions: jest.fn(() => ({ width: 100, height: 100 })),
+}));
 
 // Mock dependencies
 jest.mock('@/utils/exportHelpers', () => ({
@@ -8,11 +13,24 @@ jest.mock('@/utils/exportHelpers', () => ({
   calculateGridLayout: jest.fn((subdivisions) => ({ rows: 1, columns: 1, orderedSubdivisions: subdivisions })),
   renderCanvasForBounds: jest.fn(),
   resizeCanvas: jest.fn((canvas) => canvas),
+  createCompatibleCanvas: jest.fn(),
 }));
 
 jest.mock('image-stitch/bundle', () => ({
   concatToBuffer: jest.fn(async () => new Uint8Array([0])),
-  concatStreaming: jest.fn(async function* () { yield new Uint8Array([0]); }),
+  concatStreaming: jest.fn(async function* (options: any) {
+    // Consume inputs to trigger rendering logic (which happens in scanlines generator)
+    if (options.inputs && Array.isArray(options.inputs)) {
+      for (const input of options.inputs) {
+        if (input.scanlines) {
+          for await (const _ of input.scanlines()) {
+            // consume
+          }
+        }
+      }
+    }
+    yield new Uint8Array([0]);
+  }),
 }));
 
 // Mock @napi-rs/canvas to force fallback to document.createElement
@@ -33,6 +51,7 @@ describe('exportService background color', () => {
     const ctx = {
       fillStyle: '#000000',
       fillRect: jest.fn(),
+      clearRect: jest.fn(),
       drawImage: jest.fn(),
       getImageData: jest.fn(),
       putImageData: jest.fn(),
@@ -52,6 +71,7 @@ describe('exportService background color', () => {
 
     // Mock renderCanvasForBounds to return a canvas
     (renderCanvasForBounds as jest.Mock).mockResolvedValue(mockCanvas);
+    (createCompatibleCanvas as jest.Mock).mockReturnValue(mockCanvas);
   });
 
   afterEach(() => {
@@ -88,7 +108,8 @@ describe('exportService background color', () => {
     }, mockCallbacks);
 
     // Check if fillRect was called with correct args (white fill)
-    expect(mockCtx.fillRect).toHaveBeenCalledWith(0, 0, 100, 100);
+    // Updated for streaming row-by-row rendering: fills 1px high rows
+    expect(mockCtx.fillRect).toHaveBeenCalledWith(0, 0, 100, 1);
   });
 
   test('should NOT fill white background for PNG format with base layer', async () => {

@@ -3,6 +3,11 @@ import * as exportHelpers from '@/utils/exportHelpers';
 import L from 'leaflet';
 import type { Track } from '@/types';
 
+// Mock mapCalculations to return consistent dimensions matching the mock canvas (300x150)
+jest.mock('@/utils/mapCalculations', () => ({
+  calculatePixelDimensions: jest.fn(() => ({ width: 300, height: 150 })),
+}));
+
 // Mock exportHelpers
 jest.mock('@/utils/exportHelpers', () => {
   const original = jest.requireActual('@/utils/exportHelpers');
