@@ -5,13 +5,14 @@ import { renderCanvasForBounds } from '@/utils/exportHelpers';
 // Mock dependencies
 jest.mock('@/utils/exportHelpers', () => ({
   calculateSubdivisions: jest.fn(() => [{ getNorth: () => 0, getSouth: () => 0, getEast: () => 0, getWest: () => 0 }]),
-  calculateGridLayout: jest.fn(() => ({ rows: 1, columns: 1, orderedSubdivisions: [] })),
+  calculateGridLayout: jest.fn((subdivisions) => ({ rows: 1, columns: 1, orderedSubdivisions: subdivisions })),
   renderCanvasForBounds: jest.fn(),
   resizeCanvas: jest.fn((canvas) => canvas),
 }));
 
 jest.mock('image-stitch/bundle', () => ({
   concatToBuffer: jest.fn(async () => new Uint8Array([0])),
+  concatStreaming: jest.fn(async function* () { yield new Uint8Array([0]); }),
 }));
 
 // Mock @napi-rs/canvas to force fallback to document.createElement
