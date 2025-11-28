@@ -13,6 +13,7 @@ describe('Database Service', () => {
         points: [[51.5, -0.1], [51.6, -0.2]],
         length: 10.5,
         isVisible: true,
+        activityType: 'Unknown',
       };
 
       expect(track.id).toBeDefined();
@@ -29,6 +30,7 @@ describe('Database Service', () => {
         points: [[51.5, -0.1]],
         length: 0,
         isVisible: true,
+        activityType: 'Unknown',
       };
 
       expect(track.points[0]).toHaveLength(2);
@@ -44,6 +46,7 @@ describe('Database Service', () => {
         length: 0,
         isVisible: true,
         color: '#ff0000',
+        activityType: 'Unknown',
       };
 
       expect(trackWithColor.color).toBe('#ff0000');
@@ -54,6 +57,7 @@ describe('Database Service', () => {
         points: [[51.5, -0.1]],
         length: 0,
         isVisible: true,
+        activityType: 'Unknown',
       };
 
       expect(trackWithoutColor.color).toBeUndefined();
@@ -122,6 +126,7 @@ describe('Database Service', () => {
         length: 10.5,
         isVisible: true,
         color: '#3388ff',
+        activityType: 'Unknown',
       };
 
       // Verify the track has the required keyPath
@@ -171,6 +176,7 @@ describe('Database Service', () => {
           points: [[51.5, -0.1]],
           length: 5.0,
           isVisible: true,
+          activityType: 'Running',
         },
         {
           id: 'track-2',
@@ -179,6 +185,7 @@ describe('Database Service', () => {
           length: 10.0,
           isVisible: false,
           color: '#ff0000',
+          activityType: 'Cycling',
         },
       ];
 
@@ -198,6 +205,7 @@ describe('Database Service', () => {
         points: [[51.5, -0.1]],
         length: 5.0,
         isVisible: true,
+        activityType: 'Running',
       };
 
       const track2: Track = {
@@ -206,6 +214,7 @@ describe('Database Service', () => {
         points: [[52.5, -1.1]],
         length: 10.0,
         isVisible: true,
+        activityType: 'Running',
       };
 
       expect(track1.id).not.toBe(track2.id);

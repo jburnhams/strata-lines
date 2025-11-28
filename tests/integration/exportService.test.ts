@@ -32,7 +32,7 @@ describe('Export Service integration', () => {
         [51.505, -0.102],
       ],
       length: 3.2,
-      isVisible: true,
+      isVisible: true, activityType: 'Unknown',
       color: '#ff4500',
     };
 

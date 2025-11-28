@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Track } from '@/types';
 import { EyeIcon, EyeOffIcon } from '@/components/Icons';
+import { ActivityTypeFilter } from './ActivityTypeFilter';
 
 interface FilesControlProps {
   tracks: Track[];
@@ -16,6 +17,9 @@ interface FilesControlProps {
   isDownloading: boolean;
   anyExporting: boolean;
   isAdvancedMode: boolean;
+  activityCounts: Record<string, number>;
+  hiddenActivityTypes: Set<string>;
+  toggleActivityFilter: (type: string) => void;
 }
 
 export const FilesControl: React.FC<FilesControlProps> = ({
@@ -32,6 +36,9 @@ export const FilesControl: React.FC<FilesControlProps> = ({
   isDownloading,
   anyExporting,
   isAdvancedMode,
+  activityCounts,
+  hiddenActivityTypes,
+  toggleActivityFilter,
 }) => {
   return (
     <section>
@@ -70,6 +77,15 @@ export const FilesControl: React.FC<FilesControlProps> = ({
         {tracks.length > 0 && (
             <div className="mt-4">
                 <h3 className="text-lg font-semibold text-gray-300 mb-2">Loaded Tracks ({tracks.length})</h3>
+
+                {isAdvancedMode && (
+                    <ActivityTypeFilter
+                        activityCounts={activityCounts}
+                        hiddenActivityTypes={hiddenActivityTypes}
+                        toggleActivityFilter={toggleActivityFilter}
+                    />
+                )}
+
                 <div className="bg-gray-900/50 rounded-md p-2 max-h-48 overflow-y-auto border border-gray-700">
                     <ul className="divide-y divide-gray-700">
                         {tracks.map((track) => (

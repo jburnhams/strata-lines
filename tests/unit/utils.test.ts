@@ -202,7 +202,8 @@ describe('getTracksBounds', () => {
         name: 'Track 1',
         points: [[51.5, -0.1], [51.6, -0.2]],
         length: 10,
-        isVisible: true
+        isVisible: true,
+        activityType: 'Unknown'
       }
     ];
     const bounds = utils.getTracksBounds(tracks);
@@ -217,7 +218,8 @@ describe('getTracksBounds', () => {
         name: 'Track 1',
         points: [],
         length: 0,
-        isVisible: true
+        isVisible: true,
+        activityType: 'Unknown'
       }
     ];
     expect(utils.getTracksBounds(tracks)).toBeNull();

@@ -117,7 +117,8 @@ describe('Color Assignment', () => {
         name: `Track ${i}`,
         points: [[51.5 + i * 0.1, -0.1], [51.6 + i * 0.1, -0.2]],
         length: 10,
-        isVisible: true
+        isVisible: true,
+        activityType: 'Unknown'
       }));
     };
 

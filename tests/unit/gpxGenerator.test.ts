@@ -10,7 +10,8 @@ describe('GPX Generator', () => {
         name: 'My Awesome Track',
         points: [[51.5, -0.1], [51.6, -0.2]],
         length: 12.34,
-        isVisible: true
+        isVisible: true,
+        activityType: 'Unknown'
       };
       const gpxString = trackToGpxString(track);
 
@@ -26,7 +27,8 @@ describe('GPX Generator', () => {
         name: 'Track with < & >',
         points: [[51.5, -0.1]],
         length: 1,
-        isVisible: true
+        isVisible: true,
+        activityType: 'Unknown'
       };
       const gpxString = trackToGpxString(track);
 
@@ -39,7 +41,8 @@ describe('GPX Generator', () => {
         name: 'Multi-point Track',
         points: [[51.1, -0.1], [51.2, -0.2], [51.3, -0.3], [51.4, -0.4]],
         length: 50,
-        isVisible: true
+        isVisible: true,
+        activityType: 'Unknown'
       };
       const gpxString = trackToGpxString(track);
 
@@ -55,7 +58,8 @@ describe('GPX Generator', () => {
         name: '',
         points: [[51.5, -0.1]],
         length: 1,
-        isVisible: true
+        isVisible: true,
+        activityType: 'Unknown'
       };
       const gpxString = trackToGpxString(track);
 
@@ -68,7 +72,8 @@ describe('GPX Generator', () => {
         name: 'Single Point',
         points: [[51.5, -0.1]],
         length: 0,
-        isVisible: true
+        isVisible: true,
+        activityType: 'Unknown'
       };
       const gpxString = trackToGpxString(track);
 
@@ -81,7 +86,8 @@ describe('GPX Generator', () => {
         name: 'Test Track',
         points: [[51.5, -0.1]],
         length: 1,
-        isVisible: true
+        isVisible: true,
+        activityType: 'Unknown'
       };
       const gpxString = trackToGpxString(track);
 

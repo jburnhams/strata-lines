@@ -73,7 +73,7 @@ describe('Responsive Layout Integration', () => {
     fireEvent.click(filesToggle);
 
     expect(screen.getByText('Files & Tracks')).toBeVisible();
-    expect(screen.getByText('1. Manage GPX / TCX / FIT Files')).toBeVisible();
+    expect(screen.getByText('Manage GPX / TCX / FIT Files')).toBeVisible();
   });
 
   it('adapts to landscape orientation in mobile', () => {

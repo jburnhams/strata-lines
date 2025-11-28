@@ -3,6 +3,7 @@ import { parseGPX } from '@we-gold/gpxjs';
 import pako from 'pako';
 import { Stream, Decoder } from '@garmin/fitsdk';
 import type { UnprocessedTrack, Point } from '@/types';
+import { normalizeActivityType } from '@/services/utils';
 
 function calculateTrackLength(points: Point[]): number {
   if (points.length < 2) {
@@ -28,8 +29,10 @@ const parseGpx = (fileContent: string): UnprocessedTrack[] => {
     const points: Point[] = track.points.map(p => [p.latitude, p.longitude]);
     const name = track.name || 'Unnamed Track';
     const length = calculateTrackLength(points);
+    // @ts-ignore - gpxjs types might not cover 'type' field yet
+    const activityType = normalizeActivityType(track.type);
 
-    return { name, points, length, isVisible: true };
+    return { name, points, length, isVisible: true, activityType };
   });
 };
 
@@ -76,7 +79,8 @@ const parseTcx = (fileContent: string): UnprocessedTrack[] => {
       const idNode = activity.getElementsByTagName('Id')[0];
       const name = idNode && idNode.textContent ? `${sport} - ${idNode.textContent}` : `${sport}`;
       const length = calculateTrackLength(points);
-      tracks.push({ name, points, length, isVisible: true });
+      const activityType = normalizeActivityType(sport === 'Activity' ? null : sport);
+      tracks.push({ name, points, length, isVisible: true, activityType });
     }
   }
 
@@ -118,13 +122,20 @@ const parseFit = (fileContent: Uint8Array): UnprocessedTrack[] => {
 
         const sessionMessages = messages.sessionMesgs;
         let name = 'FIT Activity';
-        if (sessionMessages && sessionMessages.length > 0 && sessionMessages[0].startTime) {
-            const activityDate = sessionMessages[0].startTime; // This is a Date object in the new SDK
-            name = `FIT Activity on ${activityDate.toLocaleString()}`;
+        let activityType = 'Unknown';
+
+        if (sessionMessages && sessionMessages.length > 0) {
+             if (sessionMessages[0].startTime) {
+                const activityDate = sessionMessages[0].startTime; // This is a Date object in the new SDK
+                name = `FIT Activity on ${activityDate.toLocaleString()}`;
+             }
+             if (sessionMessages[0].sport) {
+                 activityType = normalizeActivityType(sessionMessages[0].sport);
+             }
         }
 
         const length = calculateTrackLength(points);
-        return [{ name, points, length, isVisible: true }];
+        return [{ name, points, length, isVisible: true, activityType }];
         
     } catch (error) {
         console.error('Error parsing FIT file:', error);
