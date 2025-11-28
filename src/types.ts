@@ -8,6 +8,7 @@ export interface Track {
   length: number; // in kilometers
   isVisible: boolean;
   color?: string;
+  activityType: string;
 }
 
 export type UnprocessedTrack = Omit<Track, 'id'>;
