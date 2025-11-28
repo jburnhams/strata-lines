@@ -5,11 +5,29 @@ import {
   resizeCanvas,
   calculateSubdivisions,
   calculateGridLayout,
+  createCompatibleCanvas,
   type RenderOptions,
 } from '@/utils/exportHelpers';
 import { calculateTrackBounds } from '@/services/gpxProcessor';
 import { concatStreaming } from 'image-stitch/bundle';
 import type { ProgressInfo } from '@/utils/progressTracker';
+import { calculatePixelDimensions } from '@/utils/mapCalculations';
+
+// Minimal interface for ImageDecoder to satisfy image-stitch requirements
+// We define it here to avoid strict dependency on image-stitch types in the source if they aren't exported cleanly
+interface ImageHeader {
+    width: number;
+    height: number;
+    channels: number;
+    bitDepth: number;
+    format: 'unknown' | 'png' | 'jpeg';
+}
+
+interface ImageDecoder {
+    getHeader(): Promise<ImageHeader>;
+    scanlines(): AsyncGenerator<Uint8Array>;
+    close(): Promise<void>;
+}
 
 export interface ExportConfig {
   exportBounds: LatLngBounds;
@@ -39,380 +57,345 @@ export interface ExportCallbacks {
   onError: (error: Error) => void;
 }
 
-// Generator to yield subdivision canvases one by one
-// This allows streaming input to image-stitch without holding all canvases in memory
-async function* renderSubdivisionsGenerator(
-  orderedSubdivisions: LatLngBounds[],
-  originalSubdivisions: LatLngBounds[],
-  visibleTracks: Track[],
-  config: ExportConfig,
-  type: 'combined' | 'base' | 'lines' | 'labels',
-  callbacks: ExportCallbacks
-): AsyncGenerator<ArrayBuffer> { // Yield ArrayBuffer for better compatibility
-  const {
-    derivedExportZoom,
-    previewZoom,
-    zoom,
-    labelDensity,
-    tileLayerKey,
-    lineThickness,
-    exportQuality,
-    outputFormat,
-    jpegQuality,
-  } = config;
+/**
+ * Custom decoder that lazily renders a map subdivision and yields scanlines row-by-row.
+ * Implements the ImageDecoder interface required by image-stitch.
+ */
+class SubdivisionDecoder implements ImageDecoder {
+    private bounds: LatLngBounds;
+    private originalIndex: number;
+    private visibleTracks: Track[];
+    private config: ExportConfig;
+    private type: 'combined' | 'base' | 'lines' | 'labels';
+    private callbacks: ExportCallbacks;
 
-  const { onSubdivisionProgress, onStageProgress } = callbacks;
+    // Internal state
+    private canvases: HTMLCanvasElement[] = [];
+    private width: number = 0;
+    private height: number = 0;
 
-  for (let i = 0; i < orderedSubdivisions.length; i++) {
-    const subdivisionStartTime = performance.now();
-    const subdivisionBounds = orderedSubdivisions[i];
-
-    // Find original index to report progress correctly
-    // Since objects are references, we can find the exact object in the original array
-    const originalIndex = originalSubdivisions.indexOf(subdivisionBounds);
-    const progressIndex = originalIndex !== -1 ? originalIndex : i;
-
-    // Highlight the current subdivision being rendered
-    onSubdivisionProgress(progressIndex);
-    console.log(`🎨 Exporting subdivision ${i + 1}/${orderedSubdivisions.length} (original index: ${progressIndex})`);
-
-    // Filter visible tracks based on subdivision bounds
-    const filteredVisibleTracks = visibleTracks.filter((track) => {
-      if (!track.isVisible) return false;
-
-      // Populate bounds if missing (legacy support)
-      if (!track.bounds) {
-        track.bounds = calculateTrackBounds(track.points);
-      }
-
-      // Check if track intersects with subdivision bounds
-      if (track.bounds) {
-        const trackMinLat = track.bounds.minLat;
-        const trackMaxLat = track.bounds.maxLat;
-        const trackMinLng = track.bounds.minLng;
-        const trackMaxLng = track.bounds.maxLng;
-
-        const subMinLat = subdivisionBounds.getSouth();
-        const subMaxLat = subdivisionBounds.getNorth();
-        const subMinLng = subdivisionBounds.getWest();
-        const subMaxLng = subdivisionBounds.getEast();
-
-        if (
-          trackMaxLat < subMinLat ||
-          trackMinLat > subMaxLat ||
-          trackMaxLng < subMinLng ||
-          trackMinLng > subMaxLng
-        ) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-
-    console.log(
-      `🔍 Filtered tracks for subdivision ${i + 1}: ${filteredVisibleTracks.length}/${visibleTracks.length} tracks`
-    );
-
-    let finalCanvas: HTMLCanvasElement;
-
-    // Render the subdivision based on type
-    if (type === 'combined') {
-      console.log('🎯 Rendering combined export...');
-
-      const { base = true, lines = true, labels = true } = config.includedLayers || {};
-
-      // Base layer (1/3)
-      let baseCanvas: HTMLCanvasElement | null = null;
-      if (base) {
-        if (onStageProgress) {
-          onStageProgress(progressIndex, {
-            stage: 'base',
-            current: 0,
-            total: 0,
-            percentage: 0,
-            stageLabel: 'base 1/3',
-          });
-        }
-
-        const baseOptions: RenderOptions = {
-          bounds: subdivisionBounds,
-          layerType: 'base',
-          zoomForRender: derivedExportZoom,
-          tileLayerKey,
-          onTileProgress: onStageProgress
-            ? (loaded, total) => {
-                onStageProgress(progressIndex, {
-                  stage: 'base',
-                  current: loaded,
-                  total,
-                  percentage: total > 0 ? Math.round((loaded / total) * 100) : 0,
-                  stageLabel: 'base 1/3',
-                });
-              }
-            : undefined,
-        };
-        baseCanvas = await renderCanvasForBounds(baseOptions);
-        if (!baseCanvas) throw new Error('Failed to render base layer');
-      }
-
-      // Lines layer (2/3)
-      let linesCanvas: HTMLCanvasElement | null = null;
-      if (lines) {
-        if (onStageProgress && filteredVisibleTracks.length > 0) {
-          onStageProgress(progressIndex, {
-            stage: 'lines',
-            current: 0,
-            total: 0,
-            percentage: 0,
-            stageLabel: 'lines 2/3',
-          });
-        }
-
-        const linesOptions: RenderOptions = {
-          bounds: subdivisionBounds,
-          layerType: 'lines',
-          zoomForRender: derivedExportZoom,
-          visibleTracks: filteredVisibleTracks,
-          lineThickness,
-          exportQuality,
-          onLineProgress: onStageProgress
-            ? (checksCompleted, maxChecks) => {
-                onStageProgress(progressIndex, {
-                  stage: 'lines',
-                  current: checksCompleted,
-                  total: maxChecks,
-                  percentage: Math.round((checksCompleted / maxChecks) * 100),
-                  stageLabel: 'lines 2/3',
-                });
-              }
-            : undefined,
-        };
-        linesCanvas =
-          filteredVisibleTracks.length > 0 ? await renderCanvasForBounds(linesOptions) : null;
-      }
-
-      // Labels are rendered at a different zoom level (3/3)
-      let labelsCanvas: HTMLCanvasElement | null = null;
-      if (labels) {
-        if (onStageProgress && tileLayerKey === 'esriImagery' && labelDensity >= 0) {
-          onStageProgress(progressIndex, {
-            stage: 'tiles',
-            current: 0,
-            total: 0,
-            percentage: 0,
-            stageLabel: 'labels 3/3',
-          });
-        }
-
-        const labelZoom = (previewZoom || zoom) + labelDensity;
-        const labelsOptions: RenderOptions = {
-          bounds: subdivisionBounds,
-          layerType: 'labels-only',
-          zoomForRender: labelZoom,
-          renderScale: 2, // Render at 2x scale to benefit from retina @2x tiles
-          onTileProgress: onStageProgress
-            ? (loaded, total) => {
-                onStageProgress(progressIndex, {
-                  stage: 'tiles',
-                  current: loaded,
-                  total,
-                  percentage: total > 0 ? Math.round((loaded / total) * 100) : 0,
-                  stageLabel: 'labels 3/3',
-                });
-              }
-            : undefined,
-        };
-        labelsCanvas =
-          tileLayerKey === 'esriImagery' && labelDensity >= 0
-            ? await renderCanvasForBounds(labelsOptions)
-            : null;
-      }
-
-      // Resize labels if needed
-      if (labelsCanvas && baseCanvas) {
-        if (
-          labelsCanvas.width !== baseCanvas.width ||
-          labelsCanvas.height !== baseCanvas.height
-        ) {
-          const resizedLabels = resizeCanvas(labelsCanvas, baseCanvas.width, baseCanvas.height);
-          labelsCanvas.width = 0;
-          labelsCanvas.height = 0;
-          labelsCanvas = resizedLabels;
-        }
-      }
-
-      // Determine canvas dimensions
-      const width = baseCanvas?.width || linesCanvas?.width || labelsCanvas?.width;
-      const height = baseCanvas?.height || linesCanvas?.height || labelsCanvas?.height;
-
-      if (!width || !height) {
-        throw new Error('No layers were rendered');
-      }
-
-      // Stack layers
-      const createCanvas = (width: number, height: number): HTMLCanvasElement => {
-        if (typeof require !== 'undefined') {
-          try {
-            const testCanvas = document.createElement('canvas');
-            const testCtx = testCanvas.getContext('2d');
-            const hasRealCanvas = testCtx && typeof testCtx.getImageData === 'function';
-
-            if (hasRealCanvas) {
-              const { createCanvas: napiCreateCanvas } = require('@napi-rs/canvas');
-              return napiCreateCanvas(width, height) as unknown as HTMLCanvasElement;
-            }
-          } catch {
-            // ignore
-          }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        return canvas;
-      };
-
-      finalCanvas = createCanvas(width, height);
-      const ctx = finalCanvas.getContext('2d')!;
-
-      // Background
-      if (outputFormat === 'jpeg' && !base) {
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
-      }
-
-      const drawLayer = (sourceCanvas: HTMLCanvasElement) => {
-        const isNapiTarget = finalCanvas.constructor.name === 'CanvasElement';
-        const isNapiSource = sourceCanvas.constructor.name === 'CanvasElement';
-
-        if (isNapiTarget && !isNapiSource) {
-          try {
-            const sourceCtx = sourceCanvas.getContext('2d');
-            if (sourceCtx && typeof sourceCtx.getImageData === 'function') {
-              const imageData = sourceCtx.getImageData(
-                0,
-                0,
-                sourceCanvas.width,
-                sourceCanvas.height
-              );
-              const { createCanvas: napiCreateCanvas } = require('@napi-rs/canvas');
-              const tempCanvas = napiCreateCanvas(sourceCanvas.width, sourceCanvas.height);
-              const tempCtx = tempCanvas.getContext('2d');
-              if (tempCtx) {
-                tempCtx.putImageData(imageData, 0, 0);
-                ctx.drawImage(tempCanvas as any, 0, 0);
-                return;
-              }
-            }
-          } catch {
-            // ignore
-          }
-        }
-        ctx.drawImage(sourceCanvas, 0, 0);
-      };
-
-      if (baseCanvas) drawLayer(baseCanvas);
-      if (linesCanvas) drawLayer(linesCanvas);
-      if (labelsCanvas) drawLayer(labelsCanvas);
-
-      // Free layer memory
-      if (baseCanvas) {
-        baseCanvas.width = 0;
-        baseCanvas.height = 0;
-      }
-      if (linesCanvas) {
-        linesCanvas.width = 0;
-        linesCanvas.height = 0;
-      }
-      if (labelsCanvas) {
-        labelsCanvas.width = 0;
-        labelsCanvas.height = 0;
-      }
-    } else {
-      // Single layer rendering
-      let layerType: 'base' | 'lines' | 'labels-only';
-      let zoomForRender = derivedExportZoom;
-      if (type === 'base') layerType = 'base';
-      else if (type === 'lines') layerType = 'lines';
-      else {
-        layerType = 'labels-only';
-        zoomForRender = (previewZoom || zoom) + labelDensity;
-      }
-
-      if (onStageProgress) {
-        onStageProgress(progressIndex, {
-          stage: layerType === 'lines' ? 'lines' : layerType === 'base' ? 'base' : 'tiles',
-          current: 0,
-          total: 0,
-          percentage: 0,
-          stageLabel: type,
-        });
-      }
-
-      const options: RenderOptions = {
-        bounds: subdivisionBounds,
-        layerType,
-        zoomForRender,
-        visibleTracks: filteredVisibleTracks,
-        tileLayerKey,
-        lineThickness,
-        exportQuality,
-        onTileProgress:
-          onStageProgress && (layerType === 'base' || layerType === 'labels-only')
-            ? (loaded, total) => {
-                onStageProgress(progressIndex, {
-                  stage: layerType === 'base' ? 'base' : 'tiles',
-                  current: loaded,
-                  total,
-                  percentage: total > 0 ? Math.round((loaded / total) * 100) : 0,
-                  stageLabel: type,
-                });
-              }
-            : undefined,
-        onLineProgress:
-          onStageProgress && layerType === 'lines'
-            ? (checksCompleted, maxChecks) => {
-                onStageProgress(progressIndex, {
-                  stage: 'lines',
-                  current: checksCompleted,
-                  total: maxChecks,
-                  percentage: Math.round((checksCompleted / maxChecks) * 100),
-                  stageLabel: type,
-                });
-              }
-            : undefined,
-      };
-      const canvas = await renderCanvasForBounds(options);
-      if (!canvas) throw new Error(`Failed to render ${layerType} layer`);
-      finalCanvas = canvas;
+    constructor(
+        bounds: LatLngBounds,
+        originalIndex: number, // Index in the original subdivision array (for progress reporting)
+        visibleTracks: Track[],
+        config: ExportConfig,
+        type: 'combined' | 'base' | 'lines' | 'labels',
+        callbacks: ExportCallbacks
+    ) {
+        this.bounds = bounds;
+        this.originalIndex = originalIndex;
+        this.visibleTracks = visibleTracks;
+        this.config = config;
+        this.type = type;
+        this.callbacks = callbacks;
     }
 
-    const subdivisionDuration = ((performance.now() - subdivisionStartTime) / 1000).toFixed(2);
-    console.log(
-      `✅ Subdivision render complete (${i + 1}/${orderedSubdivisions.length}), canvas size:`,
-      {
-        width: finalCanvas.width,
-        height: finalCanvas.height,
-        duration: `${subdivisionDuration}s`,
-      }
-    );
+    /**
+     * Returns header info based on calculated bounds (fast, no rendering).
+     */
+    async getHeader(): Promise<ImageHeader> {
+        const { width, height } = calculatePixelDimensions(
+            this.bounds,
+            this.config.derivedExportZoom
+        );
+        this.width = width;
+        this.height = height;
 
-    // Convert to ArrayBuffer
-    const mimeType = outputFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
-    const quality = outputFormat === 'jpeg' ? jpegQuality / 100 : undefined; // quality is 0-1
-    const blob = await new Promise<Blob | null>((resolve) =>
-      finalCanvas.toBlob(resolve, mimeType, quality)
-    );
+        return {
+            width,
+            height,
+            channels: 4, // RGBA
+            bitDepth: 8,
+            format: 'unknown' // Custom source
+        };
+    }
 
-    if (!blob) throw new Error('Failed to convert canvas to blob');
+    /**
+     * Renders the subdivision and yields rows one by one.
+     */
+    async *scanlines(): AsyncGenerator<Uint8Array> {
+        const { onSubdivisionProgress, onStageProgress } = this.callbacks;
+        const {
+            derivedExportZoom,
+            previewZoom,
+            zoom,
+            labelDensity,
+            tileLayerKey,
+            lineThickness,
+            exportQuality,
+            includedLayers,
+            outputFormat
+        } = this.config;
 
-    // Free final canvas memory
-    finalCanvas.width = 0;
-    finalCanvas.height = 0;
+        // Signal that we are starting this subdivision
+        onSubdivisionProgress(this.originalIndex);
 
-    // Yield ArrayBuffer instead of Blob for better compatibility with image-stitch in Node/Jest
-    yield await blob.arrayBuffer();
-  }
+        // Filter visible tracks for this subdivision
+        const filteredVisibleTracks = this.visibleTracks.filter((track) => {
+            if (!track.isVisible) return false;
+            if (!track.bounds) track.bounds = calculateTrackBounds(track.points);
+
+            if (track.bounds) {
+                const trackMinLat = track.bounds.minLat;
+                const trackMaxLat = track.bounds.maxLat;
+                const trackMinLng = track.bounds.minLng;
+                const trackMaxLng = track.bounds.maxLng;
+
+                const subMinLat = this.bounds.getSouth();
+                const subMaxLat = this.bounds.getNorth();
+                const subMinLng = this.bounds.getWest();
+                const subMaxLng = this.bounds.getEast();
+
+                if (
+                  trackMaxLat < subMinLat ||
+                  trackMinLat > subMaxLat ||
+                  trackMaxLng < subMinLng ||
+                  trackMinLng > subMaxLng
+                ) {
+                  return false;
+                }
+            }
+            return true;
+        });
+
+        // --- Render Phase ---
+        // Depending on type, render one or more canvases.
+        // We use the existing renderCanvasForBounds logic.
+
+        if (this.type === 'combined') {
+            const { base = true, lines = true, labels = true } = includedLayers || {};
+
+            // 1. Base
+            if (base) {
+                this.reportProgress('base', 0, 100, 'base 1/3');
+                const baseCanvas = await renderCanvasForBounds({
+                    bounds: this.bounds,
+                    layerType: 'base',
+                    zoomForRender: derivedExportZoom,
+                    tileLayerKey,
+                    onTileProgress: (loaded, total) => this.reportProgress('base', loaded, total, 'base 1/3')
+                });
+                if (!baseCanvas) throw new Error('Failed to render base layer');
+                this.canvases.push(baseCanvas);
+            }
+
+            // 2. Lines
+            if (lines) {
+                this.reportProgress('lines', 0, 100, 'lines 2/3');
+                const linesCanvas = filteredVisibleTracks.length > 0 ? await renderCanvasForBounds({
+                    bounds: this.bounds,
+                    layerType: 'lines',
+                    zoomForRender: derivedExportZoom,
+                    visibleTracks: filteredVisibleTracks,
+                    lineThickness,
+                    exportQuality,
+                    onLineProgress: (checks, max) => this.reportProgress('lines', checks, max, 'lines 2/3')
+                }) : null;
+                if (linesCanvas) this.canvases.push(linesCanvas);
+            }
+
+            // 3. Labels
+            if (labels && tileLayerKey === 'esriImagery' && labelDensity >= 0) {
+                 this.reportProgress('tiles', 0, 100, 'labels 3/3');
+                 const labelZoom = (previewZoom || zoom) + labelDensity;
+                 let labelsCanvas = await renderCanvasForBounds({
+                    bounds: this.bounds,
+                    layerType: 'labels-only',
+                    zoomForRender: labelZoom,
+                    renderScale: 2,
+                    onTileProgress: (loaded, total) => this.reportProgress('tiles', loaded, total, 'labels 3/3')
+                 });
+
+                 // Resize if needed
+                 if (labelsCanvas && this.canvases.length > 0) {
+                     const targetW = this.canvases[0].width;
+                     const targetH = this.canvases[0].height;
+                     if (labelsCanvas.width !== targetW || labelsCanvas.height !== targetH) {
+                         labelsCanvas = resizeCanvas(labelsCanvas, targetW, targetH);
+                     }
+                 }
+                 if (labelsCanvas) this.canvases.push(labelsCanvas);
+            }
+        } else {
+            // Single layer type
+            let layerType: 'base' | 'lines' | 'labels-only';
+            let renderZoom = derivedExportZoom;
+
+            if (this.type === 'base') layerType = 'base';
+            else if (this.type === 'lines') layerType = 'lines';
+            else {
+                layerType = 'labels-only';
+                renderZoom = (previewZoom || zoom) + labelDensity;
+            }
+
+            const stageLabel = this.type; // 'base', 'lines', etc.
+
+            this.reportProgress(layerType === 'lines' ? 'lines' : layerType === 'base' ? 'base' : 'tiles', 0, 100, stageLabel);
+
+            const canvas = await renderCanvasForBounds({
+                bounds: this.bounds,
+                layerType,
+                zoomForRender: renderZoom,
+                visibleTracks: filteredVisibleTracks,
+                tileLayerKey,
+                lineThickness,
+                exportQuality,
+                onTileProgress: (loaded, total) =>
+                     this.reportProgress(layerType === 'base' ? 'base' : 'tiles', loaded, total, stageLabel),
+                onLineProgress: (checks, max) =>
+                     this.reportProgress('lines', checks, max, stageLabel)
+            });
+            if (!canvas) throw new Error(`Failed to render ${layerType} layer`);
+            this.canvases.push(canvas);
+        }
+
+        // Validate we have something
+        if (this.canvases.length === 0) {
+            // If no layers (e.g. lines only but no tracks), yield transparent or white
+            // We'll handle this in the loop below by checking length
+        } else {
+            // Ensure width/height matches actual canvas if calculation was slightly off due to rounding
+            this.width = this.canvases[0].width;
+            this.height = this.canvases[0].height;
+        }
+
+        // --- Streaming Phase ---
+        // Yield rows by blending layers
+        const contexts = this.canvases.map(c => c.getContext('2d')!);
+        const rowBuffer = new Uint8Array(this.width * 4); // Reusable buffer? No, generator should yield new buffers or safe copies
+
+        // Background color logic for JPEG (if base layer missing)
+        const fillBackground = outputFormat === 'jpeg' &&
+                              (this.type === 'combined' && !includedLayers?.base);
+
+        for (let y = 0; y < this.height; y++) {
+            // Report scanline progress every few rows to avoid flooding the event loop
+            if (y % 10 === 0 || y === this.height - 1) {
+                if (onStageProgress) {
+                    onStageProgress(this.originalIndex, {
+                        stage: 'scanline',
+                        current: y,
+                        total: this.height,
+                        percentage: Math.round((y / this.height) * 100),
+                        stageLabel: 'Processing'
+                    });
+                }
+                // Allow UI to breathe
+                await new Promise(r => setTimeout(r, 0));
+            }
+
+            // Create a row buffer
+            // We could optimize by using a single 1-row canvas to blend, but getting ImageData from 3 canvases is also fast.
+            // Let's do manual blending or use a helper canvas.
+            // Helper canvas is easier for blending modes/opacity.
+
+            if (this.canvases.length === 0) {
+                 // Yield empty/white row
+                 const emptyRow = new Uint8Array(this.width * 4);
+                 if (fillBackground) emptyRow.fill(255); // White
+                 yield emptyRow;
+                 continue;
+            }
+
+            // Optimization: If only 1 canvas, just yield its row
+            if (this.canvases.length === 1 && !fillBackground) {
+                const data = contexts[0].getImageData(0, y, this.width, 1).data;
+                yield new Uint8Array(data.buffer);
+                continue;
+            }
+
+            // Compositing multiple layers for this row
+            // We use a temporary 1-pixel high canvas to let the browser handle blending
+            const rowCanvas = getRowCanvas(this.width);
+            const rowCtx = rowCanvas.getContext('2d')!;
+
+            // Clear
+            rowCtx.clearRect(0, 0, this.width, 1);
+
+            // Fill background if needed
+            if (fillBackground) {
+                rowCtx.fillStyle = '#ffffff';
+                rowCtx.fillRect(0, 0, this.width, 1);
+            }
+
+            // Draw each layer's row
+            for (const sourceCanvas of this.canvases) {
+                const isNapiTarget = rowCanvas.constructor.name === 'CanvasElement';
+                const isNapiSource = sourceCanvas.constructor.name === 'CanvasElement';
+
+                if (isNapiTarget && !isNapiSource) {
+                    // Convert JSDOM source canvas to @napi-rs via ImageData
+                    const sourceCtx = sourceCanvas.getContext('2d');
+                    if (sourceCtx) {
+                        const imageData = sourceCtx.getImageData(0, y, this.width, 1);
+
+                        // We need to create a temporary Napi canvas for this row slice because putImageData
+                        // puts data directly, but we want to composite (drawImage) over existing content (e.g. background)
+                        const tempNapiCanvas = createCompatibleCanvas(this.width, 1);
+                        const tempCtx = tempNapiCanvas.getContext('2d');
+                        if (tempCtx) {
+                             tempCtx.putImageData(imageData, 0, 0);
+                             rowCtx.drawImage(tempNapiCanvas as any, 0, 0);
+                        }
+                    }
+                } else {
+                    rowCtx.drawImage(
+                        sourceCanvas,
+                        0, y, this.width, 1, // source rect
+                        0, 0, this.width, 1  // dest rect
+                    );
+                }
+            }
+
+            const data = rowCtx.getImageData(0, 0, this.width, 1).data;
+            yield new Uint8Array(data.buffer);
+        }
+
+        // Cleanup immediately after streaming
+        this.freeMemory();
+    }
+
+    async close(): Promise<void> {
+        this.freeMemory();
+    }
+
+    private freeMemory() {
+        this.canvases.forEach(c => {
+            c.width = 0;
+            c.height = 0;
+        });
+        this.canvases = [];
+    }
+
+    private reportProgress(stage: any, current: number, total: number, label: string) {
+        if (this.callbacks.onStageProgress) {
+            this.callbacks.onStageProgress(this.originalIndex, {
+                stage,
+                current,
+                total,
+                percentage: total > 0 ? Math.round((current / total) * 100) : 0,
+                stageLabel: label
+            });
+        }
+    }
+}
+
+// Global reusable row canvas to avoid allocation churn
+let _rowCanvas: HTMLCanvasElement | null = null;
+function getRowCanvas(width: number): HTMLCanvasElement {
+    // In node/test environment, use createCompatibleCanvas to ensure @napi-rs support
+    if (typeof process !== 'undefined' && process.versions && process.versions.node) {
+         return createCompatibleCanvas(width, 1);
+    }
+
+    if (!_rowCanvas) {
+        _rowCanvas = document.createElement('canvas');
+        _rowCanvas.height = 1;
+    }
+    if (_rowCanvas.width < width) {
+        _rowCanvas.width = width;
+    }
+    return _rowCanvas;
 }
 
 /**
@@ -451,33 +434,32 @@ export const performPngExport = async (
     // Show subdivisions on the map
     onSubdivisionsCalculated(subdivisions);
 
-    let finalBlob: Blob;
+    // Calculate grid layout
+    const gridLayout = calculateGridLayout(subdivisions);
+    console.log(
+      `📐 Grid layout: ${gridLayout.rows} rows × ${gridLayout.columns} columns`
+    );
 
-    // Use streaming if we have multiple subdivisions to save memory
-    if (subdivisions.length > 1) {
-      const stitchStartTime = performance.now();
-      console.log('🧵 Stitching subdivisions together...');
+    // Create decoders for each subdivision
+    // We map the ordered subdivisions to SubdivisionDecoder instances
+    const decoders = gridLayout.orderedSubdivisions.map((bounds) => {
+        // Find original index for progress reporting
+        const originalIndex = subdivisions.indexOf(bounds);
+        return new SubdivisionDecoder(
+            bounds,
+            originalIndex !== -1 ? originalIndex : 0,
+            visibleTracks,
+            config,
+            type,
+            callbacks
+        );
+    });
 
-      // Calculate grid layout
-      const gridLayout = calculateGridLayout(subdivisions);
-      console.log(
-        `📐 Grid layout: ${gridLayout.rows} rows × ${gridLayout.columns} columns`
-      );
+    console.log('🧵 Starting streaming export...');
 
-      // Create generator that renders and yields subdivisions one by one
-      // image-stitch will consume this generator to stream the process
-      const inputsGenerator = renderSubdivisionsGenerator(
-        gridLayout.orderedSubdivisions,
-        subdivisions, // Pass original subdivisions to correct index progress
-        visibleTracks,
-        config,
-        type,
-        callbacks
-      );
-
-      // Start streaming stitch
-      const stitchedStream = concatStreaming({
-        inputs: inputsGenerator as any, // Cast to any to satisfy strict type check
+    // Start streaming stitch using the array of decoders
+    const stitchedStream = concatStreaming({
+        inputs: decoders, // image-stitch accepts array of ImageDecoder
         layout: {
           rows: gridLayout.rows,
           columns: gridLayout.columns,
@@ -486,45 +468,25 @@ export const performPngExport = async (
         jpegQuality: outputFormat === 'jpeg' ? jpegQuality : undefined,
         onProgress: onSubdivisionStitched
           ? (completed, total) => {
-              console.log(`🧵 Stitching progress: ${completed}/${total}`);
+              console.log(`🧵 Stitched subdivisions: ${completed}/${total}`);
               onSubdivisionStitched(completed, total);
             }
           : undefined,
-      });
+    });
 
-      // Collect the stitched chunks
-      const chunks: Uint8Array[] = [];
-      for await (const chunk of stitchedStream) {
-        chunks.push(chunk);
-      }
-
-      const stitchDuration = ((performance.now() - stitchStartTime) / 1000).toFixed(2);
-
-      // Calculate total size
-      const totalSize = chunks.reduce((acc, chunk) => acc + chunk.byteLength, 0);
-      console.log('✅ Stitching complete, size:', totalSize, 'bytes,', `duration: ${stitchDuration}s`);
-
-      const mimeType = outputFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
-      finalBlob = new Blob(chunks as BlobPart[], { type: mimeType });
-
-    } else {
-      // Single subdivision - no need for image-stitch
-      // We can just execute the generator for one item and get the blob
-      const gridLayout = calculateGridLayout(subdivisions);
-      const generator = renderSubdivisionsGenerator(
-        gridLayout.orderedSubdivisions,
-        subdivisions,
-        visibleTracks,
-        config,
-        type,
-        callbacks
-      );
-
-      const result = await generator.next();
-      if (result.done) throw new Error('Generator failed to yield result');
-      // result.value is ArrayBuffer now
-      finalBlob = new Blob([result.value], { type: outputFormat === 'jpeg' ? 'image/jpeg' : 'image/png' });
+    // Collect the stitched chunks
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of stitchedStream) {
+      chunks.push(chunk);
     }
+
+    const totalExportDuration = ((performance.now() - exportStartTime) / 1000).toFixed(2);
+    // Calculate total size
+    const totalSize = chunks.reduce((acc, chunk) => acc + chunk.byteLength, 0);
+    console.log('✅ Export complete, size:', totalSize, 'bytes,', `duration: ${totalExportDuration}s`);
+
+    const mimeType = outputFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
+    const finalBlob = new Blob(chunks as BlobPart[], { type: mimeType });
 
     // Download the final image
     const link = document.createElement('a');
@@ -536,10 +498,9 @@ export const performPngExport = async (
     document.body.removeChild(link);
     URL.revokeObjectURL(link.href);
 
-    const totalExportDuration = ((performance.now() - exportStartTime) / 1000).toFixed(2);
-    console.log(`✅ Export complete (total duration: ${totalExportDuration}s)`);
     onComplete();
   } catch (err) {
+    console.error('Export failed:', err);
     onError(err instanceof Error ? err : new Error(String(err)));
   }
 };

@@ -9,7 +9,7 @@ import { calculatePixelDimensions } from './mapCalculations';
  * Creates a canvas, preferring @napi-rs/canvas in integration test environments for consistency
  * Unit tests use mocks, so we skip @napi-rs/canvas there
  */
-const createCompatibleCanvas = (width: number, height: number): HTMLCanvasElement => {
+export const createCompatibleCanvas = (width: number, height: number): HTMLCanvasElement => {
   if (typeof require !== 'undefined') {
     try {
       // Check if we're in integration test environment (has real canvas API)
