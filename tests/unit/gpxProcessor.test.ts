@@ -7,6 +7,7 @@ const sampleGpx = `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="StrataLines">
   <trk>
     <name>Test Track</name>
+    <type>Running</type>
     <trkseg>
       <trkpt lat="51.5074" lon="-0.1278"></trkpt>
       <trkpt lat="51.5075" lon="-0.1279"></trkpt>
@@ -78,6 +79,7 @@ describe('GPX Processor', () => {
       expect(tracks[0].points[0]).toEqual([51.5074, -0.1278]);
       expect(tracks[0].length).toBeGreaterThan(0);
       expect(tracks[0].isVisible).toBe(true);
+      expect(tracks[0].activityType).toBe('Running');
     });
 
     it('handles GPX files with multiple tracks', async () => {
@@ -149,6 +151,7 @@ describe('GPX Processor', () => {
       expect(tracks[0].points).toHaveLength(2);
       expect(tracks[0].points[0]).toEqual([40.7128, -74.006]);
       expect(tracks[0].length).toBeGreaterThan(0);
+      expect(tracks[0].activityType).toBe('Biking');
     });
 
     it('handles TCX files with multiple activities', async () => {
@@ -231,6 +234,7 @@ describe('GPX Processor', () => {
 
       expect(tracks).toHaveLength(1);
       expect(tracks[0].name).toBe('Test Track');
+      expect(tracks[0].activityType).toBe('Running');
     });
 
     it('correctly parses a gzipped TCX file', async () => {

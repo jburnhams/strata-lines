@@ -72,6 +72,7 @@ describe('Export Service unit tests', () => {
       length: 10.5,
       isVisible: true,
       color: '#ff0000',
+      activityType: 'Running',
     };
 
     const bounds = L.latLngBounds(

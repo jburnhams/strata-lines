@@ -10,14 +10,15 @@ jest.mock('html2canvas', () => ({
   default: jest.fn((element: HTMLElement, options?: { width?: number; height?: number }) => {
     const width = options?.width ?? element.clientWidth ?? 256;
     const height = options?.height ?? element.clientHeight ?? 256;
-    const { createCanvas } = require('@napi-rs/canvas');
-    const canvas = createCanvas(width, height);
+    const canvas = global.document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
     const ctx = canvas.getContext('2d');
     if (ctx) {
       ctx.fillStyle = '#0f172a';
       ctx.fillRect(0, 0, width, height);
     }
-    return Promise.resolve(canvas as unknown as HTMLCanvasElement);
+    return Promise.resolve(canvas);
   }),
 }));
 
@@ -31,7 +32,7 @@ describe('JPEG Export Integration Tests', () => {
       [51.505, -0.102],
     ],
     length: 3.2,
-    isVisible: true,
+    isVisible: true, activityType: 'Unknown',
     color: '#ff4500',
   };
 
@@ -88,7 +89,10 @@ describe('JPEG Export Integration Tests', () => {
       onSubdivisionStitched: jest.fn(),
       onStageProgress: jest.fn(),
       onComplete: jest.fn(),
-      onError: jest.fn(),
+      onError: jest.fn((e) => console.log('Test onError:', e)),
+      onError: jest.fn((e) => console.log('Test onError:', e)),
+      onError: jest.fn((e) => console.log('Test onError:', e)),
+      onError: jest.fn((e) => console.log('Test onError:', e)),
     };
 
     const clickSpy = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});

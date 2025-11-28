@@ -60,6 +60,9 @@ const defaultProps = {
   isDownloading: false,
   maxDimension: 4000,
   setMaxDimension: jest.fn(),
+  activityCounts: {},
+  hiddenActivityTypes: new Set<string>(),
+  toggleActivityFilter: jest.fn(),
 };
 
 describe('ControlsPanel', () => {

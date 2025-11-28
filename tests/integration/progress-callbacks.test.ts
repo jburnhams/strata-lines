@@ -11,7 +11,7 @@ const createMockTrack = (): Track => ({
     [51.515, -0.11],
   ],
   length: 1.0,
-  isVisible: true,
+  isVisible: true, activityType: 'Unknown',
 });
 
 let L: typeof import('leaflet');

@@ -135,7 +135,7 @@ const App: React.FC = () => {
 
   // Export handlers
   const handleExport = useCallback(async (type: 'combined' | 'base' | 'lines' | 'labels', includedLayers?: { base: boolean; lines: boolean; labels: boolean; }) => {
-    const visibleTracks = trackManagement.coloredTracks.filter(t => t.isVisible);
+    const visibleTracks = trackManagement.filteredTracks.filter(t => t.isVisible);
 
     // Validation
     if (type === 'combined' && includedLayers?.lines && visibleTracks.length === 0) {
@@ -249,7 +249,7 @@ const App: React.FC = () => {
       <div ref={mapContainerRef} className={`w-full h-screen md:flex-1 relative flex justify-center items-center bg-gray-900 ${mapContainerPadding}`}>
         <div ref={mapWrapperRef} className="h-full w-full">
           <MapComponent
-            tracks={trackManagement.coloredTracks}
+            tracks={trackManagement.filteredTracks}
             onUserMove={handleUserMove}
             center={L.latLng(mapCenter.lat, mapCenter.lng)}
             zoom={zoom}
@@ -269,7 +269,7 @@ const App: React.FC = () => {
         </div>
       </div>
       <ControlsPanel
-        tracks={trackManagement.tracks}
+        tracks={trackManagement.filteredTracks}
         handleFiles={trackManagement.handleFiles}
         removeTrack={trackManagement.removeTrack}
         removeAllTracks={trackManagement.removeAllTracks}
@@ -314,6 +314,9 @@ const App: React.FC = () => {
         isDownloading={trackManagement.isDownloading}
         maxDimension={exportState.maxDimension}
         setMaxDimension={exportState.setMaxDimension}
+        activityCounts={trackManagement.activityCounts}
+        hiddenActivityTypes={trackManagement.hiddenActivityTypes}
+        toggleActivityFilter={trackManagement.toggleActivityFilter}
       />
     </div>
   );

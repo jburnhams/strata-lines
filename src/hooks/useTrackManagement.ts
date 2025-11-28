@@ -28,9 +28,37 @@ export const useTrackManagement = (
   const [notification, setNotification] = useState<Notification | null>(null);
   const [boundsToFit, setBoundsToFit] = useState<LatLngBounds | null>(null);
 
+  // Set of activity types that are HIDDEN
+  const [hiddenActivityTypes, setHiddenActivityTypes] = useState<Set<string>>(new Set());
+
   const coloredTracks = useMemo(() => {
     return assignTrackColors(tracks, lineColorStart, lineColorEnd);
   }, [tracks, lineColorStart, lineColorEnd]);
+
+  const filteredTracks = useMemo(() => {
+    return coloredTracks.filter(t => !hiddenActivityTypes.has(t.activityType || 'Unknown'));
+  }, [coloredTracks, hiddenActivityTypes]);
+
+  const activityCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    coloredTracks.forEach(track => {
+      const type = track.activityType || 'Unknown';
+      counts[type] = (counts[type] || 0) + 1;
+    });
+    return counts;
+  }, [coloredTracks]);
+
+  const toggleActivityFilter = useCallback((type: string) => {
+    setHiddenActivityTypes(prev => {
+      const next = new Set(prev);
+      if (next.has(type)) {
+        next.delete(type);
+      } else {
+        next.add(type);
+      }
+      return next;
+    });
+  }, []);
 
   const handleFiles = useCallback(
     async (files: FileList | null) => {
@@ -138,13 +166,23 @@ export const useTrackManagement = (
 
   const removeAllTracks = useCallback(async () => {
     try {
-      await db.clearTracks();
-      setTracks([]);
+      const tracksToRemove = filteredTracks;
+
+      // If we are removing ALL tracks (no filter hidden), we can use clearTracks for efficiency
+      if (tracksToRemove.length === tracks.length) {
+          await db.clearTracks();
+          setTracks([]);
+      } else {
+          // Otherwise remove individually
+          const idsToRemove = new Set(tracksToRemove.map(t => t.id));
+          await Promise.all(tracksToRemove.map(t => db.deleteTrack(t.id)));
+          setTracks(prev => prev.filter(t => !idsToRemove.has(t.id)));
+      }
     } catch (error) {
       console.error('Failed to clear tracks', error);
-      setNotification({ type: 'error', message: 'Error removing all tracks.' });
+      setNotification({ type: 'error', message: 'Error removing tracks.' });
     }
-  }, []);
+  }, [filteredTracks, tracks.length]);
 
   const toggleTrackVisibility = useCallback(
     async (trackId: string) => {
@@ -173,7 +211,7 @@ export const useTrackManagement = (
   );
 
   const handleDownloadAllTracks = useCallback(async () => {
-    if (tracks.length === 0) {
+    if (filteredTracks.length === 0) {
       setNotification({ type: 'info', message: 'No tracks to download.' });
       return;
     }
@@ -181,14 +219,10 @@ export const useTrackManagement = (
     setNotification(null);
     try {
       const zip = new JSZip();
-      const allDbTracks = await db.getTracks();
 
-      if (allDbTracks.length === 0) {
-        setNotification({ type: 'info', message: 'No tracks found in the database to download.' });
-        return;
-      }
-
-      allDbTracks.forEach((track) => {
+      // Use filteredTracks which are already in memory and processed
+      // We don't fetch from DB again to ensure we respect the current filter state
+      filteredTracks.forEach((track) => {
         const gpxContent = trackToGpxString(track);
         const safeFilename = track.name.replace(/[\/\\?%*:|"<>]/g, '_') || 'unnamed_track';
         zip.file(`${safeFilename}.gpx`, gpxContent);
@@ -212,12 +246,13 @@ export const useTrackManagement = (
     } finally {
       setIsDownloading(false);
     }
-  }, [tracks]);
+  }, [filteredTracks]);
 
   return {
     tracks,
     setTracks,
     coloredTracks,
+    filteredTracks,
     isLoading,
     setIsLoading,
     isDownloading,
@@ -230,5 +265,8 @@ export const useTrackManagement = (
     removeAllTracks,
     toggleTrackVisibility,
     handleDownloadAllTracks,
+    activityCounts,
+    hiddenActivityTypes,
+    toggleActivityFilter,
   };
 };

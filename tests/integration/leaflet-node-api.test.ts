@@ -383,9 +383,9 @@ describe('Leaflet-Node Core APIs', () => {
 
     it('should filter and process visible tracks', () => {
       const tracks = [
-        { id: '1', isVisible: true, points: [[51.5, -0.1], [51.51, -0.09]] },
-        { id: '2', isVisible: false, points: [[51.49, -0.11], [51.50, -0.10]] },
-        { id: '3', isVisible: true, points: [[51.48, -0.12], [51.49, -0.11]] },
+        { id: '1', isVisible: true, activityType: 'Unknown', points: [[51.5, -0.1], [51.51, -0.09]] },
+        { id: '2', isVisible: false, activityType: 'Unknown', points: [[51.49, -0.11], [51.50, -0.10]] },
+        { id: '3', isVisible: true, activityType: 'Unknown', points: [[51.48, -0.12], [51.49, -0.11]] },
       ];
 
       const visibleTracks = tracks.filter(t => t.isVisible);
