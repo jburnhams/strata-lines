@@ -2,7 +2,7 @@ import L from 'leaflet';
 import { parseGPX } from '@we-gold/gpxjs';
 import pako from 'pako';
 import { Stream, Decoder } from '@garmin/fitsdk';
-import type { UnprocessedTrack, Point } from '@/types';
+import type { UnprocessedTrack, Point, TrackBounds } from '@/types';
 import { normalizeActivityType } from '@/services/utils';
 
 function calculateTrackLength(points: Point[]): number {
@@ -18,6 +18,27 @@ function calculateTrackLength(points: Point[]): number {
   return totalDistance / 1000; // convert to kilometers
 }
 
+export function calculateTrackBounds(points: Point[]): TrackBounds | undefined {
+  if (points.length === 0) return undefined;
+
+  let minLat = points[0][0];
+  let maxLat = points[0][0];
+  let minLng = points[0][1];
+  let maxLng = points[0][1];
+
+  for (let i = 1; i < points.length; i++) {
+    const lat = points[i][0];
+    const lng = points[i][1];
+
+    if (lat < minLat) minLat = lat;
+    if (lat > maxLat) maxLat = lat;
+    if (lng < minLng) minLng = lng;
+    if (lng > maxLng) maxLng = lng;
+  }
+
+  return { minLat, maxLat, minLng, maxLng };
+}
+
 const parseGpx = (fileContent: string): UnprocessedTrack[] => {
   const [parsedFile, error] = parseGPX(fileContent);
 
@@ -31,8 +52,9 @@ const parseGpx = (fileContent: string): UnprocessedTrack[] => {
     const length = calculateTrackLength(points);
     // @ts-ignore - gpxjs types might not cover 'type' field yet
     const activityType = normalizeActivityType(track.type);
+    const bounds = calculateTrackBounds(points);
 
-    return { name, points, length, isVisible: true, activityType };
+    return { name, points, length, isVisible: true, activityType, bounds };
   });
 };
 
@@ -80,7 +102,8 @@ const parseTcx = (fileContent: string): UnprocessedTrack[] => {
       const name = idNode && idNode.textContent ? `${sport} - ${idNode.textContent}` : `${sport}`;
       const length = calculateTrackLength(points);
       const activityType = normalizeActivityType(sport === 'Activity' ? null : sport);
-      tracks.push({ name, points, length, isVisible: true, activityType });
+      const bounds = calculateTrackBounds(points);
+      tracks.push({ name, points, length, isVisible: true, activityType, bounds });
     }
   }
 
@@ -135,7 +158,8 @@ const parseFit = (fileContent: Uint8Array): UnprocessedTrack[] => {
         }
 
         const length = calculateTrackLength(points);
-        return [{ name, points, length, isVisible: true, activityType }];
+        const bounds = calculateTrackBounds(points);
+        return [{ name, points, length, isVisible: true, activityType, bounds }];
         
     } catch (error) {
         console.error('Error parsing FIT file:', error);

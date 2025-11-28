@@ -7,6 +7,7 @@ import {
   calculateGridLayout,
   type RenderOptions,
 } from '@/utils/exportHelpers';
+import { calculateTrackBounds } from '@/services/gpxProcessor';
 import { concatToBuffer } from 'image-stitch/bundle';
 import type { ProgressInfo } from '@/utils/progressTracker';
 
@@ -95,6 +96,43 @@ export const performPngExport = async (
       onSubdivisionProgress(i);
       console.log(`🎨 Exporting subdivision ${i + 1}/${subdivisions.length}`);
 
+      // Filter visible tracks based on subdivision bounds
+      // Also calculate bounds for legacy tracks if missing
+      const filteredVisibleTracks = visibleTracks.filter(track => {
+        if (!track.isVisible) return false;
+
+        // Populate bounds if missing (legacy support)
+        if (!track.bounds) {
+          track.bounds = calculateTrackBounds(track.points);
+        }
+
+        // Check if track intersects with subdivision bounds
+        // Simple bounding box intersection check
+        if (track.bounds) {
+          const trackMinLat = track.bounds.minLat;
+          const trackMaxLat = track.bounds.maxLat;
+          const trackMinLng = track.bounds.minLng;
+          const trackMaxLng = track.bounds.maxLng;
+
+          const subMinLat = subdivisionBounds.getSouth();
+          const subMaxLat = subdivisionBounds.getNorth();
+          const subMinLng = subdivisionBounds.getWest();
+          const subMaxLng = subdivisionBounds.getEast();
+
+          // Check for intersection
+          // Note: This is a simple rectangle intersection. It's conservative.
+          // If the rectangles don't overlap, the track is definitely not in the subdivision.
+          if (trackMaxLat < subMinLat || trackMinLat > subMaxLat ||
+              trackMaxLng < subMinLng || trackMinLng > subMaxLng) {
+            return false;
+          }
+        }
+
+        return true;
+      });
+
+      console.log(`🔍 Filtered tracks for subdivision ${i + 1}: ${filteredVisibleTracks.length}/${visibleTracks.length} tracks`);
+
       let finalCanvas: HTMLCanvasElement;
 
       // Render the subdivision based on type
@@ -140,7 +178,7 @@ export const performPngExport = async (
         // Lines layer (2/3)
       let linesCanvas: HTMLCanvasElement | null = null;
       if (lines) {
-        if (onStageProgress && visibleTracks.length > 0) {
+        if (onStageProgress && filteredVisibleTracks.length > 0) {
           onStageProgress(i, {
             stage: 'lines',
             current: 0,
@@ -154,7 +192,7 @@ export const performPngExport = async (
           bounds: subdivisionBounds,
           layerType: 'lines',
           zoomForRender: derivedExportZoom,
-          visibleTracks,
+          visibleTracks: filteredVisibleTracks,
           lineThickness,
           exportQuality,
           onLineProgress: onStageProgress
@@ -170,7 +208,7 @@ export const performPngExport = async (
             : undefined,
         };
         linesCanvas =
-          visibleTracks.length > 0 ? await renderCanvasForBounds(linesOptions) : null;
+          filteredVisibleTracks.length > 0 ? await renderCanvasForBounds(linesOptions) : null;
         }
 
         // Labels are rendered at a different zoom level (3/3)
@@ -364,7 +402,7 @@ export const performPngExport = async (
           bounds: subdivisionBounds,
           layerType,
           zoomForRender,
-          visibleTracks,
+          visibleTracks: filteredVisibleTracks,
           tileLayerKey,
           lineThickness,
           exportQuality,
