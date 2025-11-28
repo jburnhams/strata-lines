@@ -10,9 +10,21 @@ jest.mock('html2canvas', () => ({
   default: jest.fn((element: HTMLElement, options?: { width?: number; height?: number }) => {
     const width = options?.width ?? element.clientWidth ?? 256;
     const height = options?.height ?? element.clientHeight ?? 256;
-    const canvas = global.document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
+
+    let canvas: any;
+    try {
+      // Try to use @napi-rs/canvas to match the integration test environment
+      // This avoids type mismatch errors when using drawImage
+      // We use eval('require') to bypass bundlers/transpilers that might complain
+      const req = eval('require');
+      const { createCanvas } = req('@napi-rs/canvas');
+      canvas = createCanvas(width, height);
+    } catch (e) {
+      canvas = global.document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+    }
+
     const ctx = canvas.getContext('2d');
     if (ctx) {
       ctx.fillStyle = '#0f172a';
@@ -41,7 +53,27 @@ describe('JPEG Export Integration Tests', () => {
     L.latLng(51.506, -0.098)
   );
 
+  let tileLayerSpy: any;
+
+  afterEach(() => {
+    if (tileLayerSpy) {
+      tileLayerSpy.mockRestore();
+    }
+  });
+
   beforeEach(() => {
+    // Mock L.tileLayer to prevent network requests and simulate immediate success
+    tileLayerSpy = jest.spyOn(L, 'tileLayer').mockImplementation(() => {
+      return {
+        addTo: jest.fn().mockReturnThis(),
+        remove: jest.fn(),
+        on: jest.fn().mockReturnThis(),
+        off: jest.fn().mockReturnThis(),
+        isLoading: jest.fn().mockReturnValue(false),
+        _tilesToLoad: 0,
+      } as any;
+    });
+
     if (!(window as any).computedStyle) {
       (window as any).computedStyle = window.getComputedStyle.bind(window);
     }
@@ -89,9 +121,6 @@ describe('JPEG Export Integration Tests', () => {
       onSubdivisionStitched: jest.fn(),
       onStageProgress: jest.fn(),
       onComplete: jest.fn(),
-      onError: jest.fn((e) => console.log('Test onError:', e)),
-      onError: jest.fn((e) => console.log('Test onError:', e)),
-      onError: jest.fn((e) => console.log('Test onError:', e)),
       onError: jest.fn((e) => console.log('Test onError:', e)),
     };
 

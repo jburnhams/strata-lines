@@ -254,7 +254,6 @@ export const performPngExport = async (
         // Create canvas for stacking, using @napi-rs/canvas in integration test environments
         // Skip in unit tests (detected by missing getImageData on mock contexts)
         const createCanvas = (width: number, height: number): HTMLCanvasElement => {
-          /*
           // Only use @napi-rs/canvas in integration test environment
           // Unit tests use mocks that don't have full canvas API
           if (typeof require !== 'undefined') {
@@ -272,7 +271,6 @@ export const performPngExport = async (
               // @napi-rs/canvas not available or detection failed
             }
           }
-          */
           const canvas = document.createElement('canvas');
           canvas.width = width;
           canvas.height = height;
