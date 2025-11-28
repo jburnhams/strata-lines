@@ -1,6 +1,13 @@
 
 export type Point = [number, number]; // [latitude, longitude]
 
+export interface TrackBounds {
+  minLat: number;
+  minLng: number;
+  maxLat: number;
+  maxLng: number;
+}
+
 export interface Track {
   id: string;
   name: string;
@@ -9,6 +16,7 @@ export interface Track {
   isVisible: boolean;
   color?: string;
   activityType: string;
+  bounds?: TrackBounds;
 }
 
 export type UnprocessedTrack = Omit<Track, 'id'>;
