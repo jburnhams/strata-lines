@@ -181,45 +181,67 @@ export const MapComponent: React.FC<MapComponentProps> = ({ tracks, onUserMove, 
         const isComplete = isStitched;
         const progress = subdivisionProgress.get(index);
 
+        // Calculate scanline position if actively scanning
+        let scanlineLat: number | null = null;
+        if (isCurrentlyRendering && progress?.stage === 'scanline' && progress.total > 0) {
+            const north = subdivisionBounds.getNorth();
+            const south = subdivisionBounds.getSouth();
+            // Invert the ratio because latitude decreases as we go down (row 0 is North)
+            const ratio = progress.current / progress.total;
+            scanlineLat = north - (north - south) * ratio;
+        }
+
         return (
-          <Rectangle
-            key={`subdivision-${index}`}
-            bounds={subdivisionBounds}
-            pathOptions={{
-              color: isComplete ? '#00ff00' : (isCurrentlyRendering ? '#ffeb3b' : '#ff9800'),
-              weight: isComplete || isCurrentlyRendering ? 3 : 2,
-              fillOpacity: isComplete ? 0.2 : (isCurrentlyRendering ? 0.3 : 0.1),
-              dashArray: isComplete || isCurrentlyRendering ? undefined : '5, 5'
-            }}
-          >
-            {isCurrentlyRendering && progress && (
-              <Tooltip
-                direction="center"
-                permanent
-                opacity={1}
-                className="subdivision-progress-tooltip"
-              >
-                <div style={{
-                  textAlign: 'center',
-                  fontWeight: 'bold',
-                  fontSize: '14px',
-                  background: 'rgba(0, 0, 0, 0.8)',
-                  color: 'white',
-                  padding: '8px 12px',
-                  borderRadius: '4px',
-                  whiteSpace: 'nowrap'
-                }}>
-                  <div>{progress.stageLabel}</div>
-                  <div>{progress.percentage}%</div>
-                  {progress.total > 0 && (
-                    <div style={{ fontSize: '12px', opacity: 0.8 }}>
-                      {progress.current}/{progress.total}
+          <React.Fragment key={`subdivision-group-${index}`}>
+            <Rectangle
+                key={`subdivision-${index}`}
+                bounds={subdivisionBounds}
+                pathOptions={{
+                color: isComplete ? '#00ff00' : (isCurrentlyRendering ? '#ffeb3b' : '#ff9800'),
+                weight: isComplete || isCurrentlyRendering ? 3 : 2,
+                fillOpacity: isComplete ? 0.2 : (isCurrentlyRendering ? 0.3 : 0.1),
+                dashArray: isComplete || isCurrentlyRendering ? undefined : '5, 5'
+                }}
+            >
+                {isCurrentlyRendering && progress && (
+                <Tooltip
+                    direction="center"
+                    permanent
+                    opacity={1}
+                    className="subdivision-progress-tooltip"
+                >
+                    <div style={{
+                    textAlign: 'center',
+                    fontWeight: 'bold',
+                    fontSize: '14px',
+                    background: 'rgba(0, 0, 0, 0.8)',
+                    color: 'white',
+                    padding: '8px 12px',
+                    borderRadius: '4px',
+                    whiteSpace: 'nowrap'
+                    }}>
+                    <div>{progress.stageLabel}</div>
+                    <div>{progress.percentage}%</div>
+                    {progress.total > 0 && (
+                        <div style={{ fontSize: '12px', opacity: 0.8 }}>
+                        {progress.current}/{progress.total}
+                        </div>
+                    )}
                     </div>
-                  )}
-                </div>
-              </Tooltip>
+                </Tooltip>
+                )}
+            </Rectangle>
+            {scanlineLat !== null && (
+                <Polyline
+                    key={`scanline-${index}`}
+                    positions={[
+                        [scanlineLat, subdivisionBounds.getWest()],
+                        [scanlineLat, subdivisionBounds.getEast()]
+                    ]}
+                    pathOptions={{ color: '#00ffff', weight: 2, opacity: 1 }}
+                />
             )}
-          </Rectangle>
+          </React.Fragment>
         );
       })}
 
