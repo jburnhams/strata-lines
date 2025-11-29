@@ -53,7 +53,7 @@ jest.mock('@/utils/exportHelpers', () => ({
 
 // Mock mapCalculations
 jest.mock('@/utils/mapCalculations', () => ({
-  calculatePixelDimensions: jest.fn(() => ({ width: 800, height: 600 })),
+  calculatePixelDimensions: jest.fn(() => ({ width: 10, height: 10 })),
 }));
 
 // Mock image-stitch library
@@ -122,7 +122,7 @@ describe('Export Service unit tests', () => {
     // Set up mock implementation to return canvases
     renderCanvasForBoundsMock = exportHelpers.renderCanvasForBounds as jest.MockedFunction<typeof exportHelpers.renderCanvasForBounds>;
     renderCanvasForBoundsMock.mockImplementation(async (options) => {
-      return createMockCanvasWithBlob(800, 600);
+      return createMockCanvasWithBlob(10, 10);
     });
 
     // Mock calculateSubdivisions - default to single subdivision
@@ -139,7 +139,7 @@ describe('Export Service unit tests', () => {
 
     // Mock calculateGridLayout
     calculateGridLayoutMock = exportHelpers.calculateGridLayout as jest.MockedFunction<typeof exportHelpers.calculateGridLayout>;
-    calculateGridLayoutMock.mockImplementation((subdivisions) => {
+    calculateGridLayoutMock.mockImplementation((subdivisions: any[]) => {
       // For a simple 2x2 grid layout (most common case with 4 subdivisions)
       const rows = Math.ceil(Math.sqrt(subdivisions.length));
       const columns = Math.ceil(subdivisions.length / rows);
@@ -151,7 +151,7 @@ describe('Export Service unit tests', () => {
     });
 
     // Mock createCompatibleCanvas
-    (exportHelpers.createCompatibleCanvas as jest.Mock).mockImplementation((w, h) => {
+    (exportHelpers.createCompatibleCanvas as jest.Mock).mockImplementation((w: any, h: any) => {
         return createMockCanvasWithBlob(w, h);
     });
 
