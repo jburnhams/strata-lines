@@ -56,6 +56,22 @@ jest.mock('@/utils/mapCalculations', () => ({
   calculatePixelDimensions: jest.fn(() => ({ width: 10, height: 10 })),
 }));
 
+// Mock gpxProcessor
+jest.mock('@/services/gpxProcessor', () => {
+    return {
+        calculateTrackBounds: jest.fn((points: any[]) => {
+            // Simple bounding box calculation for default behavior
+            if (!points || points.length === 0) return { minLat: 0, maxLat: 0, minLng: 0, maxLng: 0 };
+            return {
+                minLat: Math.min(...points.map(p => p[0])),
+                maxLat: Math.max(...points.map(p => p[0])),
+                minLng: Math.min(...points.map(p => p[1])),
+                maxLng: Math.max(...points.map(p => p[1])),
+            };
+        }),
+    };
+});
+
 // Mock image-stitch library
 jest.mock('image-stitch/bundle', () => ({
   concatStreaming: jest.fn(),
@@ -66,6 +82,7 @@ jest.mock('image-stitch/bundle', () => ({
 import { performPngExport } from '@/services/exportService';
 import * as exportHelpers from '@/utils/exportHelpers';
 import * as imageStitch from 'image-stitch/bundle';
+import { calculateTrackBounds } from '@/services/gpxProcessor';
 
 describe('Export Service unit tests', () => {
   let mockTrack: Track;
@@ -122,6 +139,8 @@ describe('Export Service unit tests', () => {
     // Set up mock implementation to return canvases
     renderCanvasForBoundsMock = exportHelpers.renderCanvasForBounds as jest.MockedFunction<typeof exportHelpers.renderCanvasForBounds>;
     renderCanvasForBoundsMock.mockImplementation(async (options) => {
+      if (options.onTileProgress) options.onTileProgress(1, 1);
+      if (options.onLineProgress) options.onLineProgress(1, 1);
       return createMockCanvasWithBlob(10, 10);
     });
 
@@ -675,5 +694,128 @@ describe('Export Service unit tests', () => {
       );
       expect(mockCallbacks.onComplete).toHaveBeenCalled();
     });
+  });
+
+  describe('Additional Coverage Tests', () => {
+      it('should filter out tracks outside of subdivision bounds', async () => {
+          // Mock calculateTrackBounds to return bounds completely outside the export bounds
+          // Export bounds are 51.5, -0.1 to 51.6, 0.0
+          (calculateTrackBounds as jest.Mock).mockReturnValue({
+              minLat: 0, maxLat: 1, minLng: 0, maxLng: 1
+          });
+
+          const trackWithoutBounds = { ...mockTrack, bounds: undefined };
+
+          // We use 'combined' mode but only with lines to check filtering
+          await performPngExport('lines', [trackWithoutBounds], mockConfig, mockCallbacks);
+
+          // Expect renderCanvasForBounds to be called with visibleTracks = [] (empty) because the track was filtered out
+          expect(renderCanvasForBoundsMock).toHaveBeenCalledWith(
+              expect.objectContaining({
+                  visibleTracks: []
+              })
+          );
+      });
+
+      it('should report onStageProgress', async () => {
+          const onStageProgress = jest.fn();
+          const callbacks = { ...mockCallbacks, onStageProgress };
+
+          await performPngExport('base', [mockTrack], mockConfig, callbacks);
+
+          // We expect multiple calls: one for 'starting' (SubdivisionDecoder constructor/scanlines start)
+          // and inside the loop (if height is sufficient, here mock is 10x10 so loop runs 10 times)
+          // onStageProgress is called for every 10 rows or last row.
+          expect(onStageProgress).toHaveBeenCalled();
+          expect(onStageProgress).toHaveBeenCalledWith(
+             expect.any(Number),
+             expect.objectContaining({ stageLabel: expect.any(String) })
+          );
+      });
+
+      it('should clean up canvases on close', async () => {
+          let capturedDecoders: any[] = [];
+          concatStreamingMock.mockImplementation((options: any) => {
+               capturedDecoders = options.inputs;
+               // We must return a generator
+               return (async function*() { yield new Uint8Array(); })();
+          });
+
+          const canvas = createMockCanvasWithBlob(100, 100);
+          renderCanvasForBoundsMock.mockResolvedValue(canvas as any);
+
+          await performPngExport('base', [mockTrack], mockConfig, mockCallbacks);
+
+          expect(capturedDecoders.length).toBeGreaterThan(0);
+          const decoder = capturedDecoders[0];
+
+          // Trigger render to populate canvases
+          if (decoder.scanlines) {
+              const gen = decoder.scanlines();
+              await gen.next(); // render happens here
+              // We need to finish the generator to ensure cleanup?
+              // Or call close() manually as the test is about manual close or memory management.
+              // The class has close().
+          }
+
+          await decoder.close();
+
+          expect(canvas.width).toBe(0);
+          expect(canvas.height).toBe(0);
+      });
+
+      it('should handle JSDOM to Napi canvas conversion in scanlines', async () => {
+         // Mock createCompatibleCanvas to return a "Napi" canvas (mock constructor name)
+         (exportHelpers.createCompatibleCanvas as jest.Mock).mockImplementation((w: any, h: any) => {
+             const c = createMockCanvasWithBlob(w, h);
+             // We mimic a Napi canvas by having 'constructor.name' equal to 'CanvasElement'
+             // Note: In strict mode/classes this might be read-only, but in mocks/js objects it should work.
+             // If not, we rely on the object shape or how it's checked.
+             // The code checks: rowCanvas.constructor.name === 'CanvasElement'
+             Object.defineProperty(c, 'constructor', { value: { name: 'CanvasElement' }, configurable: true });
+             return c;
+         });
+
+         // Mock renderCanvasForBounds to return a "JSDOM" canvas
+         renderCanvasForBoundsMock.mockImplementation(async () => {
+             const c = createMockCanvasWithBlob(10, 10);
+             Object.defineProperty(c, 'constructor', { value: { name: 'HTMLCanvasElement' }, configurable: true });
+             return c as any;
+         });
+
+         // We use combined mode to have > 1 canvas so compositing logic triggers
+         await performPngExport('combined', [mockTrack], mockConfig, mockCallbacks);
+
+         // Just verifying it runs without error through that branch is coverage enough.
+         expect(mockCallbacks.onComplete).toHaveBeenCalled();
+      });
+
+      it('should handle browser canvas creation when not in node', async () => {
+          // This tests the branch in getRowCanvas where process.versions.node is false
+          const originalVersions = process.versions;
+          Object.defineProperty(process, 'versions', { value: undefined });
+
+          try {
+             // Use combined to ensure > 1 canvas so getRowCanvas is called for compositing
+             await performPngExport('combined', [mockTrack], mockConfig, mockCallbacks);
+             // In this case, getRowCanvas should use document.createElement('canvas')
+             // Which is spied on.
+             expect(mockCreateElement).toHaveBeenCalledWith('canvas');
+          } finally {
+             Object.defineProperty(process, 'versions', { value: originalVersions });
+          }
+      });
+
+      it('should handle empty layers correctly', async () => {
+          // combined type but no layers selected
+          const config = {
+              ...mockConfig,
+              includedLayers: { base: false, lines: false, labels: false }
+          };
+
+          await performPngExport('combined', [mockTrack], config, mockCallbacks);
+
+          expect(mockCallbacks.onComplete).toHaveBeenCalled();
+      });
   });
 });
