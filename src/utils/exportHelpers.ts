@@ -798,7 +798,31 @@ export const renderCanvasForBounds = async (
       const vectorCanvas = container.querySelector('canvas');
       if (vectorCanvas) {
           const { x, y } = getPos(vectorCanvas as HTMLElement);
-          ctx.drawImage(vectorCanvas as any, x, y);
+
+          // In JSDOM environment, vectorCanvas is an HTMLCanvasElement (wrapper around node-canvas or similar)
+          // which is incompatible with @napi-rs/canvas's drawImage. We must bridge this gap.
+          const isVectorCanvasNapi = vectorCanvas.constructor.name === 'CanvasElement';
+
+          if (!isVectorCanvasNapi) {
+            // Convert JSDOM/HTMLCanvasElement to @napi-rs/canvas via ImageData
+            const sourceCtx = vectorCanvas.getContext('2d');
+            if (sourceCtx) {
+              const width = vectorCanvas.width;
+              const height = vectorCanvas.height;
+              // Ensure we have dimensions
+              if (width > 0 && height > 0) {
+                const imageData = sourceCtx.getImageData(0, 0, width, height);
+                // We already have createCanvas from outer scope
+                const tempCanvas = createCanvas(width, height);
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.putImageData(imageData, 0, 0);
+
+                ctx.drawImage(tempCanvas as any, x, y);
+              }
+            }
+          } else {
+             ctx.drawImage(vectorCanvas as any, x, y);
+          }
       }
 
       paddedCanvas = finalCanvas;
