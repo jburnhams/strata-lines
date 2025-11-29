@@ -28,19 +28,6 @@ describe('JPEG Export Integration Tests', () => {
     if (!(window as any).computedStyle) {
       (window as any).computedStyle = window.getComputedStyle.bind(window);
     }
-    // Polyfill detachEvent for legacy library support (Leaflet/IE compat) in JSDOM
-    const noop = () => {};
-    const classes = [HTMLElement, Window, Document];
-    if (typeof EventTarget !== 'undefined') classes.push(EventTarget);
-
-    classes.forEach(cls => {
-        if (cls.prototype && !(cls.prototype as any).detachEvent) {
-            (cls.prototype as any).detachEvent = noop;
-        }
-        if (cls.prototype && !(cls.prototype as any).attachEvent) {
-             (cls.prototype as any).attachEvent = noop;
-        }
-    });
 
     Object.defineProperty(HTMLCanvasElement.prototype, 'toBlob', {
       configurable: true,

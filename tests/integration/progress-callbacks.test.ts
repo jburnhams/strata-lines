@@ -70,7 +70,8 @@ describe('Progress Callbacks Integration Tests', () => {
       map.setView(bounds.getCenter(), 10, { animate: false });
       map.invalidateSize({ pan: false });
 
-      const tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      // Use OSM for better reliability in tests
+      const tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '',
       });
       tileLayer.addTo(map);
@@ -119,7 +120,7 @@ describe('Progress Callbacks Integration Tests', () => {
       map.invalidateSize({ pan: false });
 
       // Use real tile server - will respect HTTP_PROXY/HTTPS_PROXY env vars
-      const tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      const tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '',
       });
       tileLayer.addTo(map);
@@ -163,7 +164,7 @@ describe('Progress Callbacks Integration Tests', () => {
       map.invalidateSize({ pan: false });
 
       // Use real tile server
-      const tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      const tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '',
       });
       tileLayer.addTo(map);
@@ -207,7 +208,7 @@ describe('Progress Callbacks Integration Tests', () => {
       map.setView(bounds.getCenter(), 10, { animate: false });
       map.invalidateSize({ pan: false });
 
-      const tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      const tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '',
       });
       tileLayer.addTo(map);
@@ -249,7 +250,7 @@ describe('Progress Callbacks Integration Tests', () => {
       map.invalidateSize({ pan: false });
 
       // Use real tile server
-      const tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      const tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '',
       });
       tileLayer.addTo(map);
@@ -477,7 +478,7 @@ describe('Progress Callbacks Integration Tests', () => {
       map1.invalidateSize({ pan: false });
 
       // Use real tile server
-      const tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      const tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '',
       });
       tileLayer.addTo(map1);
@@ -564,7 +565,7 @@ describe('Progress Callbacks Integration Tests', () => {
       map.invalidateSize({ pan: false });
 
       // Use real tile server
-      const tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      const tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '',
       });
       tileLayer.addTo(map);
@@ -657,7 +658,7 @@ describe('Progress Callbacks Integration Tests', () => {
       map.invalidateSize({ pan: false });
 
       // Use real tile server
-      const tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      const tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '',
       });
       tileLayer.addTo(map);

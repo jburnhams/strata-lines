@@ -22,6 +22,35 @@ if (typeof Blob !== 'undefined' && !Blob.prototype.arrayBuffer) {
   };
 }
 
+// Mock HTMLCanvasElement.prototype.getContext to prevent JSDOM "Not implemented" errors
+// and support simple mocks for unit tests
+if (typeof HTMLCanvasElement !== 'undefined') {
+  Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+    writable: true,
+    value: function(contextId: string) {
+      if (contextId === '2d') {
+        return {
+          drawImage: jest.fn(),
+          clearRect: jest.fn(),
+          getImageData: jest.fn(() => ({
+            data: new Uint8ClampedArray(4),
+            width: 1,
+            height: 1
+          })),
+          putImageData: jest.fn(),
+          canvas: this,
+        };
+      }
+      return null;
+    }
+  });
+
+  Object.defineProperty(HTMLCanvasElement.prototype, 'toDataURL', {
+    writable: true,
+    value: jest.fn(() => 'data:image/png;base64,mock'),
+  });
+}
+
 // Mock URL.createObjectURL and URL.revokeObjectURL
 if (typeof URL.createObjectURL === 'undefined') {
   URL.createObjectURL = jest.fn(() => 'blob:mock-url');
