@@ -13,6 +13,11 @@ if (typeof globalThis.ReadableStream === 'undefined') {
   globalThis.ReadableStream = ReadableStream as any;
 }
 
+// Add performance.markResourceTiming polyfill for undici
+if (global.performance && typeof (global.performance as any).markResourceTiming === 'undefined') {
+  (global.performance as any).markResourceTiming = () => {};
+}
+
 const nodeRequire = eval('require') as NodeJS.Require;
 
 let fontAssetPath: string | undefined;
