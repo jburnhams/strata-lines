@@ -8,6 +8,24 @@ import {
   installMockCanvasSpies,
 } from './testUtils/canvas';
 
+// Mock HTMLCanvasElement.prototype.getContext to prevent JSDOM "Not implemented" errors
+// when code calls document.createElement('canvas') and then getContext
+Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+  value: jest.fn(() => ({
+    drawImage: jest.fn(),
+    clearRect: jest.fn(),
+    getImageData: jest.fn(() => ({
+      data: new Uint8ClampedArray(4),
+      width: 1,
+      height: 1,
+      colorSpace: 'srgb',
+    })),
+    putImageData: jest.fn(),
+    fillRect: jest.fn(),
+  })),
+  configurable: true,
+});
+
 // UNIT TEST - Uses mocks, no real leaflet-node or real canvas implementations
 // Mock the browser-specific APIs first, before any imports
 const mockToBlob = jest.fn((callback: (blob: Blob | null) => void) => {
@@ -30,11 +48,6 @@ const createMockCanvasWithBlob = (width: number, height: number) =>
         fillRect: jest.fn(),
         fillStyle: '#000000',
     } as any,
-  });
-
-const { createElementSpy: mockCreateElement, appendChildSpy: mockAppendChild, removeChildSpy: mockRemoveChild, restore: restoreCanvasSpies } =
-  installMockCanvasSpies({
-    canvasFactory: () => createMockCanvasWithBlob(100, 100),
   });
 
 (global as any).URL = {
@@ -94,8 +107,23 @@ describe('Export Service unit tests', () => {
   let resizeCanvasMock: jest.MockedFunction<typeof exportHelpers.resizeCanvas>;
   let concatStreamingMock: jest.MockedFunction<typeof imageStitch.concatStreaming>;
 
+  // Spies
+  let mockCreateElement: jest.SpyInstance;
+  let mockAppendChild: jest.SpyInstance;
+  let mockRemoveChild: jest.SpyInstance;
+  let restoreCanvasSpies: () => void;
+
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Re-install canvas spies before each test because setup.ts calls jest.restoreAllMocks()
+    const spies = installMockCanvasSpies({
+      canvasFactory: () => createMockCanvasWithBlob(100, 100),
+    });
+    mockCreateElement = spies.createElementSpy;
+    mockAppendChild = spies.appendChildSpy;
+    mockRemoveChild = spies.removeChildSpy;
+    restoreCanvasSpies = spies.restore;
 
     mockTrack = {
       id: 'test-1',
@@ -224,7 +252,7 @@ describe('Export Service unit tests', () => {
   });
 
   afterAll(() => {
-    restoreCanvasSpies();
+    if (restoreCanvasSpies) restoreCanvasSpies();
   });
 
   describe('performPngExport - combined type', () => {

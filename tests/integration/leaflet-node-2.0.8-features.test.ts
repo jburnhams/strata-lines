@@ -11,6 +11,8 @@ import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
+// Increase timeout for network operations
+jest.setTimeout(60000);
 
 /**
  * Tests for new leaflet-node 2.0.8 features

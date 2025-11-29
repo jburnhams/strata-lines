@@ -9,6 +9,7 @@ export default {
         '^@/(.*)$': '<rootDir>/src/$1',
         '^(\\.{1,2}/.*)\\.js$': '$1',
         '^image-stitch/bundle$': '<rootDir>/node_modules/image-stitch/dist/cjs/index.cjs',
+        '^jpeg-encoder-wasm$': '<rootDir>/tests/mocks/jpeg-encoder-wasm.js',
       },
       transform: {
         '^.+\\.(ts|tsx|js|jsx)$': [
@@ -39,6 +40,7 @@ export default {
         '^@/(.*)$': '<rootDir>/src/$1',
         '^(\\.{1,2}/.*)\\.js$': '$1',
         '^image-stitch/bundle$': '<rootDir>/node_modules/image-stitch/dist/cjs/index.cjs',
+        '^jpeg-encoder-wasm$': '<rootDir>/tests/mocks/jpeg-encoder-wasm.js',
       },
       transform: {
         '^.+\\.(ts|tsx|js|jsx)$': [
