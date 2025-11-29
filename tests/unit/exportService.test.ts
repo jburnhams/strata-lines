@@ -108,9 +108,9 @@ describe('Export Service unit tests', () => {
   let concatStreamingMock: jest.MockedFunction<typeof imageStitch.concatStreaming>;
 
   // Spies
-  let mockCreateElement: jest.SpyInstance;
-  let mockAppendChild: jest.SpyInstance;
-  let mockRemoveChild: jest.SpyInstance;
+  let mockCreateElement: any;
+  let mockAppendChild: any;
+  let mockRemoveChild: any;
   let restoreCanvasSpies: () => void;
 
   beforeEach(() => {
