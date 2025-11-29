@@ -764,9 +764,7 @@ export const renderCanvasForBounds = async (
     console.log('Cropping to:', { x: cropX, y: cropY, width: cropWidth, height: cropHeight });
 
     // Create final canvas with exact target dimensions (scaled)
-    const finalCanvas = document.createElement('canvas');
-    finalCanvas.width = targetWidth * renderScale;
-    finalCanvas.height = targetHeight * renderScale;
+    const finalCanvas = createCompatibleCanvas(targetWidth * renderScale, targetHeight * renderScale);
     const ctx = finalCanvas.getContext('2d');
 
     if (!ctx) {
