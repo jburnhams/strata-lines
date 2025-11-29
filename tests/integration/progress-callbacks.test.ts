@@ -1,5 +1,8 @@
 import type { Track } from '@/types';
 
+// Increase timeout for real tile loading
+jest.setTimeout(60000);
+
 // Mock track data for testing
 const createMockTrack = (): Track => ({
   id: '1',
@@ -28,21 +31,6 @@ describe('Progress Callbacks Integration Tests', () => {
     // Now we can safely import modules that depend on DOM/Leaflet
     const exportHelpers = await import('@/utils/exportHelpers');
     waitForRender = exportHelpers.waitForRender;
-
-    // Mock L.tileLayer to avoid network requests but use real Leaflet logic
-    jest.spyOn(L, 'tileLayer').mockImplementation((url, options) => {
-      const SimLayer = L.GridLayer.extend({
-        createTile: function(coords: any, done: any) {
-          const tile = document.createElement('div');
-          // Simulate network delay
-          setTimeout(() => {
-            done(null, tile);
-          }, 50);
-          return tile;
-        }
-      });
-      return new (SimLayer as any)(options);
-    });
 
     // Create a container for the map
     container = document.createElement('div');
@@ -673,13 +661,6 @@ describe('Progress Callbacks Integration Tests', () => {
         attribution: '',
       });
       tileLayer.addTo(map);
-
-      // Simulate tile loading
-      setTimeout(() => {
-        (tileLayer as any).fire('tileloadstart');
-        (tileLayer as any).fire('tileload');
-        (tileLayer as any).fire('load');
-      }, 50);
 
       // Should still complete despite callback error
       await expect(waitForRender({

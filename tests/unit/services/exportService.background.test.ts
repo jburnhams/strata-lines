@@ -76,7 +76,6 @@ describe('exportService background color', () => {
       clearRect: jest.fn(),
       drawImage: jest.fn(),
       getImageData: jest.fn(() => ({ data: new Uint8Array(400) })), // 100 * 4
-      clearRect: jest.fn(),
       putImageData: jest.fn(),
     };
     mockCtx = ctx as unknown as CanvasRenderingContext2D;

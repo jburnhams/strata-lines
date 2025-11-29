@@ -24,7 +24,7 @@
     "@garmin/fitsdk": "^21.115.0",
     "@we-gold/gpxjs": "^1.1.0",
     "html2canvas": "^1.4.1",
-    "image-stitch": "^1.1.46",
+    "image-stitch": "^1.1.49",
     "jszip": "^3.10.1",
     "leaflet": "^1.9.4",
     "pako": "^2.1.0",
