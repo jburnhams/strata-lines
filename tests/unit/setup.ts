@@ -1,4 +1,4 @@
-import { afterEach, beforeEach } from '@jest/globals';
+import { afterEach, beforeEach, jest } from '@jest/globals';
 import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { TextEncoder, TextDecoder } from 'util';
@@ -22,6 +22,20 @@ if (typeof Blob !== 'undefined' && !Blob.prototype.arrayBuffer) {
   };
 }
 
+// Mock URL.createObjectURL and URL.revokeObjectURL
+if (typeof URL.createObjectURL === 'undefined') {
+  URL.createObjectURL = jest.fn(() => 'blob:mock-url');
+} else {
+  // If it exists but we want to ensure it's a mock for tests
+  jest.spyOn(URL, 'createObjectURL').mockImplementation(() => 'blob:mock-url');
+}
+
+if (typeof URL.revokeObjectURL === 'undefined') {
+  URL.revokeObjectURL = jest.fn();
+} else {
+  jest.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+}
+
 const installMatchMedia = () => {
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
@@ -43,8 +57,14 @@ installMatchMedia();
 // Cleanup after each test
 afterEach(() => {
   cleanup();
+  jest.restoreAllMocks(); // This might affect spies on global objects if not careful, but usually good practice.
+                          // However, since we set global properties that were undefined, restoreAllMocks won't unset them.
 });
 
 beforeEach(() => {
   installMatchMedia();
+  // Ensure mocks are active
+  if (jest.isMockFunction(URL.createObjectURL)) {
+      (URL.createObjectURL as jest.Mock).mockClear();
+  }
 });

@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import JSZip from 'jszip';
 import { processGpxFiles } from '@/services/gpxProcessor';
 import * as db from '@/services/db';
-import type { Track, UnprocessedTrack } from '@/types';
+import type { Track } from '@/types';
 import { trackToGpxString } from '@/services/gpxGenerator';
 import { getTracksBounds } from '@/services/utils';
 import { assignTrackColors } from '@/utils/colorAssignment';
@@ -66,40 +66,58 @@ export const useTrackManagement = (
       setIsLoading(true);
       setNotification(null);
       try {
-        const processedTracks: UnprocessedTrack[] = await processGpxFiles(Array.from(files));
+        const processedFiles = await processGpxFiles(Array.from(files));
 
-        if (processedTracks.length === 0) {
+        if (processedFiles.length === 0) {
           setNotification({ type: 'error', message: 'No tracks found in the uploaded files.' });
           setIsLoading(false);
           return;
         }
 
-        const tracksWithIds: Track[] = processedTracks.map((track, index) => ({
-          ...track,
-          id: `${track.name}-${Date.now()}-${index}`,
-          isVisible: true,
-        }));
-
+        const tracksToAdd: Track[] = [];
         let duplicates = 0;
         let tooShort = 0;
-        const tracksToAdd: Track[] = [];
 
-        tracksWithIds.forEach((newTrack) => {
-          const isDuplicate = tracks.some(
-            (existing) =>
-              existing.name === newTrack.name && existing.points.length === newTrack.points.length
-          );
-          if (isDuplicate) {
-            duplicates++;
-            return;
+        for (const processedFile of processedFiles) {
+          // Save the source file to DB
+          try {
+            await db.saveSourceFile(processedFile.sourceFile);
+          } catch (e) {
+            console.error('Failed to save source file', e);
+            // Continue even if saving source file fails?
+            // Maybe we should warn, but we can still proceed with tracks.
           }
-          const isLongEnough = newTrack.length >= minLengthFilter;
-          if (!isLongEnough) {
-            tooShort++;
-            return;
-          }
-          tracksToAdd.push(newTrack);
-        });
+
+          processedFile.tracks.forEach((track, index) => {
+             // Create unique ID for track
+             const trackId = `${track.name}-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 5)}`;
+
+             const newTrack: Track = {
+               ...track,
+               id: trackId,
+               isVisible: true,
+               sourceFileId: processedFile.sourceFile.id
+             };
+
+             const isDuplicate = tracks.some(
+                (existing) =>
+                  existing.name === newTrack.name && existing.points.length === newTrack.points.length
+              );
+
+             if (isDuplicate) {
+                duplicates++;
+                return;
+             }
+
+             const isLongEnough = newTrack.length >= minLengthFilter;
+             if (!isLongEnough) {
+                tooShort++;
+                return;
+             }
+
+             tracksToAdd.push(newTrack);
+          });
+        }
 
         if (tracksToAdd.length > 0) {
           for (const track of tracksToAdd) {
@@ -156,13 +174,31 @@ export const useTrackManagement = (
 
   const removeTrack = useCallback(async (trackId: string) => {
     try {
+      const trackToRemove = tracks.find(t => t.id === trackId);
+      if (!trackToRemove) return;
+
       await db.deleteTrack(trackId);
-      setTracks((prev) => prev.filter((t) => t.id !== trackId));
+
+      const updatedTracks = tracks.filter((t) => t.id !== trackId);
+      setTracks(updatedTracks);
+
+      // Check if we need to remove the source file
+      if (trackToRemove.sourceFileId) {
+        const isFileUsed = updatedTracks.some(t => t.sourceFileId === trackToRemove.sourceFileId);
+        if (!isFileUsed) {
+          try {
+             await db.deleteSourceFile(trackToRemove.sourceFileId);
+          } catch (e) {
+             console.error('Failed to cleanup source file', e);
+          }
+        }
+      }
+
     } catch (error) {
       console.error('Failed to delete track', error);
       setNotification({ type: 'error', message: 'Error removing track.' });
     }
-  }, []);
+  }, [tracks]);
 
   const removeAllTracks = useCallback(async () => {
     try {
@@ -170,19 +206,32 @@ export const useTrackManagement = (
 
       // If we are removing ALL tracks (no filter hidden), we can use clearTracks for efficiency
       if (tracksToRemove.length === tracks.length) {
-          await db.clearTracks();
+          await db.clearTracks(); // This clears both tracks and source_files
           setTracks([]);
       } else {
           // Otherwise remove individually
           const idsToRemove = new Set(tracksToRemove.map(t => t.id));
           await Promise.all(tracksToRemove.map(t => db.deleteTrack(t.id)));
-          setTracks(prev => prev.filter(t => !idsToRemove.has(t.id)));
+
+          const remainingTracks = tracks.filter(t => !idsToRemove.has(t.id));
+          setTracks(remainingTracks);
+
+          // Cleanup orphaned source files
+          // Find sourceFileIds that were in removed tracks but are NOT in remaining tracks
+          const removedSourceIds = new Set(tracksToRemove.map(t => t.sourceFileId).filter((id): id is string => !!id));
+          const remainingSourceIds = new Set(remainingTracks.map(t => t.sourceFileId).filter((id): id is string => !!id));
+
+          for (const sourceId of removedSourceIds) {
+             if (!remainingSourceIds.has(sourceId)) {
+                await db.deleteSourceFile(sourceId);
+             }
+          }
       }
     } catch (error) {
       console.error('Failed to clear tracks', error);
       setNotification({ type: 'error', message: 'Error removing tracks.' });
     }
-  }, [filteredTracks, tracks.length]);
+  }, [filteredTracks, tracks]);
 
   const toggleTrackVisibility = useCallback(
     async (trackId: string) => {
@@ -220,12 +269,76 @@ export const useTrackManagement = (
     try {
       const zip = new JSZip();
 
-      // Use filteredTracks which are already in memory and processed
-      // We don't fetch from DB again to ensure we respect the current filter state
-      filteredTracks.forEach((track) => {
+      // Track files we've already added to zip to handle naming collisions
+      const addedFilenames = new Map<string, number>();
+
+      // Group tracks by sourceFileId to identify full files we can export
+      // However, the requirement is "filtered list".
+      // If a file has 10 tracks and only 1 is visible, do we export the full original file?
+      // User said: "If you have filtered the list ... do you still want the full original file ... to be downloaded? Yes"
+
+      // So we need to collect unique sourceFileIds from the filteredTracks
+      const sourceFileIdsToExport = new Set<string>();
+      const tracksWithoutSource: Track[] = [];
+
+      filteredTracks.forEach(t => {
+        if (t.sourceFileId) {
+            sourceFileIdsToExport.add(t.sourceFileId);
+        } else {
+            tracksWithoutSource.push(t);
+        }
+      });
+
+      // Export Original Files
+      for (const sourceId of sourceFileIdsToExport) {
+         try {
+             const sourceFile = await db.getSourceFile(sourceId);
+             if (sourceFile) {
+                 let filename = sourceFile.name;
+                 // Handle duplicates in zip
+                 if (addedFilenames.has(filename)) {
+                     const count = addedFilenames.get(filename)!;
+                     addedFilenames.set(filename, count + 1);
+                     const nameParts = filename.split('.');
+                     const ext = nameParts.pop();
+                     const name = nameParts.join('.');
+                     filename = `${name}(${count}).${ext}`;
+                 } else {
+                     addedFilenames.set(filename, 1);
+                 }
+
+                 zip.file(filename, sourceFile.data);
+             } else {
+                 // Fallback if source file missing (shouldn't happen often)
+                 // Find all filtered tracks that belong to this missing source file
+                 const associatedTracks = filteredTracks.filter(t => t.sourceFileId === sourceId);
+                 associatedTracks.forEach(t => tracksWithoutSource.push(t));
+             }
+         } catch (e) {
+             console.error(`Error fetching source file ${sourceId}`, e);
+             // Fallback
+             const associatedTracks = filteredTracks.filter(t => t.sourceFileId === sourceId);
+             associatedTracks.forEach(t => tracksWithoutSource.push(t));
+         }
+      }
+
+      // Export Legacy/Fallback Tracks (Generated GPX)
+      tracksWithoutSource.forEach((track) => {
         const gpxContent = trackToGpxString(track);
-        const safeFilename = track.name.replace(/[\/\\?%*:|"<>]/g, '_') || 'unnamed_track';
-        zip.file(`${safeFilename}.gpx`, gpxContent);
+        let filename = `${track.name.replace(/[\/\\?%*:|"<>]/g, '_') || 'unnamed_track'}.gpx`;
+
+        if (addedFilenames.has(filename)) {
+             const count = addedFilenames.get(filename)!;
+             addedFilenames.set(filename, count + 1);
+             const nameParts = filename.split('.');
+             const ext = nameParts.pop();
+             const name = nameParts.join('.');
+             filename = `${name}(${count}).${ext}`;
+        } else {
+            addedFilenames.set(filename, 1);
+        }
+
+        zip.file(filename, gpxContent);
       });
 
       const zipBlob = await zip.generateAsync({ type: 'blob' });

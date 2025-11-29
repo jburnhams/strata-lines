@@ -17,9 +17,17 @@ export interface Track {
   color?: string;
   activityType: string;
   bounds?: TrackBounds;
+  sourceFileId?: string;
 }
 
 export type UnprocessedTrack = Omit<Track, 'id'>;
+
+export interface SourceFile {
+  id: string;
+  name: string;
+  data: Blob;
+  uploadedAt: number;
+}
 
 export interface AspectRatio {
   width: number;

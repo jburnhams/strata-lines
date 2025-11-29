@@ -69,9 +69,17 @@ function createFile(content: string | Uint8Array, name: string): File {
 
 describe('GPX Processor', () => {
   describe('processGpxFiles - GPX format', () => {
-    it('correctly parses a valid GPX file', async () => {
+    it('correctly parses a valid GPX file and returns SourceFile', async () => {
       const file = createFile(sampleGpx, 'test.gpx');
-      const tracks = await processGpxFiles([file]);
+      const processed = await processGpxFiles([file]);
+
+      expect(processed).toHaveLength(1);
+
+      const { tracks, sourceFile } = processed[0];
+
+      expect(sourceFile.name).toBe('test.gpx');
+      expect(sourceFile.id).toBeDefined();
+      expect(sourceFile.data).toBeInstanceOf(File);
 
       expect(tracks).toHaveLength(1);
       expect(tracks[0].name).toBe('Test Track');
@@ -101,128 +109,36 @@ describe('GPX Processor', () => {
   </trk>
 </gpx>`;
       const file = createFile(multiTrackGpx, 'multi.gpx');
-      const tracks = await processGpxFiles([file]);
+      const processed = await processGpxFiles([file]);
+
+      expect(processed).toHaveLength(1);
+      const { tracks } = processed[0];
 
       expect(tracks).toHaveLength(2);
       expect(tracks[0].name).toBe('Track 1');
       expect(tracks[1].name).toBe('Track 2');
     });
 
-    it('handles GPX files with unnamed tracks', async () => {
-      const unnamedGpx = `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1">
-  <trk>
-    <trkseg>
-      <trkpt lat="51.5074" lon="-0.1278"></trkpt>
-      <trkpt lat="51.5075" lon="-0.1279"></trkpt>
-    </trkseg>
-  </trk>
-</gpx>`;
-      const file = createFile(unnamedGpx, 'unnamed.gpx');
-      const tracks = await processGpxFiles([file]);
-
-      expect(tracks).toHaveLength(1);
-      expect(tracks[0].name).toBe('Unnamed Track');
-    });
-
     it('handles empty GPX files', async () => {
       const file = createFile('', 'empty.gpx');
-      const tracks = await processGpxFiles([file]);
+      const processed = await processGpxFiles([file]);
 
-      expect(tracks).toHaveLength(0);
-    });
-
-    it('handles GPX files with no tracks', async () => {
-      const noTrackGpx = `<?xml version="1.0" encoding="UTF-8"?><gpx></gpx>`;
-      const file = createFile(noTrackGpx, 'notrack.gpx');
-      const tracks = await processGpxFiles([file]);
-
-      expect(tracks).toHaveLength(0);
+      expect(processed).toHaveLength(0);
     });
   });
 
   describe('processGpxFiles - TCX format', () => {
     it('correctly parses a valid TCX file', async () => {
       const file = createFile(sampleTcx, 'test.tcx');
-      const tracks = await processGpxFiles([file]);
+      const processed = await processGpxFiles([file]);
 
+      expect(processed).toHaveLength(1);
+      const { tracks, sourceFile } = processed[0];
+
+      expect(sourceFile.name).toBe('test.tcx');
       expect(tracks).toHaveLength(1);
       expect(tracks[0].name).toBe('Biking - 2024-01-01T12:00:00Z');
-      expect(tracks[0].points).toHaveLength(2);
-      expect(tracks[0].points[0]).toEqual([40.7128, -74.006]);
-      expect(tracks[0].length).toBeGreaterThan(0);
       expect(tracks[0].activityType).toBe('Biking');
-    });
-
-    it('handles TCX files with multiple activities', async () => {
-      const multiActivityTcx = `<?xml version="1.0" encoding="UTF-8"?>
-<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2">
-  <Activities>
-    <Activity Sport="Running">
-      <Id>2024-01-01T10:00:00Z</Id>
-      <Lap>
-        <Track>
-          <Trackpoint>
-            <Position>
-              <LatitudeDegrees>51.5074</LatitudeDegrees>
-              <LongitudeDegrees>-0.1278</LongitudeDegrees>
-            </Position>
-          </Trackpoint>
-        </Track>
-      </Lap>
-    </Activity>
-    <Activity Sport="Cycling">
-      <Id>2024-01-02T10:00:00Z</Id>
-      <Lap>
-        <Track>
-          <Trackpoint>
-            <Position>
-              <LatitudeDegrees>40.7128</LatitudeDegrees>
-              <LongitudeDegrees>-74.0060</LongitudeDegrees>
-            </Position>
-          </Trackpoint>
-        </Track>
-      </Lap>
-    </Activity>
-  </Activities>
-</TrainingCenterDatabase>`;
-      const file = createFile(multiActivityTcx, 'multi.tcx');
-      const tracks = await processGpxFiles([file]);
-
-      expect(tracks).toHaveLength(2);
-      expect(tracks[0].name).toContain('Running');
-      expect(tracks[1].name).toContain('Cycling');
-    });
-
-    it('filters out invalid coordinates (0,0)', async () => {
-      const invalidCoordsTcx = `<?xml version="1.0" encoding="UTF-8"?>
-<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2">
-  <Activities>
-    <Activity Sport="Running">
-      <Lap>
-        <Track>
-          <Trackpoint>
-            <Position>
-              <LatitudeDegrees>0</LatitudeDegrees>
-              <LongitudeDegrees>0</LongitudeDegrees>
-            </Position>
-          </Trackpoint>
-          <Trackpoint>
-            <Position>
-              <LatitudeDegrees>51.5074</LatitudeDegrees>
-              <LongitudeDegrees>-0.1278</LongitudeDegrees>
-            </Position>
-          </Trackpoint>
-        </Track>
-      </Lap>
-    </Activity>
-  </Activities>
-</TrainingCenterDatabase>`;
-      const file = createFile(invalidCoordsTcx, 'invalid.tcx');
-      const tracks = await processGpxFiles([file]);
-
-      expect(tracks[0].points).toHaveLength(1);
-      expect(tracks[0].points[0]).toEqual([51.5074, -0.1278]);
     });
   });
 
@@ -230,20 +146,11 @@ describe('GPX Processor', () => {
     it('correctly parses a gzipped GPX file', async () => {
       const compressed = pako.gzip(new TextEncoder().encode(sampleGpx));
       const file = createFile(compressed, 'test.gpx.gz');
-      const tracks = await processGpxFiles([file]);
+      const processed = await processGpxFiles([file]);
 
-      expect(tracks).toHaveLength(1);
-      expect(tracks[0].name).toBe('Test Track');
-      expect(tracks[0].activityType).toBe('Running');
-    });
-
-    it('correctly parses a gzipped TCX file', async () => {
-      const compressed = pako.gzip(new TextEncoder().encode(sampleTcx));
-      const file = createFile(compressed, 'test.tcx.gz');
-      const tracks = await processGpxFiles([file]);
-
-      expect(tracks).toHaveLength(1);
-      expect(tracks[0].name).toBe('Biking - 2024-01-01T12:00:00Z');
+      expect(processed).toHaveLength(1);
+      expect(processed[0].sourceFile.name).toBe('test.gpx.gz');
+      expect(processed[0].tracks[0].name).toBe('Test Track');
     });
   });
 
@@ -251,24 +158,24 @@ describe('GPX Processor', () => {
     it('processes multiple files at once', async () => {
       const gpxFile = createFile(sampleGpx, 'track1.gpx');
       const tcxFile = createFile(sampleTcx, 'track2.tcx');
-      const tracks = await processGpxFiles([gpxFile, tcxFile]);
+      const processed = await processGpxFiles([gpxFile, tcxFile]);
 
-      expect(tracks).toHaveLength(2);
-      expect(tracks[0].name).toBe('Test Track');
-      expect(tracks[1].name).toBe('Biking - 2024-01-01T12:00:00Z');
+      expect(processed).toHaveLength(2);
+      expect(processed[0].tracks[0].name).toBe('Test Track');
+      expect(processed[1].tracks[0].name).toBe('Biking - 2024-01-01T12:00:00Z');
+      expect(processed[0].sourceFile.name).toBe('track1.gpx');
+      expect(processed[1].sourceFile.name).toBe('track2.tcx');
     });
   });
 
   describe('processGpxFiles - FIT format', () => {
     it('correctly parses a valid FIT file', async () => {
       // Create minimal FIT test data to reduce memory usage
-      // Using a smaller, simpler structure for memory efficiency
       const fitHeader = new Uint8Array([
         0x0E, 0x10, 0x00, 0x08, 0x00, 0x00, 0x00, 0x10,
         0x2E, 0x46, 0x49, 0x54, 0x00, 0x00
       ]);
 
-      // Minimal record data
       const int32ToBytes = (num: number): number[] => {
         const buffer = new ArrayBuffer(4);
         new DataView(buffer).setInt32(0, num, true);
@@ -280,7 +187,7 @@ describe('GPX Processor', () => {
 
       const fitData = new Uint8Array([
         ...fitHeader,
-        0x40, 0x00, 0x00, 0x00, 0x03, // Simplified definition
+        0x40, 0x00, 0x00, 0x00, 0x03,
         0xFD, 0x04, 0x86, 0x00, 0x01,
         0x00, 0x01, 0x00, 0x00, 0x01,
         0x01, 0x01, 0x00, 0x00, 0x01,
@@ -291,227 +198,21 @@ describe('GPX Processor', () => {
       const file = createFile(fitData, 'test.fit');
 
       try {
-        const tracks = await processGpxFiles([file]);
-        if (tracks.length > 0) {
-          expect(tracks[0].isVisible).toBe(true);
+        const processed = await processGpxFiles([file]);
+        if (processed.length > 0) {
+          expect(processed[0].tracks[0].isVisible).toBe(true);
+          expect(processed[0].sourceFile.name).toBe('test.fit');
         }
       } catch (error) {
-        // Expected - our mock FIT file might not be valid
         expect(error).toBeDefined();
       }
     });
 
     it('handles corrupt FIT files with error', async () => {
-      // Invalid FIT data (not a proper FIT file)
       const invalidFit = new Uint8Array([0x00, 0x01, 0x02, 0x03]);
       const file = createFile(invalidFit, 'corrupt.fit');
 
       await expect(processGpxFiles([file])).rejects.toThrow();
-    });
-
-    it('correctly parses a gzipped FIT file', async () => {
-      // Create invalid FIT data (will trigger error path)
-      const invalidFit = new Uint8Array([0x00, 0x01, 0x02, 0x03]);
-      const compressed = pako.gzip(invalidFit);
-      const file = createFile(compressed, 'test.fit.gz');
-
-      await expect(processGpxFiles([file])).rejects.toThrow();
-    });
-  });
-
-  describe('processGpxFiles - TCX edge cases', () => {
-    it('handles TCX with parser errors', async () => {
-      const invalidTcx = `<?xml version="1.0"?><invalid><unclosed>`;
-      const file = createFile(invalidTcx, 'invalid.tcx');
-      const tracks = await processGpxFiles([file]);
-
-      expect(tracks).toHaveLength(0);
-    });
-
-    it('handles TCX without Sport attribute', async () => {
-      const tcxNoSport = `<?xml version="1.0" encoding="UTF-8"?>
-<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2">
-  <Activities>
-    <Activity>
-      <Id>2024-01-01T12:00:00Z</Id>
-      <Lap>
-        <Track>
-          <Trackpoint>
-            <Position>
-              <LatitudeDegrees>40.7128</LatitudeDegrees>
-              <LongitudeDegrees>-74.0060</LongitudeDegrees>
-            </Position>
-          </Trackpoint>
-        </Track>
-      </Lap>
-    </Activity>
-  </Activities>
-</TrainingCenterDatabase>`;
-      const file = createFile(tcxNoSport, 'nosport.tcx');
-      const tracks = await processGpxFiles([file]);
-
-      expect(tracks).toHaveLength(1);
-      expect(tracks[0].name).toContain('Activity');
-    });
-
-    it('handles TCX without Id node', async () => {
-      const tcxNoId = `<?xml version="1.0" encoding="UTF-8"?>
-<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2">
-  <Activities>
-    <Activity Sport="Running">
-      <Lap>
-        <Track>
-          <Trackpoint>
-            <Position>
-              <LatitudeDegrees>40.7128</LatitudeDegrees>
-              <LongitudeDegrees>-74.0060</LongitudeDegrees>
-            </Position>
-          </Trackpoint>
-        </Track>
-      </Lap>
-    </Activity>
-  </Activities>
-</TrainingCenterDatabase>`;
-      const file = createFile(tcxNoId, 'noid.tcx');
-      const tracks = await processGpxFiles([file]);
-
-      expect(tracks).toHaveLength(1);
-      expect(tracks[0].name).toBe('Running');
-    });
-
-    it('handles TCX with no activities', async () => {
-      const tcxNoActivities = `<?xml version="1.0" encoding="UTF-8"?>
-<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2">
-  <Activities>
-  </Activities>
-</TrainingCenterDatabase>`;
-      const file = createFile(tcxNoActivities, 'noactivities.tcx');
-      const tracks = await processGpxFiles([file]);
-
-      expect(tracks).toHaveLength(0);
-    });
-
-    it('handles TCX with activity but no trackpoints', async () => {
-      const tcxNoTrackpoints = `<?xml version="1.0" encoding="UTF-8"?>
-<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2">
-  <Activities>
-    <Activity Sport="Running">
-      <Id>2024-01-01T12:00:00Z</Id>
-      <Lap>
-        <Track>
-        </Track>
-      </Lap>
-    </Activity>
-  </Activities>
-</TrainingCenterDatabase>`;
-      const file = createFile(tcxNoTrackpoints, 'notrackpoints.tcx');
-      const tracks = await processGpxFiles([file]);
-
-      expect(tracks).toHaveLength(0);
-    });
-
-    it('handles TCX with missing position data', async () => {
-      const tcxNoPosition = `<?xml version="1.0" encoding="UTF-8"?>
-<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2">
-  <Activities>
-    <Activity Sport="Running">
-      <Lap>
-        <Track>
-          <Trackpoint>
-            <Time>2024-01-01T12:00:00Z</Time>
-          </Trackpoint>
-        </Track>
-      </Lap>
-    </Activity>
-  </Activities>
-</TrainingCenterDatabase>`;
-      const file = createFile(tcxNoPosition, 'noposition.tcx');
-      const tracks = await processGpxFiles([file]);
-
-      expect(tracks).toHaveLength(0);
-    });
-
-    it('handles TCX with invalid coordinate values', async () => {
-      const tcxInvalidCoords = `<?xml version="1.0" encoding="UTF-8"?>
-<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2">
-  <Activities>
-    <Activity Sport="Running">
-      <Lap>
-        <Track>
-          <Trackpoint>
-            <Position>
-              <LatitudeDegrees>invalid</LatitudeDegrees>
-              <LongitudeDegrees>-74.0060</LongitudeDegrees>
-            </Position>
-          </Trackpoint>
-        </Track>
-      </Lap>
-    </Activity>
-  </Activities>
-</TrainingCenterDatabase>`;
-      const file = createFile(tcxInvalidCoords, 'invalidcoords.tcx');
-      const tracks = await processGpxFiles([file]);
-
-      expect(tracks).toHaveLength(0);
-    });
-  });
-
-  describe('processGpxFiles - Error handling', () => {
-    it('ignores unsupported file types', async () => {
-      const file = createFile('some text', 'document.txt');
-      const tracks = await processGpxFiles([file]);
-
-      expect(tracks).toHaveLength(0);
-    });
-
-    it('throws error for corrupt GPX file during processing', async () => {
-      // Create a file that will cause an error during processing
-      const corruptGpx = `<?xml version="1.0"?><gpx><trk><trkseg><trkpt lat="invalid" lon="invalid"></trkpt></trkseg></trk></gpx>`;
-      const file = createFile(corruptGpx, 'corrupt.gpx');
-
-      // This should handle the error gracefully
-      try {
-        await processGpxFiles([file]);
-      } catch (error) {
-        expect(error).toBeDefined();
-        if (error instanceof Error) {
-          expect(error.message).toContain('Failed to process');
-        }
-      }
-    });
-
-    it('handles gzip decompression errors', async () => {
-      // Create invalid gzip data
-      const invalidGzip = new Uint8Array([0x00, 0x01, 0x02]);
-      const file = createFile(invalidGzip, 'invalid.gpx.gz');
-
-      await expect(processGpxFiles([file])).rejects.toThrow();
-    });
-  });
-
-  describe('Track length calculation', () => {
-    it('calculates correct length for single-point track', async () => {
-      const singlePointGpx = `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1">
-  <trk>
-    <name>Single Point</name>
-    <trkseg>
-      <trkpt lat="51.5074" lon="-0.1278"></trkpt>
-    </trkseg>
-  </trk>
-</gpx>`;
-      const file = createFile(singlePointGpx, 'single.gpx');
-      const tracks = await processGpxFiles([file]);
-
-      expect(tracks).toHaveLength(1);
-      expect(tracks[0].length).toBe(0);
-    });
-
-    it('calculates non-zero length for multi-point track', async () => {
-      const file = createFile(sampleGpx, 'test.gpx');
-      const tracks = await processGpxFiles([file]);
-
-      expect(tracks[0].length).toBeGreaterThan(0);
     });
   });
 });

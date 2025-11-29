@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import type { Track } from '@/types';
+import type { Track, SourceFile } from '@/types';
 
 // We'll test the database module by mocking IndexedDB with a simpler approach
 // that focuses on the logic rather than the actual async callback mechanism
@@ -14,6 +14,7 @@ describe('Database Service', () => {
         length: 10.5,
         isVisible: true,
         activityType: 'Unknown',
+        sourceFileId: 'source-123'
       };
 
       expect(track.id).toBeDefined();
@@ -21,6 +22,7 @@ describe('Database Service', () => {
       expect(track.points).toBeInstanceOf(Array);
       expect(track.length).toBeGreaterThanOrEqual(0);
       expect(typeof track.isVisible).toBe('boolean');
+      expect(track.sourceFileId).toBe('source-123');
     });
 
     it('validates track point structure', () => {
@@ -67,12 +69,15 @@ describe('Database Service', () => {
   describe('Database operations structure', () => {
     it('verifies database constants are defined correctly', async () => {
       // Test that the module exports the expected functions
-      const { getTracks, addTrack, deleteTrack, clearTracks } = await import('@/services/db');
+      const { getTracks, addTrack, deleteTrack, clearTracks, saveSourceFile, getSourceFile, deleteSourceFile } = await import('@/services/db');
 
       expect(typeof getTracks).toBe('function');
       expect(typeof addTrack).toBe('function');
       expect(typeof deleteTrack).toBe('function');
       expect(typeof clearTracks).toBe('function');
+      expect(typeof saveSourceFile).toBe('function');
+      expect(typeof getSourceFile).toBe('function');
+      expect(typeof deleteSourceFile).toBe('function');
     });
   });
 
@@ -88,10 +93,13 @@ describe('Database Service', () => {
         put: jest.fn(),
         delete: jest.fn(),
         clear: jest.fn(),
+        get: jest.fn(),
       };
 
       mockTransaction = {
         objectStore: jest.fn(() => mockStore),
+        oncomplete: null,
+        onerror: null,
       };
 
       mockDB = {
@@ -127,6 +135,7 @@ describe('Database Service', () => {
         isVisible: true,
         color: '#3388ff',
         activityType: 'Unknown',
+        sourceFileId: 'file-xyz'
       };
 
       // Verify the track has the required keyPath
@@ -144,11 +153,22 @@ describe('Database Service', () => {
       // These constants should be used consistently
       const expectedDBName = 'gpx-track-db';
       const expectedStoreName = 'tracks';
-      const expectedVersion = 1;
 
       expect(expectedDBName).toBe('gpx-track-db');
       expect(expectedStoreName).toBe('tracks');
-      expect(expectedVersion).toBe(1);
+    });
+
+    it('validates SourceFile structure', () => {
+      const file: SourceFile = {
+        id: 'file-123',
+        name: 'test.gpx',
+        data: new Blob(['test data']),
+        uploadedAt: 1234567890
+      };
+
+      expect(file.id).toBeDefined();
+      expect(file.data).toBeInstanceOf(Blob);
+      expect(file.uploadedAt).toBeGreaterThan(0);
     });
   });
 
@@ -160,6 +180,9 @@ describe('Database Service', () => {
         'Error adding track',
         'Error deleting track',
         'Error clearing tracks',
+        'Error saving source file',
+        'Error fetching source file',
+        'Error deleting source file',
       ];
 
       errorMessages.forEach(msg => {
@@ -186,6 +209,7 @@ describe('Database Service', () => {
           isVisible: false,
           color: '#ff0000',
           activityType: 'Cycling',
+          sourceFileId: 'file-1'
         },
       ];
 
@@ -224,14 +248,16 @@ describe('Database Service', () => {
   describe('IndexedDB upgrade pattern', () => {
     it('validates object store creation parameters', () => {
       const storeName = 'tracks';
+      const fileStoreName = 'source_files';
       const keyPathOptions = { keyPath: 'id' };
 
       expect(storeName).toBe('tracks');
+      expect(fileStoreName).toBe('source_files');
       expect(keyPathOptions.keyPath).toBe('id');
     });
 
     it('validates database version management', () => {
-      const currentVersion = 1;
+      const currentVersion = 2; // Updated version
       expect(currentVersion).toBeGreaterThan(0);
       expect(Number.isInteger(currentVersion)).toBe(true);
     });
