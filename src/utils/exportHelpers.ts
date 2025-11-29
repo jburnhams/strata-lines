@@ -740,17 +740,81 @@ export const renderCanvasForBounds = async (
     });
 
     // Capture the padded container
-    const paddedCanvas = await html2canvas(printContainer, {
-      useCORS: true,
-      allowTaint: true,
-      logging: false,
-      backgroundColor: isTransparent ? null : '#000',
-      scale: renderScale,
-      width: paddedWidth,
-      height: paddedHeight,
-      windowWidth: paddedWidth,
-      windowHeight: paddedHeight,
-    });
+    let paddedCanvas: HTMLCanvasElement;
+
+    const isNode = typeof process !== 'undefined' && process.versions && process.versions.node;
+    if (isNode) {
+      // In Node/leaflet-node environment, html2canvas is not supported/needed.
+      // We manually composite the map (tiles + vectors) onto a canvas.
+
+      let req: any;
+      try {
+        req = require('@napi-rs/canvas');
+      } catch (e) {
+        throw new Error('Running in Node but @napi-rs/canvas is not available');
+      }
+      const { createCanvas, loadImage } = req;
+      const finalCanvas = createCanvas(paddedWidth, paddedHeight) as unknown as HTMLCanvasElement;
+      const ctx = finalCanvas.getContext('2d');
+      if (!ctx) throw new Error('Failed to create context');
+
+      const container = printMap.getContainer();
+
+      // Helper to get position from style (left/top or transform)
+      const getPos = (el: HTMLElement) => {
+        let x = parseInt(el.style.left || '0', 10);
+        let y = parseInt(el.style.top || '0', 10);
+        if (el.style.transform) {
+           const match = el.style.transform.match(/translate(?:3d)?\((-?[\d.]+)px,\s*(-?[\d.]+)px/);
+           if (match) {
+             x += parseFloat(match[1]);
+             y += parseFloat(match[2]);
+           }
+        }
+        return { x, y };
+      };
+
+      // 2. Draw Tiles (Images)
+      const tiles = container.querySelectorAll('img.leaflet-tile');
+
+      // Load and draw all tiles
+      const tilePromises = Array.from(tiles).map(async (img: any) => {
+         const { x, y } = getPos(img);
+         const width = parseInt(img.style.width || '0', 10) || img.width;
+         const height = parseInt(img.style.height || '0', 10) || img.height;
+
+         if (img.src) {
+           try {
+               const image = await loadImage(img.src);
+               ctx.drawImage(image, x, y, width, height);
+           } catch (err) {
+               console.warn(`Failed to load tile for export: ${img.src}`, err);
+           }
+         }
+      });
+      await Promise.all(tilePromises);
+
+      // 3. Draw Vectors (Canvas)
+      const vectorCanvas = container.querySelector('canvas');
+      if (vectorCanvas) {
+          const { x, y } = getPos(vectorCanvas as HTMLElement);
+          ctx.drawImage(vectorCanvas as any, x, y);
+      }
+
+      paddedCanvas = finalCanvas;
+    } else {
+      paddedCanvas = await html2canvas(printContainer, {
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: isTransparent ? null : '#000',
+        scale: renderScale,
+        width: paddedWidth,
+        height: paddedHeight,
+        windowWidth: paddedWidth,
+        windowHeight: paddedHeight,
+      });
+    }
 
     console.log('Captured canvas size:', { width: paddedCanvas.width, height: paddedCanvas.height });
 

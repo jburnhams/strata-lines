@@ -5,35 +5,6 @@ import { performPngExport, type ExportConfig, type ExportCallbacks } from '@/ser
 
 jest.setTimeout(60000);
 
-jest.mock('html2canvas', () => ({
-  __esModule: true,
-  default: jest.fn((element: HTMLElement, options?: { width?: number; height?: number }) => {
-    const width = options?.width ?? element.clientWidth ?? 256;
-    const height = options?.height ?? element.clientHeight ?? 256;
-
-    let canvas: any;
-    try {
-      // Try to use @napi-rs/canvas to match the integration test environment
-      // This avoids type mismatch errors when using drawImage
-      // We use eval('require') to bypass bundlers/transpilers that might complain
-      const req = eval('require');
-      const { createCanvas } = req('@napi-rs/canvas');
-      canvas = createCanvas(width, height);
-    } catch (e) {
-      canvas = global.document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-    }
-
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.fillStyle = '#0f172a';
-      ctx.fillRect(0, 0, width, height);
-    }
-    return Promise.resolve(canvas);
-  }),
-}));
-
 describe('JPEG Export Integration Tests', () => {
   const track: Track = {
     id: 'jpeg-test-track',
@@ -53,30 +24,23 @@ describe('JPEG Export Integration Tests', () => {
     L.latLng(51.506, -0.098)
   );
 
-  let tileLayerSpy: any;
-
-  afterEach(() => {
-    if (tileLayerSpy) {
-      tileLayerSpy.mockRestore();
-    }
-  });
-
   beforeEach(() => {
-    // Mock L.tileLayer to prevent network requests and simulate immediate success
-    tileLayerSpy = jest.spyOn(L, 'tileLayer').mockImplementation(() => {
-      return {
-        addTo: jest.fn().mockReturnThis(),
-        remove: jest.fn(),
-        on: jest.fn().mockReturnThis(),
-        off: jest.fn().mockReturnThis(),
-        isLoading: jest.fn().mockReturnValue(false),
-        _tilesToLoad: 0,
-      } as any;
-    });
-
     if (!(window as any).computedStyle) {
       (window as any).computedStyle = window.getComputedStyle.bind(window);
     }
+    // Polyfill detachEvent for legacy library support (Leaflet/IE compat) in JSDOM
+    const noop = () => {};
+    const classes = [HTMLElement, Window, Document];
+    if (typeof EventTarget !== 'undefined') classes.push(EventTarget);
+
+    classes.forEach(cls => {
+        if (cls.prototype && !(cls.prototype as any).detachEvent) {
+            (cls.prototype as any).detachEvent = noop;
+        }
+        if (cls.prototype && !(cls.prototype as any).attachEvent) {
+             (cls.prototype as any).attachEvent = noop;
+        }
+    });
 
     Object.defineProperty(HTMLCanvasElement.prototype, 'toBlob', {
       configurable: true,
@@ -121,7 +85,7 @@ describe('JPEG Export Integration Tests', () => {
       onSubdivisionStitched: jest.fn(),
       onStageProgress: jest.fn(),
       onComplete: jest.fn(),
-      onError: jest.fn((e) => console.log('Test onError:', e)),
+      onError: jest.fn(),
     };
 
     const clickSpy = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
@@ -152,7 +116,6 @@ describe('JPEG Export Integration Tests', () => {
     try {
       await performPngExport('combined', [track], config, callbacks);
 
-      expect(callbacks.onComplete).toHaveBeenCalledTimes(1);
       expect(callbacks.onError).not.toHaveBeenCalled();
 
       // Verify that the download link was created with .jpg extension
@@ -162,6 +125,8 @@ describe('JPEG Export Integration Tests', () => {
 
       const downloadLink = linkElements[0] as HTMLAnchorElement;
       expect(downloadLink.download).toMatch(/\.jpg$/);
+
+      expect(callbacks.onComplete).toHaveBeenCalledTimes(1);
     } finally {
       clickSpy.mockRestore();
       appendSpy.mockRestore();
@@ -233,7 +198,6 @@ describe('JPEG Export Integration Tests', () => {
     try {
       await performPngExport('lines', [track], config, callbacks);
 
-      expect(callbacks.onComplete).toHaveBeenCalledTimes(1);
       expect(callbacks.onError).not.toHaveBeenCalled();
 
       const appendCalls = appendSpy.mock.calls;
@@ -242,6 +206,8 @@ describe('JPEG Export Integration Tests', () => {
 
       const downloadLink = linkElements[0] as HTMLAnchorElement;
       expect(downloadLink.download).toMatch(/\.jpg$/);
+
+      expect(callbacks.onComplete).toHaveBeenCalledTimes(1);
     } finally {
       clickSpy.mockRestore();
       appendSpy.mockRestore();
