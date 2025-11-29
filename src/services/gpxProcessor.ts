@@ -2,7 +2,7 @@ import L from 'leaflet';
 import { parseGPX } from '@we-gold/gpxjs';
 import pako from 'pako';
 import { Stream, Decoder } from '@garmin/fitsdk';
-import type { UnprocessedTrack, Point, TrackBounds } from '@/types';
+import type { UnprocessedTrack, Point, TrackBounds, SourceFile } from '@/types';
 import { normalizeActivityType } from '@/services/utils';
 
 function calculateTrackLength(points: Point[]): number {
@@ -170,15 +170,28 @@ const parseFit = (fileContent: Uint8Array): UnprocessedTrack[] => {
     }
 };
 
+interface ProcessedFile {
+  tracks: UnprocessedTrack[];
+  sourceFile: SourceFile;
+}
 
-export const processGpxFiles = async (files: File[]): Promise<UnprocessedTrack[]> => {
-  const allTracks: UnprocessedTrack[] = [];
+export const processGpxFiles = async (files: File[]): Promise<ProcessedFile[]> => {
+  const processedFiles: ProcessedFile[] = [];
 
   for (const file of files) {
     try {
       let fileName = file.name;
       const fileNameLower = fileName.toLowerCase();
       let parsedTracks: UnprocessedTrack[] = [];
+
+      // We preserve the original file blob
+      const sourceFileId = `${file.name}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const sourceFile: SourceFile = {
+        id: sourceFileId,
+        name: file.name,
+        data: file, // Store the original file
+        uploadedAt: Date.now(),
+      };
 
       if (fileNameLower.endsWith('.gz')) {
         const buffer = await file.arrayBuffer();
@@ -213,7 +226,12 @@ export const processGpxFiles = async (files: File[]): Promise<UnprocessedTrack[]
         continue;
       }
       
-      allTracks.push(...parsedTracks);
+      if (parsedTracks.length > 0) {
+          processedFiles.push({
+            tracks: parsedTracks,
+            sourceFile
+          });
+      }
     } catch (error) {
       console.error(`Error processing file ${file.name}:`, error);
       if (error instanceof Error) {
@@ -223,5 +241,5 @@ export const processGpxFiles = async (files: File[]): Promise<UnprocessedTrack[]
     }
   }
 
-  return allTracks;
+  return processedFiles;
 };
