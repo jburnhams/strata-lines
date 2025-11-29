@@ -152,7 +152,7 @@ describe('Export Service unit tests', () => {
 
     // Mock createCompatibleCanvas
     (exportHelpers.createCompatibleCanvas as jest.Mock).mockImplementation((w, h) => {
-        return createMockCanvasWithBlob(w, h);
+        return createMockCanvasWithBlob(w as number, h as number);
     });
 
     // Mock image-stitch concatStreaming function

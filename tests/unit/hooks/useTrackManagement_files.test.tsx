@@ -20,12 +20,17 @@ jest.mock('@/services/gpxProcessor', () => ({
 }));
 
 // Mock URL.createObjectURL and URL.revokeObjectURL
-global.URL.createObjectURL = jest.fn(() => 'blob:url');
-global.URL.revokeObjectURL = jest.fn();
+Object.defineProperty(global, 'URL', {
+  value: {
+    createObjectURL: jest.fn(() => 'blob:url'),
+    revokeObjectURL: jest.fn(),
+  },
+  writable: true,
+});
 
 // Mock JSZip
 const mockZipFile = jest.fn();
-const mockGenerateAsync = jest.fn().mockResolvedValue(new Blob(['zip-content']));
+const mockGenerateAsync = jest.fn<() => Promise<Blob>>().mockResolvedValue(new Blob(['zip-content']));
 jest.mock('jszip', () => {
   return jest.fn().mockImplementation(() => ({
     file: mockZipFile,
@@ -45,8 +50,22 @@ const createFileList = (files: File[]): FileList => {
 };
 
 describe('useTrackManagement - File Handling', () => {
+  // Use explicit typing for mocks to satisfy TypeScript
+  let saveSourceFileMock: jest.MockedFunction<typeof db.saveSourceFile>;
+  let addTrackMock: jest.MockedFunction<typeof db.addTrack>;
+  let deleteTrackMock: jest.MockedFunction<typeof db.deleteTrack>;
+  let deleteSourceFileMock: jest.MockedFunction<typeof db.deleteSourceFile>;
+  let getSourceFileMock: jest.MockedFunction<typeof db.getSourceFile>;
+  let processGpxFilesMock: jest.MockedFunction<typeof gpxProcessor.processGpxFiles>;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    saveSourceFileMock = db.saveSourceFile as jest.MockedFunction<typeof db.saveSourceFile>;
+    addTrackMock = db.addTrack as jest.MockedFunction<typeof db.addTrack>;
+    deleteTrackMock = db.deleteTrack as jest.MockedFunction<typeof db.deleteTrack>;
+    deleteSourceFileMock = db.deleteSourceFile as jest.MockedFunction<typeof db.deleteSourceFile>;
+    getSourceFileMock = db.getSourceFile as jest.MockedFunction<typeof db.getSourceFile>;
+    processGpxFilesMock = gpxProcessor.processGpxFiles as jest.MockedFunction<typeof gpxProcessor.processGpxFiles>;
   });
 
   it('imports files, saves source file, and assigns sourceFileId', async () => {
@@ -58,10 +77,10 @@ describe('useTrackManagement - File Handling', () => {
       activityType: 'Running',
     };
 
-    (gpxProcessor.processGpxFiles as jest.Mock).mockResolvedValue([
+    processGpxFilesMock.mockResolvedValue([
       {
         sourceFile: { id: 'source-1', name: 'test.gpx', data: mockFile, uploadedAt: 123 },
-        tracks: [mockTrack],
+        tracks: [mockTrack] as any[], // cast to match UnprocessedTrack if needed
       },
     ]);
 
@@ -73,13 +92,13 @@ describe('useTrackManagement - File Handling', () => {
     });
 
     // Check if source file was saved
-    expect(db.saveSourceFile).toHaveBeenCalledWith(expect.objectContaining({
+    expect(saveSourceFileMock).toHaveBeenCalledWith(expect.objectContaining({
       id: 'source-1',
       name: 'test.gpx',
     }));
 
     // Check if track was added with sourceFileId
-    expect(db.addTrack).toHaveBeenCalledWith(expect.objectContaining({
+    expect(addTrackMock).toHaveBeenCalledWith(expect.objectContaining({
       name: 'Test Track',
       sourceFileId: 'source-1',
     }));
@@ -99,10 +118,10 @@ describe('useTrackManagement - File Handling', () => {
     };
 
     const mockFile = new File(['gpx'], 'test.gpx');
-    (gpxProcessor.processGpxFiles as jest.Mock).mockResolvedValue([
+    processGpxFilesMock.mockResolvedValue([
       {
         sourceFile: { id: 'source-1', name: 'test.gpx', data: mockFile, uploadedAt: 123 },
-        tracks: [mockTrack],
+        tracks: [mockTrack] as any[],
       },
     ]);
 
@@ -121,10 +140,10 @@ describe('useTrackManagement - File Handling', () => {
       await result.current.removeTrack(trackId);
     });
 
-    expect(db.deleteTrack).toHaveBeenCalledWith(trackId);
+    expect(deleteTrackMock).toHaveBeenCalledWith(trackId);
 
     // Check if deleteSourceFile was called
-    expect(db.deleteSourceFile).toHaveBeenCalledWith('source-1');
+    expect(deleteSourceFileMock).toHaveBeenCalledWith('source-1');
   });
 
   it('does NOT delete source file if other tracks still use it', async () => {
@@ -132,10 +151,10 @@ describe('useTrackManagement - File Handling', () => {
     const track1 = { name: 'T1', points: [[0,0]], length: 1, activityType: 'Run' };
     const track2 = { name: 'T2', points: [[0,0]], length: 1, activityType: 'Run' };
 
-    (gpxProcessor.processGpxFiles as jest.Mock).mockResolvedValue([
+    processGpxFilesMock.mockResolvedValue([
       {
         sourceFile: { id: 'source-shared', name: 'multi.gpx', data: mockFile, uploadedAt: 123 },
-        tracks: [track1, track2],
+        tracks: [track1, track2] as any[],
       },
     ]);
 
@@ -155,10 +174,10 @@ describe('useTrackManagement - File Handling', () => {
     });
 
     expect(result.current.tracks).toHaveLength(1);
-    expect(db.deleteTrack).toHaveBeenCalledWith(id1);
+    expect(deleteTrackMock).toHaveBeenCalledWith(id1);
 
     // Should NOT delete source file yet
-    expect(db.deleteSourceFile).not.toHaveBeenCalled();
+    expect(deleteSourceFileMock).not.toHaveBeenCalled();
 
     // Remove second track
     const id2 = result.current.tracks[0].id;
@@ -167,19 +186,19 @@ describe('useTrackManagement - File Handling', () => {
     });
 
     // NOW it should delete source file
-    expect(db.deleteSourceFile).toHaveBeenCalledWith('source-shared');
+    expect(deleteSourceFileMock).toHaveBeenCalledWith('source-shared');
   });
 
   it('downloads original source file if available', async () => {
     const mockSourceFile = { id: 'source-1', name: 'original.fit', data: new Blob(['fit-data']), uploadedAt: 123 };
-    (db.getSourceFile as jest.Mock).mockResolvedValue(mockSourceFile);
+    getSourceFileMock.mockResolvedValue(mockSourceFile);
 
     // Setup hook with a track that has a sourceFileId
     const mockTrack = { name: 'Test Track', points: [[0,0]], length: 10, activityType: 'Run' };
-    (gpxProcessor.processGpxFiles as jest.Mock).mockResolvedValue([
+    processGpxFilesMock.mockResolvedValue([
       {
         sourceFile: mockSourceFile,
-        tracks: [mockTrack],
+        tracks: [mockTrack] as any[],
       },
     ]);
 
@@ -202,15 +221,15 @@ describe('useTrackManagement - File Handling', () => {
   });
 
   it('falls back to generated GPX if source file is missing', async () => {
-    (db.getSourceFile as jest.Mock).mockResolvedValue(undefined); // Simulate missing file
+    getSourceFileMock.mockResolvedValue(undefined); // Simulate missing file
 
     const mockSourceFile = { id: 'source-missing', name: 'lost.gpx', data: new Blob([]), uploadedAt: 123 };
     const mockTrack = { name: 'Legacy Track', points: [[0,0]], length: 10, activityType: 'Run' };
 
-    (gpxProcessor.processGpxFiles as jest.Mock).mockResolvedValue([
+    processGpxFilesMock.mockResolvedValue([
       {
         sourceFile: mockSourceFile,
-        tracks: [mockTrack],
+        tracks: [mockTrack] as any[],
       },
     ]);
 
