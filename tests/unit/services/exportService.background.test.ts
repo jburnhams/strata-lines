@@ -1,6 +1,11 @@
 
 import { performPngExport, ExportConfig, ExportCallbacks } from '@/services/exportService';
-import { renderCanvasForBounds } from '@/utils/exportHelpers';
+import { renderCanvasForBounds, createCompatibleCanvas } from '@/utils/exportHelpers';
+
+// Mock mapCalculations
+jest.mock('@/utils/mapCalculations', () => ({
+  calculatePixelDimensions: jest.fn(() => ({ width: 100, height: 100 })),
+}));
 
 // Mock dependencies
 jest.mock('@/utils/exportHelpers', () => ({
@@ -68,6 +73,7 @@ describe('exportService background color', () => {
     const ctx = {
       fillStyle: '#000000',
       fillRect: jest.fn(),
+      clearRect: jest.fn(),
       drawImage: jest.fn(),
       getImageData: jest.fn(() => ({ data: new Uint8Array(400) })), // 100 * 4
       clearRect: jest.fn(),
