@@ -291,13 +291,14 @@ async function canvasToBlobOrBuffer(
     canvas: HTMLCanvasElement,
     format: 'png' | 'jpeg',
     quality: number
-): Promise<Blob | Buffer | Uint8Array> {
+): Promise<Blob> {
     const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
 
     // Node environment (@napi-rs/canvas)
     if (typeof (canvas as any).toBuffer === 'function') {
         const typeStr = format === 'jpeg' ? 'image/jpeg' : 'image/png';
-        return (canvas as any).toBuffer(typeStr, quality);
+        const buffer = (canvas as any).toBuffer(typeStr, quality);
+        return new Blob([buffer], { type: mimeType });
     }
 
     // Browser environment
