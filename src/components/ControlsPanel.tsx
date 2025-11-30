@@ -109,7 +109,7 @@ const DesktopLayout: React.FC<LayoutProps> = (props) => {
     const isLabelControlDisabled = props.tileLayerKey !== 'esriImagery';
 
     return (
-        <div className="hidden md:flex w-96 bg-gray-800 p-6 flex-col space-y-6 overflow-y-auto h-screen border-l border-gray-700 shadow-xl z-30">
+        <div className="hidden md:flex w-96 bg-gray-800 p-6 flex-col space-y-6 overflow-y-auto h-[100dvh] border-l border-gray-700 shadow-xl z-30">
             <header>
                 <h1 className="text-3xl font-bold text-orange-400">StrataLines</h1>
                 <p className="text-gray-400 mt-2">Weave your routes into a personal tapestry. Visualize GPX/TCX/FIT tracks on a satellite map and export high-resolution images.</p>
