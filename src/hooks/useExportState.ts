@@ -54,7 +54,7 @@ export const useExportState = (
   // Subdivisions for visualizing export progress
   const [exportSubdivisions, setExportSubdivisions] = useState<L.LatLngBounds[]>([]);
   const [currentExportSubdivisionIndex, setCurrentExportSubdivisionIndex] = useState<number>(-1);
-  const [completedStitchedCount, setCompletedStitchedCount] = useState<number>(0);
+  const [completedSubdivisions, setCompletedSubdivisions] = useState<Set<number>>(new Set());
 
   // Progress information for each subdivision
   const [subdivisionProgress, setSubdivisionProgress] = useState<Map<number, ProgressInfo>>(
@@ -188,8 +188,8 @@ export const useExportState = (
     setExportSubdivisions,
     currentExportSubdivisionIndex,
     setCurrentExportSubdivisionIndex,
-    completedStitchedCount,
-    setCompletedStitchedCount,
+    completedSubdivisions,
+    setCompletedSubdivisions,
     subdivisionProgress,
     setSubdivisionProgress,
   };
