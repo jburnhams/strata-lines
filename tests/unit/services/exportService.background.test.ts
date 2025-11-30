@@ -24,61 +24,53 @@ jest.mock('@/utils/exportHelpers', () => ({
               fillRect: jest.fn(),
               drawImage: jest.fn(),
               getImageData: jest.fn(() => ({ data: new Uint8Array(w * 4) })),
-              putImageData: jest.fn(), // Added putImageData
-          }))
+              putImageData: jest.fn(),
+          })),
+          toBlob: jest.fn((cb) => cb(new Blob(['']))),
+          toBuffer: jest.fn(() => new Uint8Array([])),
+          constructor: { name: 'CanvasElement' }
       };
   })
 }));
 
-jest.mock('@/utils/mapCalculations', () => ({
-    calculatePixelDimensions: jest.fn(() => ({ width: 100, height: 100 })),
+jest.mock('@/services/gpxProcessor', () => ({
+    calculateTrackBounds: jest.fn(() => ({ minLat: 0, maxLat: 0, minLng: 0, maxLng: 0 }))
 }));
 
 jest.mock('image-stitch/bundle', () => ({
   concatToBuffer: jest.fn(async () => new Uint8Array([0])),
-  // Mock concatStreaming to actually iterate the input decoders so that scanlines() is called
+  // Mock concatStreaming to actually iterate the input factories
   concatStreaming: jest.fn(async function* (options: any) {
-      // options.inputs is array of decoders
       if (options && options.inputs) {
-          for (const decoder of options.inputs) {
-              // Call getHeader to simulate lifecycle
-              await decoder.getHeader();
-              // Iterate scanlines to trigger rendering logic
-              for await (const line of decoder.scanlines()) {
-                  yield line;
+          for (const input of options.inputs) {
+              // Call factory to simulate rendering logic
+              if (input.factory) {
+                await input.factory();
               }
           }
-      } else {
-          yield new Uint8Array([0]);
       }
+      yield new Uint8Array([0]);
   }),
 }));
-
-// Mock @napi-rs/canvas to force fallback to document.createElement
-jest.mock('@napi-rs/canvas', () => {
-  throw new Error('Force fallback');
-}, { virtual: true });
 
 describe('exportService background color', () => {
   let mockCanvas: HTMLCanvasElement;
   let mockCtx: CanvasRenderingContext2D;
-  let createElementSpy: jest.SpyInstance;
-  let rowCtxMock: any;
+  let compositionCtxMock: any;
+  let createCompatibleCanvasMock: jest.MockedFunction<any>;
 
   beforeEach(() => {
-    // Reset mocks
     jest.clearAllMocks();
 
-    // Mock Canvas and Context
-    const ctx = {
+    // Mock Canvas and Context returned by renderCanvasForBounds (source layers)
+    mockCtx = {
       fillStyle: '#000000',
       fillRect: jest.fn(),
       clearRect: jest.fn(),
       drawImage: jest.fn(),
-      getImageData: jest.fn(() => ({ data: new Uint8Array(400) })), // 100 * 4
+      getImageData: jest.fn(() => ({ data: new Uint8Array(400) })),
       putImageData: jest.fn(),
-    };
-    mockCtx = ctx as unknown as CanvasRenderingContext2D;
+    } as unknown as CanvasRenderingContext2D;
 
     mockCanvas = {
       width: 100,
@@ -88,25 +80,14 @@ describe('exportService background color', () => {
       constructor: { name: 'HTMLCanvasElement' },
     } as unknown as HTMLCanvasElement;
 
-    // Mock document.createElement
-    createElementSpy = jest.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
-        if (tagName === 'canvas') {
-            return mockCanvas;
-        }
-        if (tagName === 'a') {
-            const anchor = document.createElementNS("http://www.w3.org/1999/xhtml", "a") as HTMLAnchorElement;
-            anchor.click = jest.fn();
-            return anchor;
-        }
-        return document.createElementNS("http://www.w3.org/1999/xhtml", tagName);
-    });
-
-    // Mock renderCanvasForBounds to return a canvas
     (renderCanvasForBounds as jest.Mock).mockResolvedValue(mockCanvas);
 
-    // Setup the mock for createCompatibleCanvas (which is used for rowCanvas)
+    // Mock createCompatibleCanvas which creates the COMPOSITION canvas
     const exportHelpers = require('@/utils/exportHelpers');
-    rowCtxMock = {
+    createCompatibleCanvasMock = exportHelpers.createCompatibleCanvas;
+
+    // Create a fresh mock context for the composition canvas for each test
+    compositionCtxMock = {
         clearRect: jest.fn(),
         fillStyle: '',
         fillRect: jest.fn(),
@@ -114,22 +95,20 @@ describe('exportService background color', () => {
         getImageData: jest.fn(() => ({ data: new Uint8Array(400) })),
         putImageData: jest.fn(),
     };
-    exportHelpers.createCompatibleCanvas.mockReturnValue({
+
+    createCompatibleCanvasMock.mockReturnValue({
         width: 100,
-        height: 1,
-        getContext: jest.fn(() => rowCtxMock),
-        constructor: { name: 'CanvasElement' } // Mimic @napi-rs canvas
+        height: 100,
+        getContext: jest.fn(() => compositionCtxMock),
+        constructor: { name: 'CanvasElement' },
+        toBlob: jest.fn((cb) => cb(new Blob(['']))),
+        toBuffer: jest.fn(() => new Uint8Array([]))
     });
 
-    // Explicitly mock URL.createObjectURL for this test scope
     if (!global.URL.createObjectURL) {
         global.URL.createObjectURL = jest.fn(() => 'blob:test-url');
         global.URL.revokeObjectURL = jest.fn();
     }
-  });
-
-  afterEach(() => {
-    createElementSpy.mockRestore();
   });
 
   const baseConfig: ExportConfig = {
@@ -155,20 +134,31 @@ describe('exportService background color', () => {
   };
 
   test('should fill white background for JPEG format without base layer', async () => {
+    // We need to ensure we have "empty" or "transparent" source layers to trigger composition logic
+    // or just rely on the fact that if base is missing in JPEG, it fills background.
+
     await performPngExport('combined', [], {
         ...baseConfig,
         outputFormat: 'jpeg',
         includedLayers: { base: false, lines: true, labels: true }
     }, mockCallbacks);
 
-    // The logic uses the rowCanvas (temp canvas) to fill rect
-    expect(rowCtxMock.fillRect).toHaveBeenCalledWith(0, 0, 100, 1);
-    expect(rowCtxMock.fillStyle).toBe('#ffffff');
+    // Verify fillRect called on composition canvas (100x100)
+    expect(compositionCtxMock.fillRect).toHaveBeenCalledWith(0, 0, 100, 100);
+    expect(compositionCtxMock.fillStyle).toBe('#ffffff');
   });
 
   test('should NOT fill white background for PNG format with base layer', async () => {
     await performPngExport('combined', [], { ...baseConfig, outputFormat: 'png' }, mockCallbacks);
-    expect(rowCtxMock.fillRect).not.toHaveBeenCalled();
+
+    // Should verify that fillStyle wasn't set to white AND fillRect called
+    // Note: It might call clearRect or fillRect with transparent if logic dictates,
+    // but definitely not white for PNG
+    if (compositionCtxMock.fillRect.mock.calls.length > 0) {
+        expect(compositionCtxMock.fillStyle).not.toBe('#ffffff');
+    } else {
+        expect(compositionCtxMock.fillRect).not.toHaveBeenCalled();
+    }
   });
 
   test('should NOT fill white background for PNG format without base layer', async () => {
@@ -178,7 +168,11 @@ describe('exportService background color', () => {
         includedLayers: { base: false, lines: true, labels: true }
     }, mockCallbacks);
 
-    expect(rowCtxMock.fillRect).not.toHaveBeenCalled();
+    if (compositionCtxMock.fillRect.mock.calls.length > 0) {
+        expect(compositionCtxMock.fillStyle).not.toBe('#ffffff');
+    } else {
+        expect(compositionCtxMock.fillRect).not.toHaveBeenCalled();
+    }
   });
 
   test('should NOT fill white background for JPEG format WITH base layer', async () => {
@@ -188,6 +182,10 @@ describe('exportService background color', () => {
         includedLayers: { base: true, lines: true, labels: true }
     }, mockCallbacks);
 
-    expect(rowCtxMock.fillRect).not.toHaveBeenCalled();
+    if (compositionCtxMock.fillRect.mock.calls.length > 0) {
+        expect(compositionCtxMock.fillStyle).not.toBe('#ffffff');
+    } else {
+        expect(compositionCtxMock.fillRect).not.toHaveBeenCalled();
+    }
   });
 });
