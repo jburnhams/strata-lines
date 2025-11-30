@@ -1,7 +1,26 @@
-import { describe, it, expect, jest } from '@jest/globals';
+import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import L from 'leaflet';
 import type { Track } from '@/types';
 import { performPngExport, type ExportConfig, type ExportCallbacks } from '@/services/exportService';
+
+// Mock image-stitch to avoid browser environment issues in JSDOM
+// The browser bundle of image-stitch (resolved by Jest in JSDOM) relies on OffscreenCanvas and DecompressionStream.
+// Polyfilling these is complex due to incompatibility between JSDOM's canvas (node-canvas/Cairo) and leaflet-node's Image (napi-rs/Skia).
+// Therefore, we mock the stitching process to focus on testing exportService logic.
+jest.mock('image-stitch/bundle', () => ({
+  concatStreaming: jest.fn(async function* (options: any) {
+      // Trigger factories to ensure render logic (which we want to test) is executed
+      if (Array.isArray(options.inputs)) {
+          for (const input of options.inputs) {
+              if (input && typeof input.factory === 'function') {
+                  await input.factory();
+              }
+          }
+      }
+      // Yield dummy image data (valid JPEG header)
+      yield new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0]);
+  })
+}));
 
 jest.setTimeout(60000);
 
@@ -24,11 +43,15 @@ describe('JPEG Export Integration Tests', () => {
     L.latLng(51.506, -0.098)
   );
 
+  let originalCreateObjectURL: any;
+  let originalRevokeObjectURL: any;
+
   beforeEach(() => {
     if (!(window as any).computedStyle) {
       (window as any).computedStyle = window.getComputedStyle.bind(window);
     }
 
+    // Polyfill HTMLCanvasElement.prototype.toBlob if needed (for libraries that check it)
     Object.defineProperty(HTMLCanvasElement.prototype, 'toBlob', {
       configurable: true,
       writable: true,
@@ -49,6 +72,25 @@ describe('JPEG Export Integration Tests', () => {
         callback(new Blob([bytes], { type: type || 'image/png' }));
       },
     });
+
+    // Mock URL.createObjectURL/revokeObjectURL for the final download link
+    originalCreateObjectURL = URL.createObjectURL;
+    originalRevokeObjectURL = URL.revokeObjectURL;
+
+    // @ts-ignore
+    URL.createObjectURL = jest.fn((blob: Blob) => {
+      return `blob:final-download-${Math.random().toString(36).substr(2, 9)}`;
+    });
+
+    // @ts-ignore
+    URL.revokeObjectURL = jest.fn((url: string) => {});
+  });
+
+  afterEach(() => {
+    // Restore globals
+    if (originalCreateObjectURL) URL.createObjectURL = originalCreateObjectURL;
+    if (originalRevokeObjectURL) URL.revokeObjectURL = originalRevokeObjectURL;
+    jest.restoreAllMocks();
   });
 
   it('should export JPEG with default quality (85)', async () => {
@@ -79,58 +121,18 @@ describe('JPEG Export Integration Tests', () => {
     const appendSpy = jest.spyOn(document.body, 'appendChild');
     const removeSpy = jest.spyOn(document.body, 'removeChild');
 
-    const existingCreateObjectURL = URL.createObjectURL;
-    const existingRevokeObjectURL = URL.revokeObjectURL;
+    await performPngExport('combined', [track], config, callbacks);
 
-    const createObjectURLSpy =
-      typeof existingCreateObjectURL === 'function'
-        ? jest.spyOn(URL, 'createObjectURL').mockReturnValue('blob:jpeg-export')
-        : (jest.fn().mockReturnValue('blob:jpeg-export'));
+    expect(callbacks.onError).not.toHaveBeenCalled();
 
-    if (typeof existingCreateObjectURL !== 'function') {
-      (URL as unknown as { createObjectURL: typeof createObjectURLSpy }).createObjectURL = createObjectURLSpy;
-    }
+    const appendCalls = appendSpy.mock.calls;
+    const linkElements = appendCalls.map(call => call[0]).filter(el => el instanceof HTMLAnchorElement);
+    expect(linkElements.length).toBeGreaterThan(0);
 
-    const revokeObjectURLSpy =
-      typeof existingRevokeObjectURL === 'function'
-        ? jest.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
-        : (jest.fn());
+    const downloadLink = linkElements[0] as HTMLAnchorElement;
+    expect(downloadLink.download).toMatch(/\.jpg$/);
 
-    if (typeof existingRevokeObjectURL !== 'function') {
-      (URL as unknown as { revokeObjectURL: typeof revokeObjectURLSpy }).revokeObjectURL = revokeObjectURLSpy;
-    }
-
-    try {
-      await performPngExport('combined', [track], config, callbacks);
-
-      expect(callbacks.onError).not.toHaveBeenCalled();
-
-      // Verify that the download link was created with .jpg extension
-      const appendCalls = appendSpy.mock.calls;
-      const linkElements = appendCalls.map(call => call[0]).filter(el => el instanceof HTMLAnchorElement);
-      expect(linkElements.length).toBeGreaterThan(0);
-
-      const downloadLink = linkElements[0] as HTMLAnchorElement;
-      expect(downloadLink.download).toMatch(/\.jpg$/);
-
-      expect(callbacks.onComplete).toHaveBeenCalledTimes(1);
-    } finally {
-      clickSpy.mockRestore();
-      appendSpy.mockRestore();
-      removeSpy.mockRestore();
-
-      if (typeof existingCreateObjectURL === 'function') {
-        createObjectURLSpy.mockRestore();
-      } else {
-        delete (URL as unknown as { createObjectURL?: typeof createObjectURLSpy }).createObjectURL;
-      }
-
-      if (typeof existingRevokeObjectURL === 'function') {
-        revokeObjectURLSpy.mockRestore();
-      } else {
-        delete (URL as unknown as { revokeObjectURL?: typeof revokeObjectURLSpy }).revokeObjectURL;
-      }
-    }
+    expect(callbacks.onComplete).toHaveBeenCalledTimes(1);
   });
 
   it('should export JPEG with custom quality (50)', async () => {
@@ -161,57 +163,18 @@ describe('JPEG Export Integration Tests', () => {
     const appendSpy = jest.spyOn(document.body, 'appendChild');
     const removeSpy = jest.spyOn(document.body, 'removeChild');
 
-    const existingCreateObjectURL = URL.createObjectURL;
-    const existingRevokeObjectURL = URL.revokeObjectURL;
+    await performPngExport('lines', [track], config, callbacks);
 
-    const createObjectURLSpy =
-      typeof existingCreateObjectURL === 'function'
-        ? jest.spyOn(URL, 'createObjectURL').mockReturnValue('blob:jpeg-export-50')
-        : (jest.fn().mockReturnValue('blob:jpeg-export-50'));
+    expect(callbacks.onError).not.toHaveBeenCalled();
 
-    if (typeof existingCreateObjectURL !== 'function') {
-      (URL as unknown as { createObjectURL: typeof createObjectURLSpy }).createObjectURL = createObjectURLSpy;
-    }
+    const appendCalls = appendSpy.mock.calls;
+    const linkElements = appendCalls.map(call => call[0]).filter(el => el instanceof HTMLAnchorElement);
+    expect(linkElements.length).toBeGreaterThan(0);
 
-    const revokeObjectURLSpy =
-      typeof existingRevokeObjectURL === 'function'
-        ? jest.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
-        : (jest.fn());
+    const downloadLink = linkElements[0] as HTMLAnchorElement;
+    expect(downloadLink.download).toMatch(/\.jpg$/);
 
-    if (typeof existingRevokeObjectURL !== 'function') {
-      (URL as unknown as { revokeObjectURL: typeof revokeObjectURLSpy }).revokeObjectURL = revokeObjectURLSpy;
-    }
-
-    try {
-      await performPngExport('lines', [track], config, callbacks);
-
-      expect(callbacks.onError).not.toHaveBeenCalled();
-
-      const appendCalls = appendSpy.mock.calls;
-      const linkElements = appendCalls.map(call => call[0]).filter(el => el instanceof HTMLAnchorElement);
-      expect(linkElements.length).toBeGreaterThan(0);
-
-      const downloadLink = linkElements[0] as HTMLAnchorElement;
-      expect(downloadLink.download).toMatch(/\.jpg$/);
-
-      expect(callbacks.onComplete).toHaveBeenCalledTimes(1);
-    } finally {
-      clickSpy.mockRestore();
-      appendSpy.mockRestore();
-      removeSpy.mockRestore();
-
-      if (typeof existingCreateObjectURL === 'function') {
-        createObjectURLSpy.mockRestore();
-      } else {
-        delete (URL as unknown as { createObjectURL?: typeof createObjectURLSpy }).createObjectURL;
-      }
-
-      if (typeof existingRevokeObjectURL === 'function') {
-        revokeObjectURLSpy.mockRestore();
-      } else {
-        delete (URL as unknown as { revokeObjectURL?: typeof revokeObjectURLSpy }).revokeObjectURL;
-      }
-    }
+    expect(callbacks.onComplete).toHaveBeenCalledTimes(1);
   });
 
   it('should export PNG when format is png', async () => {
@@ -226,7 +189,7 @@ describe('JPEG Export Integration Tests', () => {
       lineThickness: 3,
       exportQuality: 1,
       outputFormat: 'png',
-      jpegQuality: 85, // Should be ignored for PNG
+      jpegQuality: 85,
     };
 
     const callbacks: ExportCallbacks = {
@@ -242,56 +205,17 @@ describe('JPEG Export Integration Tests', () => {
     const appendSpy = jest.spyOn(document.body, 'appendChild');
     const removeSpy = jest.spyOn(document.body, 'removeChild');
 
-    const existingCreateObjectURL = URL.createObjectURL;
-    const existingRevokeObjectURL = URL.revokeObjectURL;
+    await performPngExport('base', [], config, callbacks);
 
-    const createObjectURLSpy =
-      typeof existingCreateObjectURL === 'function'
-        ? jest.spyOn(URL, 'createObjectURL').mockReturnValue('blob:png-export')
-        : (jest.fn().mockReturnValue('blob:png-export'));
+    expect(callbacks.onComplete).toHaveBeenCalledTimes(1);
+    expect(callbacks.onError).not.toHaveBeenCalled();
 
-    if (typeof existingCreateObjectURL !== 'function') {
-      (URL as unknown as { createObjectURL: typeof createObjectURLSpy }).createObjectURL = createObjectURLSpy;
-    }
+    const appendCalls = appendSpy.mock.calls;
+    const linkElements = appendCalls.map(call => call[0]).filter(el => el instanceof HTMLAnchorElement);
+    expect(linkElements.length).toBeGreaterThan(0);
 
-    const revokeObjectURLSpy =
-      typeof existingRevokeObjectURL === 'function'
-        ? jest.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
-        : (jest.fn());
-
-    if (typeof existingRevokeObjectURL !== 'function') {
-      (URL as unknown as { revokeObjectURL: typeof revokeObjectURLSpy }).revokeObjectURL = revokeObjectURLSpy;
-    }
-
-    try {
-      await performPngExport('base', [], config, callbacks);
-
-      expect(callbacks.onComplete).toHaveBeenCalledTimes(1);
-      expect(callbacks.onError).not.toHaveBeenCalled();
-
-      const appendCalls = appendSpy.mock.calls;
-      const linkElements = appendCalls.map(call => call[0]).filter(el => el instanceof HTMLAnchorElement);
-      expect(linkElements.length).toBeGreaterThan(0);
-
-      const downloadLink = linkElements[0] as HTMLAnchorElement;
-      expect(downloadLink.download).toMatch(/\.png$/);
-    } finally {
-      clickSpy.mockRestore();
-      appendSpy.mockRestore();
-      removeSpy.mockRestore();
-
-      if (typeof existingCreateObjectURL === 'function') {
-        createObjectURLSpy.mockRestore();
-      } else {
-        delete (URL as unknown as { createObjectURL?: typeof createObjectURLSpy }).createObjectURL;
-      }
-
-      if (typeof existingRevokeObjectURL === 'function') {
-        revokeObjectURLSpy.mockRestore();
-      } else {
-        delete (URL as unknown as { revokeObjectURL?: typeof revokeObjectURLSpy }).revokeObjectURL;
-      }
-    }
+    const downloadLink = linkElements[0] as HTMLAnchorElement;
+    expect(downloadLink.download).toMatch(/\.png$/);
   });
 
   it('should handle JPEG quality boundary values (1 and 100)', async () => {
@@ -322,58 +246,19 @@ describe('JPEG Export Integration Tests', () => {
     const appendSpy = jest.spyOn(document.body, 'appendChild');
     const removeSpy = jest.spyOn(document.body, 'removeChild');
 
-    const existingCreateObjectURL = URL.createObjectURL;
-    const existingRevokeObjectURL = URL.revokeObjectURL;
+    // Test minimum quality (1)
+    await performPngExport('base', [], configMin, callbacks);
+    expect(callbacks.onComplete).toHaveBeenCalledTimes(1);
+    expect(callbacks.onError).not.toHaveBeenCalled();
 
-    const createObjectURLSpy =
-      typeof existingCreateObjectURL === 'function'
-        ? jest.spyOn(URL, 'createObjectURL').mockReturnValue('blob:jpeg-min')
-        : (jest.fn().mockReturnValue('blob:jpeg-min'));
+    // Reset callbacks
+    callbacks.onComplete = jest.fn();
+    callbacks.onError = jest.fn();
 
-    if (typeof existingCreateObjectURL !== 'function') {
-      (URL as unknown as { createObjectURL: typeof createObjectURLSpy }).createObjectURL = createObjectURLSpy;
-    }
-
-    const revokeObjectURLSpy =
-      typeof existingRevokeObjectURL === 'function'
-        ? jest.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
-        : (jest.fn());
-
-    if (typeof existingRevokeObjectURL !== 'function') {
-      (URL as unknown as { revokeObjectURL: typeof revokeObjectURLSpy }).revokeObjectURL = revokeObjectURLSpy;
-    }
-
-    try {
-      // Test minimum quality (1)
-      await performPngExport('base', [], configMin, callbacks);
-      expect(callbacks.onComplete).toHaveBeenCalledTimes(1);
-      expect(callbacks.onError).not.toHaveBeenCalled();
-
-      // Reset callbacks
-      callbacks.onComplete = jest.fn();
-      callbacks.onError = jest.fn();
-
-      // Test maximum quality (100)
-      const configMax = { ...configMin, jpegQuality: 100 };
-      await performPngExport('base', [], configMax, callbacks);
-      expect(callbacks.onComplete).toHaveBeenCalledTimes(1);
-      expect(callbacks.onError).not.toHaveBeenCalled();
-    } finally {
-      clickSpy.mockRestore();
-      appendSpy.mockRestore();
-      removeSpy.mockRestore();
-
-      if (typeof existingCreateObjectURL === 'function') {
-        createObjectURLSpy.mockRestore();
-      } else {
-        delete (URL as unknown as { createObjectURL?: typeof createObjectURLSpy }).createObjectURL;
-      }
-
-      if (typeof existingRevokeObjectURL === 'function') {
-        revokeObjectURLSpy.mockRestore();
-      } else {
-        delete (URL as unknown as { revokeObjectURL?: typeof revokeObjectURLSpy }).revokeObjectURL;
-      }
-    }
+    // Test maximum quality (100)
+    const configMax = { ...configMin, jpegQuality: 100 };
+    await performPngExport('base', [], configMax, callbacks);
+    expect(callbacks.onComplete).toHaveBeenCalledTimes(1);
+    expect(callbacks.onError).not.toHaveBeenCalled();
   });
 });
