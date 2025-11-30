@@ -2,7 +2,7 @@ import { afterEach, beforeEach } from '@jest/globals';
 import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { TextEncoder, TextDecoder } from 'util';
-import { ReadableStream } from 'stream/web';
+import { ReadableStream, TransformStream, CompressionStream, DecompressionStream } from 'stream/web';
 
 // Add TextEncoder/TextDecoder to global for jsdom
 global.TextEncoder = TextEncoder;
@@ -11,6 +11,15 @@ global.TextDecoder = TextDecoder as any;
 // Add polyfills BEFORE loading leaflet-node
 if (typeof globalThis.ReadableStream === 'undefined') {
   globalThis.ReadableStream = ReadableStream as any;
+}
+if (typeof globalThis.TransformStream === 'undefined') {
+  globalThis.TransformStream = TransformStream as any;
+}
+if (typeof globalThis.CompressionStream === 'undefined') {
+  globalThis.CompressionStream = CompressionStream as any;
+}
+if (typeof globalThis.DecompressionStream === 'undefined') {
+  globalThis.DecompressionStream = DecompressionStream as any;
 }
 
 // Add performance.markResourceTiming polyfill for undici
