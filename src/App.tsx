@@ -245,8 +245,8 @@ const App: React.FC = () => {
     : '';
 
   return (
-    <div className="bg-gray-900 text-white min-h-screen flex flex-col md:flex-row font-sans relative overflow-hidden">
-      <div ref={mapContainerRef} className={`w-full h-screen md:flex-1 relative flex justify-center items-center bg-gray-900 ${mapContainerPadding}`}>
+    <div className="bg-gray-900 text-white min-h-[100dvh] flex flex-col md:flex-row font-sans relative overflow-hidden">
+      <div ref={mapContainerRef} className={`w-full h-[100dvh] md:flex-1 relative flex justify-center items-center bg-gray-900 ${mapContainerPadding}`}>
         <div ref={mapWrapperRef} className="h-full w-full">
           <MapComponent
             tracks={trackManagement.filteredTracks}
