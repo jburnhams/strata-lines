@@ -9,7 +9,7 @@ import {
   type RenderOptions,
 } from '@/utils/exportHelpers';
 import { calculateTrackBounds } from '@/services/gpxProcessor';
-import { concatStreaming, type ImageSource, type ImageFactory } from 'image-stitch';
+import { concatStreaming } from 'image-stitch';
 import type { ProgressInfo } from '@/utils/progressTracker';
 import { calculatePixelDimensions } from '@/utils/mapCalculations';
 
@@ -39,6 +39,15 @@ export interface ExportCallbacks {
   onStageProgress?: (subdivisionIndex: number, progress: ProgressInfo) => void;
   onComplete: () => void;
   onError: (error: Error) => void;
+}
+
+// Definition matching image-stitch 1.1.53 ImageSource interface
+export type ImageFactory = () => Promise<Blob | ArrayBuffer | Uint8Array>;
+
+export interface ImageSource {
+    width: number;
+    height: number;
+    factory: ImageFactory;
 }
 
 /**
