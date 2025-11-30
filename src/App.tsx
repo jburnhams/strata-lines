@@ -138,7 +138,8 @@ const App: React.FC = () => {
     const visibleTracks = trackManagement.filteredTracks.filter(t => t.isVisible);
 
     // Validation
-    if (type === 'combined' && includedLayers?.lines && visibleTracks.length === 0) {
+    // Allow empty export if base or labels are included, even if lines are checked
+    if (type === 'combined' && includedLayers?.lines && visibleTracks.length === 0 && !includedLayers?.base && !includedLayers?.labels) {
         trackManagement.setNotification({ type: 'error', message: "Cannot export with lines without a visible track."});
         return;
     }
