@@ -302,7 +302,7 @@ describe('Export Service unit tests', () => {
           // The mock implementation of createCompatibleCanvas returns a canvas with a mock context
           // We check if any context had fillStyle white and fillRect called
 
-          const fillRectCalls = createdCanvases.some(canvas => {
+          const fillRectCalls = createdCanvases.some((canvas: any) => {
              const ctx = canvas.getContext('2d');
              return ctx.fillStyle === '#ffffff' && ctx.fillRect.mock.calls.length > 0;
           });
@@ -332,7 +332,7 @@ describe('Export Service unit tests', () => {
          // If logic works, it should call putImageData on a temp Napi canvas and then drawImage
          // We can check if getContext('2d').putImageData was called on any created canvas
          const createdCanvases = createCompatibleCanvasMock.mock.results.map(r => r.value);
-         const putImageDataCalled = createdCanvases.some(c => c.getContext('2d').putImageData.mock.calls.length > 0);
+         const putImageDataCalled = createdCanvases.some((c: any) => c.getContext('2d').putImageData.mock.calls.length > 0);
 
          expect(putImageDataCalled).toBe(true);
       });
