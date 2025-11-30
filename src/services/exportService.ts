@@ -9,7 +9,7 @@ import {
   type RenderOptions,
 } from '@/utils/exportHelpers';
 import { calculateTrackBounds } from '@/services/gpxProcessor';
-import { concatStreaming } from 'image-stitch/bundle';
+import { concatStreaming } from 'image-stitch';
 import type { ProgressInfo } from '@/utils/progressTracker';
 import { calculatePixelDimensions } from '@/utils/mapCalculations';
 
@@ -41,7 +41,7 @@ export interface ExportCallbacks {
   onError: (error: Error) => void;
 }
 
-// Definition matching image-stitch 1.1.50+ ImageSource interface
+// Definition matching image-stitch 1.1.53 ImageSource interface
 export type ImageFactory = () => Promise<Blob | ArrayBuffer | Uint8Array>;
 
 export interface ImageSource {
@@ -371,10 +371,8 @@ export const performPngExport = async (
     console.log('🧵 Starting streaming export with factories...');
 
     // Start streaming stitch using the array of factories
-    // Cast factories to any because we know image-stitch 1.1.50 supports ImageSource
-    // but we might not have the updated types loaded in this context perfectly
     const stitchedStream = concatStreaming({
-        inputs: factories as any,
+        inputs: factories,
         layout: {
           rows: gridLayout.rows,
           columns: gridLayout.columns,

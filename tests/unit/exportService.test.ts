@@ -83,14 +83,14 @@ jest.mock('@/services/gpxProcessor', () => {
 });
 
 // Mock image-stitch library
-jest.mock('image-stitch/bundle', () => ({
+jest.mock('image-stitch', () => ({
   concatStreaming: jest.fn(),
   concatToBuffer: jest.fn(),
 }));
 
 import { performPngExport } from '@/services/exportService';
 import * as exportHelpers from '@/utils/exportHelpers';
-import * as imageStitch from 'image-stitch/bundle';
+import * as imageStitch from 'image-stitch';
 import { calculateTrackBounds } from '@/services/gpxProcessor';
 
 describe('Export Service unit tests', () => {

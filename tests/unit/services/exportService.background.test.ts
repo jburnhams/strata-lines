@@ -37,7 +37,7 @@ jest.mock('@/services/gpxProcessor', () => ({
     calculateTrackBounds: jest.fn(() => ({ minLat: 0, maxLat: 0, minLng: 0, maxLng: 0 }))
 }));
 
-jest.mock('image-stitch/bundle', () => ({
+jest.mock('image-stitch', () => ({
   concatToBuffer: jest.fn(async () => new Uint8Array([0])),
   // Mock concatStreaming to actually iterate the input factories
   concatStreaming: jest.fn(async function* (options: any) {

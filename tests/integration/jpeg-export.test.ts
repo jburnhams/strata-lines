@@ -3,25 +3,6 @@ import L from 'leaflet';
 import type { Track } from '@/types';
 import { performPngExport, type ExportConfig, type ExportCallbacks } from '@/services/exportService';
 
-// Mock image-stitch to avoid browser environment issues in JSDOM
-// The browser bundle of image-stitch (resolved by Jest in JSDOM) relies on OffscreenCanvas and DecompressionStream.
-// Polyfilling these is complex due to incompatibility between JSDOM's canvas (node-canvas/Cairo) and leaflet-node's Image (napi-rs/Skia).
-// Therefore, we mock the stitching process to focus on testing exportService logic.
-jest.mock('image-stitch/bundle', () => ({
-  concatStreaming: jest.fn(async function* (options: any) {
-      // Trigger factories to ensure render logic (which we want to test) is executed
-      if (Array.isArray(options.inputs)) {
-          for (const input of options.inputs) {
-              if (input && typeof input.factory === 'function') {
-                  await input.factory();
-              }
-          }
-      }
-      // Yield dummy image data (valid JPEG header)
-      yield new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0]);
-  })
-}));
-
 jest.setTimeout(60000);
 
 describe('JPEG Export Integration Tests', () => {
@@ -47,32 +28,6 @@ describe('JPEG Export Integration Tests', () => {
   let originalRevokeObjectURL: any;
 
   beforeEach(() => {
-    if (!(window as any).computedStyle) {
-      (window as any).computedStyle = window.getComputedStyle.bind(window);
-    }
-
-    // Polyfill HTMLCanvasElement.prototype.toBlob if needed (for libraries that check it)
-    Object.defineProperty(HTMLCanvasElement.prototype, 'toBlob', {
-      configurable: true,
-      writable: true,
-      value: function(
-        this: HTMLCanvasElement,
-        callback: BlobCallback,
-        type?: string,
-        quality?: any
-      ) {
-        const dataUrl = this.toDataURL(type, quality);
-        const base64 = dataUrl.split(',')[1];
-        const binary = atob(base64);
-        const len = binary.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i += 1) {
-          bytes[i] = binary.charCodeAt(i);
-        }
-        callback(new Blob([bytes], { type: type || 'image/png' }));
-      },
-    });
-
     // Mock URL.createObjectURL/revokeObjectURL for the final download link
     originalCreateObjectURL = URL.createObjectURL;
     originalRevokeObjectURL = URL.revokeObjectURL;
