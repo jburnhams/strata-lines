@@ -291,14 +291,15 @@ async function canvasToBlobOrBuffer(
     canvas: HTMLCanvasElement,
     format: 'png' | 'jpeg',
     quality: number
-): Promise<Blob> {
+): Promise<Blob | Uint8Array> {
     const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
 
     // Node environment (@napi-rs/canvas)
     if (typeof (canvas as any).toBuffer === 'function') {
         const typeStr = format === 'jpeg' ? 'image/jpeg' : 'image/png';
         const buffer = (canvas as any).toBuffer(typeStr, quality);
-        return new Blob([buffer], { type: mimeType });
+        // Return as Uint8Array to ensure compatibility with image-stitch input detection
+        return new Uint8Array(buffer);
     }
 
     // Browser environment
