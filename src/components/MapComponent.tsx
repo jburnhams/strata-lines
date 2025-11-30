@@ -22,7 +22,7 @@ interface MapComponentProps {
   highlightedTrackId: string | null;
   exportSubdivisions: LatLngBounds[];
   currentExportSubdivisionIndex: number;
-  completedStitchedCount: number;
+  completedSubdivisions: Set<number>;
   subdivisionProgress: Map<number, ProgressInfo>;
 }
 
@@ -119,7 +119,7 @@ const MapSizeManager: React.FC = () => {
   return null;
 };
 
-export const MapComponent: React.FC<MapComponentProps> = ({ tracks, onUserMove, center, zoom, lineThickness, exportBounds, onExportBoundsChange, boundsToFit, onBoundsFitted, tileLayer, labelDensity, highlightedTrackId, exportSubdivisions, currentExportSubdivisionIndex, completedStitchedCount, subdivisionProgress }) => {
+export const MapComponent: React.FC<MapComponentProps> = ({ tracks, onUserMove, center, zoom, lineThickness, exportBounds, onExportBoundsChange, boundsToFit, onBoundsFitted, tileLayer, labelDensity, highlightedTrackId, exportSubdivisions, currentExportSubdivisionIndex, completedSubdivisions, subdivisionProgress }) => {
   
   const highlightedTrack = useMemo(() => 
     highlightedTrackId ? tracks.find(t => t.id === highlightedTrackId) : null,
@@ -177,19 +177,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({ tracks, onUserMove, 
       {/* Render subdivision rectangles during export */}
       {exportSubdivisions.length > 0 && exportSubdivisions.map((subdivisionBounds, index) => {
         const isCurrentlyRendering = index === currentExportSubdivisionIndex;
-        const isStitched = index < completedStitchedCount;
-        const isComplete = isStitched;
+        const isComplete = completedSubdivisions.has(index);
         const progress = subdivisionProgress.get(index);
-
-        // Calculate scanline position if actively scanning
-        let scanlineLat: number | null = null;
-        if (isCurrentlyRendering && progress?.stage === 'scanline' && progress.total > 0) {
-            const north = subdivisionBounds.getNorth();
-            const south = subdivisionBounds.getSouth();
-            // Invert the ratio because latitude decreases as we go down (row 0 is North)
-            const ratio = progress.current / progress.total;
-            scanlineLat = north - (north - south) * ratio;
-        }
 
         return (
           <React.Fragment key={`subdivision-group-${index}`}>
@@ -231,16 +220,6 @@ export const MapComponent: React.FC<MapComponentProps> = ({ tracks, onUserMove, 
                 </Tooltip>
                 )}
             </Rectangle>
-            {scanlineLat !== null && (
-                <Polyline
-                    key={`scanline-${index}`}
-                    positions={[
-                        [scanlineLat, subdivisionBounds.getWest()],
-                        [scanlineLat, subdivisionBounds.getEast()]
-                    ]}
-                    pathOptions={{ color: '#00ffff', weight: 2, opacity: 1 }}
-                />
-            )}
           </React.Fragment>
         );
       })}

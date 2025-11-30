@@ -201,8 +201,15 @@ const App: React.FC = () => {
         {
           onSubdivisionsCalculated: exportState.setExportSubdivisions,
           onSubdivisionProgress: exportState.setCurrentExportSubdivisionIndex,
-          onSubdivisionStitched: (completed) => {
-            exportState.setCompletedStitchedCount(completed);
+          onSubdivisionStitched: (completed, total) => {
+            // Calculate 0-based index of the just-completed subdivision
+            // completed is 1-based count of completed items
+            const completedIndex = completed - 1;
+            exportState.setCompletedSubdivisions(prev => {
+              const next = new Set(prev);
+              next.add(completedIndex);
+              return next;
+            });
           },
           onStageProgress: (subdivisionIndex, progressInfo) => {
             exportState.setSubdivisionProgress((prev) => {
@@ -214,7 +221,7 @@ const App: React.FC = () => {
           onComplete: () => {
             exportState.setExportSubdivisions([]);
             exportState.setCurrentExportSubdivisionIndex(-1);
-            exportState.setCompletedStitchedCount(0);
+            exportState.setCompletedSubdivisions(new Set());
             exportState.setSubdivisionProgress(new Map());
           },
           onError: (error) => {
@@ -264,7 +271,7 @@ const App: React.FC = () => {
             highlightedTrackId={highlightedTrackId}
             exportSubdivisions={exportState.exportSubdivisions}
             currentExportSubdivisionIndex={exportState.currentExportSubdivisionIndex}
-            completedStitchedCount={exportState.completedStitchedCount}
+            completedSubdivisions={exportState.completedSubdivisions}
             subdivisionProgress={exportState.subdivisionProgress}
           />
         </div>

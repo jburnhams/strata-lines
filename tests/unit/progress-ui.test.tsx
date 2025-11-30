@@ -72,7 +72,7 @@ describe('Progress UI Tests', () => {
     highlightedTrackId: null,
     exportSubdivisions: [],
     currentExportSubdivisionIndex: -1,
-    completedStitchedCount: 0,
+    completedSubdivisions: new Set<number>(),
     subdivisionProgress: new Map<number, ProgressInfo>(),
   };
 
@@ -332,7 +332,7 @@ describe('Progress UI Tests', () => {
         exportSubdivisions={subdivisions}
         currentExportSubdivisionIndex={1}
         subdivisionProgress={progress2}
-        completedStitchedCount={1}
+        completedSubdivisions={new Set([0])}
       />
     );
 
