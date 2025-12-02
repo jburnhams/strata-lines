@@ -1,10 +1,11 @@
 
-import type { Track, SourceFile } from '@/types';
+import type { Track, SourceFile, Place } from '@/types';
 
 const DB_NAME = 'gpx-track-db';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_NAME = 'tracks';
 const SOURCE_FILES_STORE = 'source_files';
+const PLACES_STORE = 'places';
 
 let db: IDBDatabase;
 
@@ -33,6 +34,12 @@ function getDB(): Promise<IDBDatabase> {
       }
       if (!dbInstance.objectStoreNames.contains(SOURCE_FILES_STORE)) {
         dbInstance.createObjectStore(SOURCE_FILES_STORE, { keyPath: 'id' });
+      }
+      if (!dbInstance.objectStoreNames.contains(PLACES_STORE)) {
+        const placesStore = dbInstance.createObjectStore(PLACES_STORE, { keyPath: 'id' });
+        placesStore.createIndex('trackId', 'trackId', { unique: false });
+        placesStore.createIndex('source', 'source', { unique: false });
+        placesStore.createIndex('createdAt', 'createdAt', { unique: false });
       }
     };
   });
@@ -165,6 +172,181 @@ export async function deleteSourceFile(id: string): Promise<void> {
     request.onerror = () => {
       console.error('Error deleting source file:', request.error);
       reject('Error deleting source file');
+    };
+  });
+}
+
+// Place Operations
+
+export async function savePlaceToDb(place: Place): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(PLACES_STORE, 'readwrite');
+    const store = transaction.objectStore(PLACES_STORE);
+    const request = store.put(place);
+
+    request.onsuccess = () => {
+      resolve();
+    };
+
+    request.onerror = () => {
+      console.error('Error saving place:', request.error);
+      reject('Error saving place');
+    };
+  });
+}
+
+export async function getPlaceFromDb(id: string): Promise<Place | undefined> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(PLACES_STORE, 'readonly');
+    const store = transaction.objectStore(PLACES_STORE);
+    const request = store.get(id);
+
+    request.onsuccess = () => {
+      resolve(request.result);
+    };
+
+    request.onerror = () => {
+      console.error('Error fetching place:', request.error);
+      reject('Error fetching place');
+    };
+  });
+}
+
+export async function getAllPlacesFromDb(): Promise<Place[]> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(PLACES_STORE, 'readonly');
+    const store = transaction.objectStore(PLACES_STORE);
+    const index = store.index('createdAt');
+    // Using getAll on an index returns results sorted by that index.
+    // However, default IDB direction is ascending. For newest first (descending),
+    // we would need a cursor or reverse() the array.
+    // Simple way: get all and reverse in memory (fine for expected scale)
+    // or use openCursor with 'prev' direction.
+    // Since getAll doesn't support direction, we'll sort manually or use cursor if strict sorting needed.
+    // But getAll is faster. Let's stick to simple implementation first: getAll via index to at least have them ordered by time, then reverse.
+    const request = index.getAll();
+
+    request.onsuccess = () => {
+      // Return reversed to have newest first
+      resolve((request.result as Place[]).reverse());
+    };
+
+    request.onerror = () => {
+      console.error('Error fetching all places:', request.error);
+      reject('Error fetching all places');
+    };
+  });
+}
+
+export async function getPlacesByTrackId(trackId: string): Promise<Place[]> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(PLACES_STORE, 'readonly');
+    const store = transaction.objectStore(PLACES_STORE);
+    const index = store.index('trackId');
+    const request = index.getAll(trackId);
+
+    request.onsuccess = () => {
+      const places = request.result as Place[];
+      // Sort by source order: start, middle, end
+      const sourceOrder: Record<string, number> = {
+        'track-start': 0,
+        'track-middle': 1,
+        'track-end': 2,
+        'manual': 3,
+        'import': 4
+      };
+
+      places.sort((a, b) => {
+        const orderA = sourceOrder[a.source] ?? 99;
+        const orderB = sourceOrder[b.source] ?? 99;
+        return orderA - orderB;
+      });
+
+      resolve(places);
+    };
+
+    request.onerror = () => {
+      console.error('Error fetching places by trackId:', request.error);
+      reject('Error fetching places by trackId');
+    };
+  });
+}
+
+export async function deletePlaceFromDb(id: string): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(PLACES_STORE, 'readwrite');
+    const store = transaction.objectStore(PLACES_STORE);
+    const request = store.delete(id);
+
+    request.onsuccess = () => {
+      resolve();
+    };
+
+    request.onerror = () => {
+      console.error('Error deleting place:', request.error);
+      reject('Error deleting place');
+    };
+  });
+}
+
+export async function updatePlaceInDb(id: string, updates: Partial<Omit<Place, 'id'>>): Promise<Place> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(PLACES_STORE, 'readwrite');
+    const store = transaction.objectStore(PLACES_STORE);
+
+    // First get the existing place
+    const getRequest = store.get(id);
+
+    getRequest.onsuccess = () => {
+      const existingPlace = getRequest.result;
+      if (!existingPlace) {
+        reject(`Place with id ${id} not found`);
+        return;
+      }
+
+      // Ensure we don't accidentally overwrite the ID from updates, though the type now prevents it
+      const { id: _, ...safeUpdates } = updates as any;
+      const updatedPlace = { ...existingPlace, ...safeUpdates };
+
+      const putRequest = store.put(updatedPlace);
+
+      putRequest.onsuccess = () => {
+        resolve(updatedPlace);
+      };
+
+      putRequest.onerror = () => {
+        console.error('Error updating place:', putRequest.error);
+        reject('Error updating place');
+      };
+    };
+
+    getRequest.onerror = () => {
+      console.error('Error fetching place for update:', getRequest.error);
+      reject('Error fetching place for update');
+    };
+  });
+}
+
+export async function clearAllPlacesFromDb(): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(PLACES_STORE, 'readwrite');
+    const store = transaction.objectStore(PLACES_STORE);
+    const request = store.clear();
+
+    request.onsuccess = () => {
+      resolve();
+    };
+
+    request.onerror = () => {
+      console.error('Error clearing places:', request.error);
+      reject('Error clearing places');
     };
   });
 }

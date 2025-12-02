@@ -49,3 +49,33 @@ export type Notification = {
   type: 'error' | 'info';
   message: string;
 };
+
+export type PlaceSource = 'manual' | 'track-start' | 'track-middle' | 'track-end' | 'import';
+
+export type PlaceIconStyle = 'pin' | 'dot';
+
+export interface Place {
+  id: string;                    // UUID
+  latitude: number;              // WGS84 coordinate
+  longitude: number;             // WGS84 coordinate
+  title: string;                 // Display name
+  createdAt: number;             // Unix timestamp (milliseconds)
+  source: PlaceSource;           // Origin of place
+  trackId?: string;              // Optional track reference
+  isVisible: boolean;            // Display toggle
+  showIcon: boolean;             // Icon visibility toggle
+  iconStyle: PlaceIconStyle;     // Pin, dot, etc.
+}
+
+export interface PlaceBounds {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+}
+
+export interface PlaceWithMetadata extends Place {
+  distanceToNearestPlace?: number;  // Calculated during positioning
+  titleLines?: string[];            // Wrapped title lines
+  titlePosition?: 'left' | 'right'; // Calculated position
+}
