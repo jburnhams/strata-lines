@@ -8,6 +8,13 @@ import { ReadableStream, TransformStream, CompressionStream, DecompressionStream
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder as any;
 
+// Polyfill structuredClone for JSDOM environments
+if (typeof global.structuredClone === 'undefined') {
+  global.structuredClone = (val) => {
+    return JSON.parse(JSON.stringify(val));
+  };
+}
+
 // Add polyfills BEFORE loading leaflet-node
 if (typeof globalThis.ReadableStream === 'undefined') {
   globalThis.ReadableStream = ReadableStream as any;

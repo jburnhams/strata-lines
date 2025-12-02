@@ -7,6 +7,13 @@ import { TextEncoder, TextDecoder } from 'util';
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder as any;
 
+// Polyfill structuredClone for JSDOM environments
+if (typeof global.structuredClone === 'undefined') {
+  global.structuredClone = (val) => {
+    return JSON.parse(JSON.stringify(val));
+  };
+}
+
 // IMPORTANT: Unit tests should NOT load leaflet-node or @napi-rs/canvas
 // These are for integration tests only. Unit tests use mocks.
 
