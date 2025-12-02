@@ -70,7 +70,18 @@ function createFile(content: string | Uint8Array, name: string): File {
 describe('GPX Processor', () => {
   describe('processGpxFiles - GPX format', () => {
     it('correctly parses a valid GPX file and returns SourceFile', async () => {
-      const file = createFile(sampleGpx, 'test.gpx');
+      const gpxWithTime = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="StrataLines">
+  <trk>
+    <name>Test Track</name>
+    <type>Running</type>
+    <trkseg>
+      <trkpt lat="51.5074" lon="-0.1278"><time>2023-10-27T10:00:00Z</time></trkpt>
+      <trkpt lat="51.5075" lon="-0.1279"><time>2023-10-27T10:01:00Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>`;
+      const file = createFile(gpxWithTime, 'test.gpx');
       const processed = await processGpxFiles([file]);
 
       expect(processed).toHaveLength(1);
@@ -88,6 +99,7 @@ describe('GPX Processor', () => {
       expect(tracks[0].length).toBeGreaterThan(0);
       expect(tracks[0].isVisible).toBe(true);
       expect(tracks[0].activityType).toBe('Running');
+      expect(tracks[0].startTime).toBe(new Date('2023-10-27T10:00:00Z').getTime());
     });
 
     it('handles GPX files with multiple tracks', async () => {
@@ -139,6 +151,7 @@ describe('GPX Processor', () => {
       expect(tracks).toHaveLength(1);
       expect(tracks[0].name).toBe('Biking - 2024-01-01T12:00:00Z');
       expect(tracks[0].activityType).toBe('Biking');
+      expect(tracks[0].startTime).toBe(new Date('2024-01-01T12:00:00Z').getTime());
     });
   });
 
