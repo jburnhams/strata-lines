@@ -16,6 +16,7 @@ export interface Track {
   isVisible: boolean;
   color?: string;
   activityType: string;
+  startTime?: number; // Unix timestamp in milliseconds
   bounds?: TrackBounds;
   sourceFileId?: string;
 }

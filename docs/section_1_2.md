@@ -45,6 +45,12 @@ Create `src/hooks/usePlaceManagement.ts`:
   - [ ] `getPlaceById: (id: string) => Place | undefined` - Lookup helper
   - [ ] `getVisiblePlaces: () => Place[]` - Filter visible places
 
+> [!NOTE]
+> Database service updates completed:
+> - IndexedDB schema upgraded to version 4 with new indices (`activityType`, `startTime`).
+> - `getTracksByActivityType` and `getTracksByDateRange` implemented and tested.
+> - GPX/TCX/FIT processors updated to extract `startTime`.
+
 - [ ] Implement state initialization
   - [ ] Load places from IndexedDB on mount
   - [ ] Set loading state during initial load

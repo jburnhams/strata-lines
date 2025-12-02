@@ -54,7 +54,13 @@ const parseGpx = (fileContent: string): UnprocessedTrack[] => {
     const activityType = normalizeActivityType(track.type);
     const bounds = calculateTrackBounds(points);
 
-    return { name, points, length, isVisible: true, activityType, bounds };
+    // Try to get time from the first point
+    let startTime: number | undefined;
+    if (track.points.length > 0 && track.points[0].time) {
+      startTime = track.points[0].time.getTime();
+    }
+
+    return { name, points, length, isVisible: true, activityType, bounds, startTime };
   });
 };
 
@@ -103,7 +109,17 @@ const parseTcx = (fileContent: string): UnprocessedTrack[] => {
       const length = calculateTrackLength(points);
       const activityType = normalizeActivityType(sport === 'Activity' ? null : sport);
       const bounds = calculateTrackBounds(points);
-      tracks.push({ name, points, length, isVisible: true, activityType, bounds });
+
+      // Try to get start time from Id if it is an ISO string, otherwise check first lap
+      let startTime: number | undefined;
+      if (idNode && idNode.textContent) {
+        const time = new Date(idNode.textContent).getTime();
+        if (!isNaN(time)) {
+          startTime = time;
+        }
+      }
+
+      tracks.push({ name, points, length, isVisible: true, activityType, bounds, startTime });
     }
   }
 
@@ -146,11 +162,13 @@ const parseFit = (fileContent: Uint8Array): UnprocessedTrack[] => {
         const sessionMessages = messages.sessionMesgs;
         let name = 'FIT Activity';
         let activityType = 'Unknown';
+        let startTime: number | undefined;
 
         if (sessionMessages && sessionMessages.length > 0) {
              if (sessionMessages[0].startTime) {
                 const activityDate = sessionMessages[0].startTime; // This is a Date object in the new SDK
                 name = `FIT Activity on ${activityDate.toLocaleString()}`;
+                startTime = activityDate.getTime();
              }
              if (sessionMessages[0].sport) {
                  activityType = normalizeActivityType(sessionMessages[0].sport);
@@ -159,7 +177,7 @@ const parseFit = (fileContent: Uint8Array): UnprocessedTrack[] => {
 
         const length = calculateTrackLength(points);
         const bounds = calculateTrackBounds(points);
-        return [{ name, points, length, isVisible: true, activityType, bounds }];
+        return [{ name, points, length, isVisible: true, activityType, bounds, startTime }];
         
     } catch (error) {
         console.error('Error parsing FIT file:', error);

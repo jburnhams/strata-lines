@@ -2,7 +2,7 @@
 import type { Track, SourceFile, Place } from '@/types';
 
 const DB_NAME = 'gpx-track-db';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 const STORE_NAME = 'tracks';
 const SOURCE_FILES_STORE = 'source_files';
 const PLACES_STORE = 'places';
@@ -29,18 +29,71 @@ function getDB(): Promise<IDBDatabase> {
 
     request.onupgradeneeded = (event) => {
       const dbInstance = (event.target as IDBOpenDBRequest).result;
+      const transaction = (event.target as IDBOpenDBRequest).transaction;
+
       if (!dbInstance.objectStoreNames.contains(STORE_NAME)) {
-        dbInstance.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        const tracksStore = dbInstance.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        tracksStore.createIndex('activityType', 'activityType', { unique: false });
+        tracksStore.createIndex('startTime', 'startTime', { unique: false });
+      } else {
+        const tracksStore = transaction!.objectStore(STORE_NAME);
+        if (!tracksStore.indexNames.contains('activityType')) {
+          tracksStore.createIndex('activityType', 'activityType', { unique: false });
+        }
+        if (!tracksStore.indexNames.contains('startTime')) {
+          tracksStore.createIndex('startTime', 'startTime', { unique: false });
+        }
       }
+
       if (!dbInstance.objectStoreNames.contains(SOURCE_FILES_STORE)) {
         dbInstance.createObjectStore(SOURCE_FILES_STORE, { keyPath: 'id' });
       }
+
       if (!dbInstance.objectStoreNames.contains(PLACES_STORE)) {
         const placesStore = dbInstance.createObjectStore(PLACES_STORE, { keyPath: 'id' });
         placesStore.createIndex('trackId', 'trackId', { unique: false });
         placesStore.createIndex('source', 'source', { unique: false });
         placesStore.createIndex('createdAt', 'createdAt', { unique: false });
       }
+    };
+  });
+}
+
+export async function getTracksByActivityType(activityType: string): Promise<Track[]> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readonly');
+    const store = transaction.objectStore(STORE_NAME);
+    const index = store.index('activityType');
+    const request = index.getAll(activityType);
+
+    request.onsuccess = () => {
+      resolve(request.result);
+    };
+
+    request.onerror = () => {
+      console.error('Error fetching tracks by activity type:', request.error);
+      reject('Error fetching tracks by activity type');
+    };
+  });
+}
+
+export async function getTracksByDateRange(start: number, end: number): Promise<Track[]> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readonly');
+    const store = transaction.objectStore(STORE_NAME);
+    const index = store.index('startTime');
+    const range = IDBKeyRange.bound(start, end);
+    const request = index.getAll(range);
+
+    request.onsuccess = () => {
+      resolve(request.result);
+    };
+
+    request.onerror = () => {
+      console.error('Error fetching tracks by date range:', request.error);
+      reject('Error fetching tracks by date range');
     };
   });
 }
