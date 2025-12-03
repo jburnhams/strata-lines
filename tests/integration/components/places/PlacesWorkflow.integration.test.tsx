@@ -17,8 +17,8 @@ const mockPrompt = jest.fn();
 window.prompt = mockPrompt;
 
 // Mock GeocodingSearchDialog
-jest.mock('@/components/places/GeocodingSearchDialog', () => {
-  return (props: any) => {
+jest.mock('@/components/places/GeocodingSearchDialog', () => ({
+  GeocodingSearchDialog: (props: any) => {
     return props.isOpen ? (
       <div data-testid="geocoding-dialog">
         <button
@@ -26,15 +26,16 @@ jest.mock('@/components/places/GeocodingSearchDialog', () => {
             displayName: 'Simulated Place',
             locality: 'Simulated Locality',
             latitude: 20,
-            longitude: 20
+            longitude: 20,
+            country: 'Simulated Country'
           })}
         >
           Select Simulated Location
         </button>
       </div>
     ) : null;
-  };
-});
+  }
+}));
 
 const mockPlace: Place = {
   id: '1',

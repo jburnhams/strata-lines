@@ -1,66 +1,67 @@
-import { GeocodingProvider, GeocodingResult } from './geocoding/GeocodingProvider';
+import { GeocodingProvider, GeocodingResult, ReverseGeocodingResult } from './geocoding/GeocodingProvider';
 import { NominatimProvider } from './geocoding/NominatimProvider';
 
+/**
+ * Service to handle geocoding operations.
+ * Allows switching between different providers.
+ */
 class GeocodingService {
   private provider: GeocodingProvider;
-  private searchCache: Map<string, GeocodingResult[]> = new Map();
-  // Using a string key "lat,lon" for reverse cache
-  private reverseCache: Map<string, string> = new Map();
+  private static instance: GeocodingService;
 
-  constructor(provider?: GeocodingProvider) {
-    this.provider = provider || new NominatimProvider();
+  private constructor() {
+    this.provider = new NominatimProvider();
   }
 
-  setProvider(provider: GeocodingProvider): void {
+  public static getInstance(): GeocodingService {
+    if (!GeocodingService.instance) {
+      GeocodingService.instance = new GeocodingService();
+    }
+    return GeocodingService.instance;
+  }
+
+  /**
+   * Set a custom geocoding provider.
+   * Useful for testing or switching services at runtime.
+   */
+  public setProvider(provider: GeocodingProvider) {
     this.provider = provider;
-    this.searchCache.clear();
-    this.reverseCache.clear();
   }
 
-  async searchPlaces(query: string): Promise<GeocodingResult[]> {
-    const trimmedQuery = query.trim();
-    if (!trimmedQuery) {
+  /**
+   * Search for locations by query string.
+   */
+  public async searchPlaces(query: string): Promise<GeocodingResult[]> {
+    if (!query || query.trim().length === 0) {
       return [];
     }
 
-    if (this.searchCache.has(trimmedQuery)) {
-      return this.searchCache.get(trimmedQuery)!;
-    }
-
     try {
-      const results = await this.provider.search(trimmedQuery);
-      this.searchCache.set(trimmedQuery, results);
-      return results;
+      return await this.provider.search(query.trim());
     } catch (error) {
       console.error('Geocoding search failed:', error);
       return [];
     }
   }
 
-  async getLocalityName(lat: number, lon: number): Promise<string> {
+  /**
+   * Get the locality name for a set of coordinates.
+   */
+  public async getLocalityName(lat: number, lon: number): Promise<string> {
     // Validate coordinates
     if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
-      return 'Invalid Location';
-    }
-
-    // Round to 3 decimal places for caching (~100m)
-    const key = `${lat.toFixed(3)},${lon.toFixed(3)}`;
-
-    if (this.reverseCache.has(key)) {
-      return this.reverseCache.get(key)!;
+      return 'Invalid Coordinates';
     }
 
     try {
       const result = await this.provider.reverse(lat, lon);
-      const locality = result.locality;
-      this.reverseCache.set(key, locality);
-      return locality;
+      return result.locality;
     } catch (error) {
       console.error('Reverse geocoding failed:', error);
-      return 'Unnamed Location';
+      return 'Unknown Location';
     }
   }
 }
 
-export const geocodingService = new GeocodingService();
-export default geocodingService;
+export const geocodingService = GeocodingService.getInstance();
+export const getGeocodingService = () => GeocodingService.getInstance();

@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PlaceControls } from '@/components/places/PlaceControls';
-import GeocodingSearchDialog from '@/components/places/GeocodingSearchDialog';
+import { GeocodingSearchDialog } from '@/components/places/GeocodingSearchDialog';
 
 jest.mock('@/components/Icons', () => ({
   PlusIcon: () => <div data-testid="plus-icon" />,
@@ -10,8 +10,8 @@ jest.mock('@/components/Icons', () => ({
   TrashIcon: () => <div data-testid="trash-icon" />
 }));
 
-jest.mock('@/components/places/GeocodingSearchDialog', () => {
-  return jest.fn((props) => {
+jest.mock('@/components/places/GeocodingSearchDialog', () => ({
+  GeocodingSearchDialog: jest.fn((props) => {
     return props.isOpen ? (
       <div data-testid="geocoding-dialog">
         <button
@@ -27,8 +27,8 @@ jest.mock('@/components/places/GeocodingSearchDialog', () => {
         <button onClick={props.onClose}>Close</button>
       </div>
     ) : null;
-  });
-});
+  })
+}));
 
 describe('PlaceControls', () => {
   const mockAddPlace = jest.fn();
