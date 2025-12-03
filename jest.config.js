@@ -2,7 +2,6 @@ export default {
   projects: [
     {
       displayName: 'unit',
-      preset: 'ts-jest/presets/default-esm',
       testEnvironment: 'jsdom',
       extensionsToTreatAsEsm: ['.ts', '.tsx'],
       moduleNameMapper: {
@@ -31,7 +30,6 @@ export default {
     },
     {
       displayName: 'integration',
-      preset: 'ts-jest/presets/default-esm',
       testEnvironment: 'jsdom',
       extensionsToTreatAsEsm: ['.ts', '.tsx'],
       moduleNameMapper: {

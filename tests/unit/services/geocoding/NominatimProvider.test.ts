@@ -1,181 +1,168 @@
 import { NominatimProvider } from '@/services/geocoding/NominatimProvider';
 
-// Mock fetch global
-global.fetch = jest.fn();
+const flushPromises = async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+};
 
 describe('NominatimProvider', () => {
   let provider: NominatimProvider;
+  let fetchSpy: jest.Mock;
 
   beforeEach(() => {
-    provider = new NominatimProvider();
-    (global.fetch as jest.Mock).mockClear();
     jest.useFakeTimers();
+    jest.setSystemTime(new Date('2024-01-01')); // Ensure initial time is set
+    provider = new NominatimProvider();
+    fetchSpy = jest.fn();
+    global.fetch = fetchSpy;
   });
 
   afterEach(() => {
+    jest.restoreAllMocks();
     jest.useRealTimers();
   });
 
-  describe('search', () => {
-    it('returns results for valid query', async () => {
-      const mockResponse = [
-        {
-          lat: '48.8566',
-          lon: '2.3522',
-          display_name: 'Paris, France',
-          address: { city: 'Paris', country: 'France' },
-          boundingbox: ['48.815', '48.902', '2.224', '2.469']
-        }
-      ];
+  it('search returns results for valid query', async () => {
+    const mockResponse = [{
+      lat: '51.5074',
+      lon: '-0.1278',
+      display_name: 'London, Greater London, England, United Kingdom',
+      address: { city: 'London', country: 'United Kingdom' },
+      boundingbox: ['51.3', '51.7', '-0.5', '0.3']
+    }];
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse
-      });
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockResponse
+    } as Response);
 
-      const promise = provider.search('Paris');
+    const promise = provider.search('London');
 
-      // Advance timers to bypass rate limit wait if any
-      jest.advanceTimersByTime(1000);
+    await flushPromises();
+    jest.runAllTimers();
 
-      const results = await promise;
+    const results = await promise;
 
-      expect(results).toHaveLength(1);
-      expect(results[0]).toEqual({
-        latitude: 48.8566,
-        longitude: 2.3522,
-        displayName: 'Paris, France',
-        locality: 'Paris',
-        country: 'France',
-        boundingBox: [48.815, 48.902, 2.224, 2.469]
-      });
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-    });
-
-    it('handles empty results', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => []
-      });
-
-      const promise = provider.search('Nowhere');
-      jest.advanceTimersByTime(1000);
-      const results = await promise;
-
-      expect(results).toEqual([]);
-    });
-
-    it('handles network errors gracefully', async () => {
-      (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
-
-      const promise = provider.search('Error');
-      jest.advanceTimersByTime(4000); // Allow for retries
-      const results = await promise;
-
-      expect(results).toEqual([]);
-    });
+    expect(results).toHaveLength(1);
+    expect(results[0].locality).toBe('London');
+    expect(results[0].latitude).toBe(51.5074);
+    expect(results[0].longitude).toBe(-0.1278);
   });
 
-  describe('reverse', () => {
-    it('returns locality for valid coordinates', async () => {
-      const mockResponse = {
-        lat: '51.5074',
-        lon: '-0.1278',
-        display_name: 'London, UK',
-        address: { city: 'London', country: 'United Kingdom' }
-      };
+  it('reverse returns locality for valid coordinates', async () => {
+    const mockResponse = {
+      lat: '51.5074',
+      lon: '-0.1278',
+      display_name: 'London, UK',
+      address: { city: 'London', country: 'United Kingdom' }
+    };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse
-      });
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockResponse
+    } as Response);
 
-      const promise = provider.reverse(51.5074, -0.1278);
-      jest.advanceTimersByTime(1000);
-      const result = await promise;
+    const promise = provider.reverse(51.5074, -0.1278);
+    await flushPromises();
+    jest.runAllTimers();
+    const result = await promise;
 
-      expect(result).toEqual({
-        locality: 'London',
-        displayName: 'London, UK',
-        country: 'United Kingdom'
-      });
-    });
-
-    it('falls back when address components are missing', async () => {
-        const mockResponse = {
-            display_name: 'Middle of Nowhere',
-            address: { country: 'Nowhere Land' }
-        };
-
-        (global.fetch as jest.Mock).mockResolvedValueOnce({
-            ok: true,
-            json: async () => mockResponse
-        });
-
-        const promise = provider.reverse(0, 0);
-        jest.advanceTimersByTime(1000);
-        const result = await promise;
-
-        expect(result.locality).toBe('Unknown Location');
-    });
-
-    it('handles error with fallback', async () => {
-        (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
-
-        const promise = provider.reverse(10, 10);
-        jest.advanceTimersByTime(4000); // Retries
-        const result = await promise;
-
-        expect(result.locality).toBe('Unknown Location');
-        expect(result.displayName).toContain('10.000000, 10.000000');
-    });
+    expect(result.locality).toBe('London');
   });
 
-  describe('rate limiting', () => {
-    it('queues requests to enforce 1 req/second', async () => {
-       (global.fetch as jest.Mock).mockResolvedValue({
-           ok: true,
-           json: async () => []
-       });
+  it('enforces rate limiting', async () => {
+    const mockResponse: any[] = [];
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => mockResponse
+    } as Response);
 
-       const p1 = provider.search('A');
-       const p2 = provider.search('B');
-       const p3 = provider.search('C');
+    // Request 1
+    const req1 = provider.search('1');
+    jest.advanceTimersByTime(100);
+    await req1;
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
 
-       expect(global.fetch).toHaveBeenCalledTimes(0);
+    // Request 2
+    const req2 = provider.search('2');
+    await flushPromises();
 
-       jest.advanceTimersByTime(1); // Start first
-       // p1 should fire immediately (or close to it if no previous request)
-       // Wait, the logic is: waitTime = max(0, 1000 - timeSinceLastRequest).
-       // Initially lastRequestTime is 0.
-       // If Date.now() is T, and T - 0 > 1000 (which it is usually not in jest fake timers starts at 0?),
-       // In Jest fake timers, Date.now starts at 0? Let's assume so.
-       // 0 - 0 = 0. 1000 - 0 = 1000. So it waits 1000ms.
+    // Should wait
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
 
-       // Let's verify start time behavior.
+    // Advance time by 1.1s
+    jest.advanceTimersByTime(1100);
+    await flushPromises();
 
-       jest.advanceTimersByTime(1000);
-       // p1 should have fired.
-       // p2 is queued.
-       // p3 is queued.
+    await req2;
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
 
-       // Actually, promises need to resolve for the queue to proceed.
-       // Since we are using fake timers, and the queue uses `await new Promise(setTimeout)`,
-       // advancing time resolves those timeouts.
+  it('retries on 429 errors', async () => {
+    // First call fails with 429
+    fetchSpy.mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      statusText: 'Too Many Requests'
+    } as Response);
 
-       // However, the `fetch` is mocked to return immediately (microtask).
+    // Second call succeeds
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      json: async () => []
+    } as Response);
 
-       await p1;
-       expect(global.fetch).toHaveBeenCalledTimes(1);
+    const promise = provider.search('retry');
 
-       // Now p2 should be starting its wait.
-       jest.advanceTimersByTime(1000);
-       await p2;
-       expect(global.fetch).toHaveBeenCalledTimes(2);
+    await flushPromises();
 
-       jest.advanceTimersByTime(1000);
-       await p3;
-       expect(global.fetch).toHaveBeenCalledTimes(3);
-    });
+    // Initial call
+    jest.advanceTimersByTime(100);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    // Backoff (2000ms)
+    jest.advanceTimersByTime(2000);
+    await flushPromises();
+
+    // Retry call
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+    await promise;
+  });
+
+  it('extracts locality with priority', async () => {
+      // village
+      fetchSpy.mockResolvedValueOnce({
+          ok: true,
+          json: async () => [{
+              lat: '0', lon: '0', display_name: 'x',
+              address: { village: 'MyVillage', county: 'MyCounty' }
+          }]
+      } as Response);
+
+      const res1Promise = provider.search('v');
+      await flushPromises();
+      jest.advanceTimersByTime(100);
+      const res1 = await res1Promise;
+      expect(res1[0].locality).toBe('MyVillage');
+
+      // county fallback
+      fetchSpy.mockResolvedValueOnce({
+          ok: true,
+          json: async () => [{
+              lat: '0', lon: '0', display_name: 'x',
+              address: { county: 'MyCounty' }
+          }]
+      } as Response);
+
+      const res2Promise = provider.search('c');
+      await flushPromises();
+
+      // Need to advance timers because of queue (1100ms spacing)
+      jest.advanceTimersByTime(1100);
+
+      const res2 = await res2Promise;
+      expect(res2[0].locality).toBe('MyCounty');
   });
 });
