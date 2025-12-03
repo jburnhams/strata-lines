@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { PlusIcon, EyeIcon, EyeOffIcon, TrashIcon } from '@/components/Icons';
-import GeocodingSearchDialog from './GeocodingSearchDialog';
-import { GeocodingResult } from '../../services/geocoding/GeocodingProvider';
+import { GeocodingSearchDialog } from './GeocodingSearchDialog';
+import { GeocodingResult } from '@/services/geocoding/GeocodingProvider';
 
 interface PlaceControlsProps {
   onAddPlace: (result?: GeocodingResult) => void;
@@ -31,6 +31,7 @@ export const PlaceControls: React.FC<PlaceControlsProps> = ({
 
   const handleLocationSelect = (result: GeocodingResult) => {
     onAddPlace(result);
+    setIsSearchOpen(false);
   };
 
   const confirmDeleteAll = () => {
