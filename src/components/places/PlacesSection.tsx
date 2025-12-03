@@ -2,6 +2,7 @@ import React from 'react';
 import { Place } from '@/types';
 import { PlacesList } from './PlacesList';
 import { PlaceControls } from './PlaceControls';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 
 interface PlacesSectionProps {
   places: Place[];
@@ -22,6 +23,7 @@ export const PlacesSection: React.FC<PlacesSectionProps> = ({
   toggleAllPlacesVisibility,
   onZoomToPlace
 }) => {
+  const [isCollapsed, setIsCollapsed] = useLocalStorage<boolean>('places-collapsed', false);
   const allVisible = places.length > 0 && places.every(p => p.isVisible);
 
   return (
@@ -47,6 +49,8 @@ export const PlacesSection: React.FC<PlacesSectionProps> = ({
         }}
         onDelete={deletePlace}
         onZoomTo={onZoomToPlace}
+        isCollapsed={isCollapsed}
+        onToggleCollapse={() => setIsCollapsed(!isCollapsed)}
       />
     </section>
   );

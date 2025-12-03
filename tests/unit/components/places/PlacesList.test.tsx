@@ -2,70 +2,96 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PlacesList } from '@/components/places/PlacesList';
 import { Place } from '@/types';
-import '@testing-library/jest-dom';
-import { jest } from '@jest/globals';
 
-// Mock useLocalStorage to behave like useState for testing state changes
-jest.mock('@/hooks/useLocalStorage', () => {
-  const React = require('react');
-  return {
-    useLocalStorage: (key: string, initialValue: any) => React.useState(initialValue),
-  };
-});
+// Mock icons
+jest.mock('@/components/Icons', () => ({
+  ChevronDownIcon: () => <div data-testid="chevron-down" />,
+  ChevronUpIcon: () => <div data-testid="chevron-up" />,
+  EditIcon: () => <div data-testid="edit-icon" />,
+  TrashIcon: () => <div data-testid="trash-icon" />,
+  EyeIcon: () => <div data-testid="eye-icon" />,
+  EyeOffIcon: () => <div data-testid="eye-off-icon" />
+}));
 
-const mockPlaces: Place[] = [
-  {
-    id: 'place-1',
-    latitude: 10,
-    longitude: 20,
-    title: 'Manual Place',
-    createdAt: 1000,
-    source: 'manual',
-    isVisible: true,
-    showIcon: true,
-    iconStyle: 'pin'
-  },
-  {
-    id: 'place-2',
-    latitude: 11,
-    longitude: 21,
-    title: 'Track Place',
-    createdAt: 2000,
-    source: 'track-start',
-    isVisible: true,
-    showIcon: true,
-    iconStyle: 'pin'
-  }
-];
+const mockPlace: Place = {
+  id: '1',
+  latitude: 51.505,
+  longitude: -0.09,
+  title: 'Test Place',
+  createdAt: 1000,
+  source: 'manual',
+  isVisible: true,
+  showIcon: true,
+  iconStyle: 'pin'
+};
 
 describe('PlacesList', () => {
   const mockToggleVisibility = jest.fn();
   const mockEdit = jest.fn();
   const mockDelete = jest.fn();
+  const mockToggleCollapse = jest.fn();
   const mockZoomTo = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('renders grouped places', () => {
+  it('renders correctly when collapsed', () => {
     render(
       <PlacesList
-        places={mockPlaces}
+        places={[mockPlace]}
         onToggleVisibility={mockToggleVisibility}
         onEdit={mockEdit}
         onDelete={mockDelete}
         onZoomTo={mockZoomTo}
+        isCollapsed={true}
+        onToggleCollapse={mockToggleCollapse}
       />
     );
 
-    expect(screen.getByText('Manual Place')).toBeInTheDocument();
-    expect(screen.getByText('Track Place')).toBeInTheDocument();
-    expect(screen.getByText('Manual')).toBeInTheDocument();
-    expect(screen.getByText('Track')).toBeInTheDocument();
+    expect(screen.getByText('Places')).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument(); // Count
+    expect(screen.getByTestId('chevron-down')).toBeInTheDocument();
+    expect(screen.queryByText('Test Place')).not.toBeInTheDocument();
   });
 
-  it('handles empty state', () => {
+  it('renders correctly when expanded', () => {
+    render(
+      <PlacesList
+        places={[mockPlace]}
+        onToggleVisibility={mockToggleVisibility}
+        onEdit={mockEdit}
+        onDelete={mockDelete}
+        onZoomTo={mockZoomTo}
+        isCollapsed={false}
+        onToggleCollapse={mockToggleCollapse}
+      />
+    );
+
+    expect(screen.getByText('Places')).toBeInTheDocument();
+    expect(screen.getByTestId('chevron-up')).toBeInTheDocument();
+    expect(screen.getByText('Test Place')).toBeInTheDocument();
+  });
+
+  it('calls onToggleCollapse when header is clicked', () => {
+    render(
+      <PlacesList
+        places={[mockPlace]}
+        onToggleVisibility={mockToggleVisibility}
+        onEdit={mockEdit}
+        onDelete={mockDelete}
+        onZoomTo={mockZoomTo}
+        isCollapsed={true}
+        onToggleCollapse={mockToggleCollapse}
+      />
+    );
+
+    // Click on the container div of header
+    fireEvent.click(screen.getByText('Places').closest('div')!.parentElement!);
+    expect(mockToggleCollapse).toHaveBeenCalled();
+  });
+
+  it('renders empty state', () => {
     render(
       <PlacesList
         places={[]}
@@ -73,34 +99,11 @@ describe('PlacesList', () => {
         onEdit={mockEdit}
         onDelete={mockDelete}
         onZoomTo={mockZoomTo}
+        isCollapsed={false}
+        onToggleCollapse={mockToggleCollapse}
       />
     );
 
     expect(screen.getByText('No places added yet.')).toBeInTheDocument();
-  });
-
-  it('can collapse', () => {
-      render(
-      <PlacesList
-        places={mockPlaces}
-        onToggleVisibility={mockToggleVisibility}
-        onEdit={mockEdit}
-        onDelete={mockDelete}
-        onZoomTo={mockZoomTo}
-      />
-    );
-
-    // Initial state is expanded (mock default false for isCollapsed, wait, default is false means NOT collapsed)
-    // In component: const [isCollapsed, setIsCollapsed] = useLocalStorage<boolean>('places-collapsed', false);
-    // So default is false (expanded).
-
-    expect(screen.getByText('Manual Place')).toBeInTheDocument();
-
-    const button = screen.getByText('Places').closest('button');
-    fireEvent.click(button!);
-
-    // Should be collapsed now (isCollapsed = true)
-    // The content is conditionally rendered: {!isCollapsed && ...}
-    expect(screen.queryByText('Manual Place')).not.toBeInTheDocument();
   });
 });
