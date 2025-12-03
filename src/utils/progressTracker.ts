@@ -3,7 +3,7 @@
  * Manages progress state and emits progress events with stage information
  */
 
-export type ProgressStage = 'base' | 'tiles' | 'lines' | 'stitching' | 'scanline';
+export type ProgressStage = 'base' | 'tiles' | 'lines' | 'places' | 'stitching' | 'scanline';
 
 export interface ProgressInfo {
   stage: ProgressStage;

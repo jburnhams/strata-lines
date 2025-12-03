@@ -53,7 +53,24 @@ export type Notification = {
 
 export type PlaceSource = 'manual' | 'track-start' | 'track-middle' | 'track-end' | 'import';
 
-export type PlaceIconStyle = 'pin' | 'dot';
+export interface PlaceTextStyle {
+  fontSize: number;           // Base font size (scaled by title size slider)
+  fontFamily: string;         // Default: 'Noto Sans'
+  fontWeight: string;         // Default: 'bold'
+  color: string;              // Hex color or 'auto'
+  strokeColor?: string;       // Drop shadow color
+  strokeWidth?: number;       // Drop shadow width
+  glowColor?: string;         // Glow effect color
+  glowBlur?: number;          // Glow blur radius
+}
+
+export type PlaceIconStyle = 'pin' | 'dot' | 'circle' | 'marker' | 'flag' | 'star';
+
+export interface PlaceIconConfig {
+  style: PlaceIconStyle;      // 'pin' | 'dot' | 'circle' | 'marker' | 'flag' | 'star'
+  size: number;               // Icon size in pixels
+  color: string;              // Icon color (hex)
+}
 
 export interface Place {
   id: string;                    // UUID
@@ -66,6 +83,15 @@ export interface Place {
   isVisible: boolean;            // Display toggle
   showIcon: boolean;             // Icon visibility toggle
   iconStyle: PlaceIconStyle;     // Pin, dot, etc.
+  textStyle?: PlaceTextStyle;
+  iconConfig?: PlaceIconConfig;
+}
+
+export interface ExportSettings {
+  includePlaces: boolean;           // Toggle places layer
+  placeTitleSize: number;           // 1-100 scale
+  placeShowIconsGlobally: boolean;  // Global icon visibility
+  placeTextStyle: PlaceTextStyle;   // Global text styling
 }
 
 export interface PlaceBounds {

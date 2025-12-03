@@ -4,6 +4,7 @@ export interface ExportSelection {
     base: boolean;
     lines: boolean;
     labels: boolean;
+    places: boolean;
 }
 
 interface ExportActionControlProps {
@@ -89,12 +90,21 @@ export const ExportActionControl: React.FC<ExportActionControlProps> = ({
                         />
                         <span className={`ml-2 text-sm ${isLabelControlDisabled ? 'text-gray-500' : 'text-gray-300'}`}>Labels</span>
                     </label>
+                    <label className="inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={exportSelection.places}
+                            onChange={() => handleCheckboxChange('places')}
+                            className="form-checkbox h-4 w-4 text-orange-600 bg-gray-700 border-gray-600 rounded focus:ring-orange-500"
+                        />
+                        <span className="ml-2 text-sm text-gray-300">Places</span>
+                    </label>
                 </div>
              )}
 
             <button
                 onClick={onExport}
-                disabled={anyExporting || (!hasVisibleTracks && exportSelection.lines && !exportSelection.base && !exportSelection.labels)}
+                disabled={anyExporting || (!hasVisibleTracks && exportSelection.lines && !exportSelection.base && !exportSelection.labels && !exportSelection.places)}
                 className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded transition-colors duration-200 flex items-center justify-center"
             >
                 {isExporting ? (

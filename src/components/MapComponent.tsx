@@ -1,10 +1,11 @@
 
 import React, { useEffect, useCallback, useMemo } from 'react';
-import { MapContainer, TileLayer, Polyline, Rectangle, useMap, useMapEvents, Tooltip, Marker } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, Rectangle, useMap, useMapEvents, Tooltip } from 'react-leaflet';
 import L, { type LatLngExpression, type LatLng, type LatLngBounds, type Point as LeafletPoint } from 'leaflet';
 import type { Track, TileLayerDefinition, Place } from '@/types';
 import { LABEL_TILE_URL_RETINA } from '@/labelTiles';
 import { DraggableBoundsBox } from './DraggableBoundsBox';
+import { PlaceCanvasOverlay } from './places/PlaceCanvasOverlay';
 import type { ProgressInfo } from '@/utils/progressTracker';
 
 interface MapComponentProps {
@@ -127,57 +128,6 @@ export const MapComponent: React.FC<MapComponentProps> = ({ tracks, places, onUs
     [tracks, highlightedTrackId]
   );
 
-  // Helper to create custom icons for places
-  const createPlaceIcon = (place: Place) => {
-    // We can read settings from localStorage or similar if we want to bypass props,
-    // but typically we should receive the global settings as props if we want reactivity.
-    // For now, we will use the place's individual settings, assuming the parent
-    // has already applied global overrides if necessary before passing the places prop,
-    // OR we will just use the basic rendering.
-
-    // NOTE: The requirements mention "PlaceSettingsPanel" having a "Title Size" slider.
-    // However, `MapComponentProps` currently doesn't receive `titleSize`.
-    // I will use a default size or update the props if needed.
-    // Given I can't easily change the prop interface across the whole app in one step without breaking things,
-    // I'll stick to a sensible default or try to read from local storage if imperative.
-    // Actually, checking the previous step, `App.tsx` integration was done.
-    // Let's check if `MapComponent` receives the settings. It does NOT in the current interface.
-    // I will use the place.title and basic styling.
-
-    // In a real implementation for the "title size", we'd likely pass a `placeSettings` object.
-    // Since I cannot change the interface extensively in this patch safely, I will render standard markers.
-
-    // Update: I will check `localStorage` directly as a fallback for the title size since it's client-side only.
-    const savedSize = localStorage.getItem('place-title-size');
-    const titleSize = savedSize ? parseInt(savedSize, 10) : 50;
-    const fontSize = 10 + (titleSize / 100) * 20; // Scale 10px to 30px
-
-    // Simple DivIcon to show text and a dot
-    const html = `
-      <div style="display: flex; flex-direction: column; align-items: center; pointer-events: none;">
-        ${place.showIcon ? `<div style="width: 10px; height: 10px; background-color: #3b82f6; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>` : ''}
-        <div style="
-          margin-top: 4px;
-          background: rgba(255, 255, 255, 0.9);
-          padding: 2px 6px;
-          border-radius: 4px;
-          font-size: ${fontSize}px;
-          font-weight: 500;
-          color: #1e293b;
-          white-space: nowrap;
-          box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-          border: 1px solid rgba(0,0,0,0.1);
-        ">${place.title}</div>
-      </div>
-    `;
-
-    return L.divIcon({
-      html,
-      className: 'custom-place-marker',
-      iconSize: [100, 50], // Approximate size, handled by CSS mostly
-      iconAnchor: [50, 6], // Center horizontally, just below the dot vertically
-    });
-  };
 
   return (
     <MapContainer center={center} zoom={zoom} scrollWheelZoom={true} className="h-full w-full" zoomSnap={1} zoomDelta={1}>
@@ -207,13 +157,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({ tracks, places, onUs
         />
       ))}
 
-      {places && places.filter(p => p.isVisible).map(place => (
-        <Marker
-          key={place.id}
-          position={[place.latitude, place.longitude]}
-          icon={createPlaceIcon(place)}
-        />
-      ))}
+      {places && <PlaceCanvasOverlay places={places} />}
 
       {highlightedTrack && highlightedTrack.isVisible && (
         <>
