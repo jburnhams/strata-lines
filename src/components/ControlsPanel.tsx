@@ -6,9 +6,24 @@ import { ExportConfigControl } from '@/components/controls/ExportConfigControl';
 import { ExportActionControl, type ExportSelection } from '@/components/controls/ExportActionControl';
 import { useIsMobile, useIsLandscape } from '@/hooks/useMediaQuery';
 import { MenuIcon, XIcon, PlusIcon, ChevronUpIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from '@/components/Icons';
+import { PlacesSection } from '@/components/places/PlacesSection';
+import { PlaceSettingsPanel } from '@/components/places/PlaceSettingsPanel';
+import type { Place } from '@/types';
 
 interface ControlsPanelProps {
   tracks: Track[];
+  places: Place[];
+  onAddPlaceClick: () => void;
+  updatePlace: (id: string, updates: Partial<Place>) => void;
+  deletePlace: (id: string) => void;
+  togglePlaceVisibility: (id: string) => void;
+  toggleAllPlacesVisibility: (visible: boolean) => void;
+  placeTitleSize: number;
+  setPlaceTitleSize: (size: number) => void;
+  showIconsGlobally: boolean;
+  setShowIconsGlobally: (show: boolean) => void;
+  onZoomToPlace: (place: Place) => void;
+
   handleFiles: (files: FileList | null) => void;
   removeTrack: (trackId: string) => void;
   removeAllTracks: () => void;
@@ -135,6 +150,25 @@ const DesktopLayout: React.FC<LayoutProps> = (props) => {
                 hiddenActivityTypes={props.hiddenActivityTypes}
                 toggleActivityFilter={props.toggleActivityFilter}
             />
+
+            <PlacesSection
+                places={props.places}
+                onAddPlaceClick={props.onAddPlaceClick}
+                updatePlace={props.updatePlace}
+                deletePlace={props.deletePlace}
+                togglePlaceVisibility={props.togglePlaceVisibility}
+                toggleAllPlacesVisibility={props.toggleAllPlacesVisibility}
+                onZoomToPlace={props.onZoomToPlace}
+            />
+
+            {isAdvancedMode && (
+                <PlaceSettingsPanel
+                    titleSize={props.placeTitleSize}
+                    onTitleSizeChange={props.setPlaceTitleSize}
+                    showIconsGlobally={props.showIconsGlobally}
+                    onToggleIconsGlobally={props.setShowIconsGlobally}
+                />
+            )}
 
             {isAdvancedMode && (
                 <MapStyleControl
@@ -290,26 +324,46 @@ const MobileLayout: React.FC<LayoutProps> = (props) => {
             {activeDrawer ? (
                 <DrawerOverlay type={activeDrawer}>
                     {activeDrawer === 'files' ? (
-                         <FilesControl
-                            tracks={props.tracks}
-                            onAddFileClick={props.onAddFileClick}
-                            removeTrack={props.removeTrack}
-                            removeAllTracks={props.removeAllTracks}
-                            toggleTrackVisibility={props.toggleTrackVisibility}
-                            isLoading={props.isLoading}
-                            minLengthFilter={props.minLengthFilter}
-                            setMinLengthFilter={props.setMinLengthFilter}
-                            onTrackHover={props.onTrackHover}
-                            handleDownloadAllTracks={props.handleDownloadAllTracks}
-                            isDownloading={props.isDownloading}
-                            anyExporting={anyExporting}
-                            isAdvancedMode={isAdvancedMode}
-                            activityCounts={props.activityCounts}
-                            hiddenActivityTypes={props.hiddenActivityTypes}
-                            toggleActivityFilter={props.toggleActivityFilter}
-                        />
+                         <>
+                             <FilesControl
+                                tracks={props.tracks}
+                                onAddFileClick={props.onAddFileClick}
+                                removeTrack={props.removeTrack}
+                                removeAllTracks={props.removeAllTracks}
+                                toggleTrackVisibility={props.toggleTrackVisibility}
+                                isLoading={props.isLoading}
+                                minLengthFilter={props.minLengthFilter}
+                                setMinLengthFilter={props.setMinLengthFilter}
+                                onTrackHover={props.onTrackHover}
+                                handleDownloadAllTracks={props.handleDownloadAllTracks}
+                                isDownloading={props.isDownloading}
+                                anyExporting={anyExporting}
+                                isAdvancedMode={isAdvancedMode}
+                                activityCounts={props.activityCounts}
+                                hiddenActivityTypes={props.hiddenActivityTypes}
+                                toggleActivityFilter={props.toggleActivityFilter}
+                            />
+                            <PlacesSection
+                                places={props.places}
+                                onAddPlaceClick={props.onAddPlaceClick}
+                                updatePlace={props.updatePlace}
+                                deletePlace={props.deletePlace}
+                                togglePlaceVisibility={props.togglePlaceVisibility}
+                                toggleAllPlacesVisibility={props.toggleAllPlacesVisibility}
+                                onZoomToPlace={props.onZoomToPlace}
+                            />
+                        </>
                     ) : (
                         <>
+                            {isAdvancedMode && (
+                                <PlaceSettingsPanel
+                                    titleSize={props.placeTitleSize}
+                                    onTitleSizeChange={props.setPlaceTitleSize}
+                                    showIconsGlobally={props.showIconsGlobally}
+                                    onToggleIconsGlobally={props.setShowIconsGlobally}
+                                />
+                            )}
+
                              {isAdvancedMode && (
                                 <MapStyleControl
                                     tileLayerKey={props.tileLayerKey}
