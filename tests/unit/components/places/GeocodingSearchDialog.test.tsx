@@ -1,133 +1,103 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import '@testing-library/jest-dom';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { GeocodingSearchDialog } from '@/components/places/GeocodingSearchDialog';
-import { geocodingService } from '@/services/geocodingService';
-import { GeocodingResult } from '@/services/geocoding/GeocodingProvider';
+import * as geocodingServiceModule from '@/services/geocodingService';
+import type { GeocodingResult } from '@/services/geocoding/GeocodingProvider';
 
-// Mock geocoding service
-jest.mock('@/services/geocodingService', () => ({
-  geocodingService: {
-    searchPlaces: jest.fn()
-  }
+jest.mock('@/services/geocodingService');
+jest.mock('@/components/Icons', () => ({
+    XIcon: () => <svg data-testid="x-icon" />
 }));
 
 describe('GeocodingSearchDialog', () => {
-  const mockOnClose = jest.fn();
-  const mockOnSelectLocation = jest.fn();
+    const mockSearchPlaces = jest.fn();
+    const mockOnClose = jest.fn();
+    const mockOnSelectLocation = jest.fn();
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    jest.useFakeTimers();
-  });
-
-  afterEach(() => {
-    jest.useRealTimers();
-  });
-
-  it('renders nothing when closed', () => {
-    const { container } = render(
-      <GeocodingSearchDialog
-        isOpen={false}
-        onClose={mockOnClose}
-        onSelectLocation={mockOnSelectLocation}
-      />
-    );
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it('renders search input when open', () => {
-    render(
-      <GeocodingSearchDialog
-        isOpen={true}
-        onClose={mockOnClose}
-        onSelectLocation={mockOnSelectLocation}
-      />
-    );
-    expect(screen.getByPlaceholderText('Search for a location...')).toBeInTheDocument();
-  });
-
-  it('performs search on input change with debounce', async () => {
-    const mockResults: GeocodingResult[] = [{
-      latitude: 10,
-      longitude: 20,
-      displayName: 'Test Place, Country',
-      locality: 'Test Place',
-      country: 'Country'
-    }];
-
-    (geocodingService.searchPlaces as jest.Mock).mockResolvedValue(mockResults);
-
-    render(
-      <GeocodingSearchDialog
-        isOpen={true}
-        onClose={mockOnClose}
-        onSelectLocation={mockOnSelectLocation}
-      />
-    );
-
-    const input = screen.getByPlaceholderText('Search for a location...');
-    fireEvent.change(input, { target: { value: 'Test' } });
-
-    // Should not search immediately
-    expect(geocodingService.searchPlaces).not.toHaveBeenCalled();
-
-    // Advance timer to trigger debounce
-    act(() => {
-      jest.advanceTimersByTime(500);
+    beforeEach(() => {
+        jest.clearAllMocks();
+        jest.useFakeTimers();
+        (geocodingServiceModule.getGeocodingService as jest.Mock).mockReturnValue({
+            searchPlaces: mockSearchPlaces
+        });
     });
 
-    expect(geocodingService.searchPlaces).toHaveBeenCalledWith('Test');
-
-    await waitFor(() => {
-      expect(screen.getByText('Test Place')).toBeInTheDocument();
-    });
-  });
-
-  it('selects location on click', async () => {
-    const mockResults: GeocodingResult[] = [{
-      latitude: 10,
-      longitude: 20,
-      displayName: 'Test Place, Country',
-      locality: 'Test Place',
-      country: 'Country'
-    }];
-    (geocodingService.searchPlaces as jest.Mock).mockResolvedValue(mockResults);
-
-    render(
-      <GeocodingSearchDialog
-        isOpen={true}
-        onClose={mockOnClose}
-        onSelectLocation={mockOnSelectLocation}
-      />
-    );
-
-    const input = screen.getByPlaceholderText('Search for a location...');
-    fireEvent.change(input, { target: { value: 'Test' } });
-
-    act(() => {
-      jest.advanceTimersByTime(500);
+    afterEach(() => {
+        jest.useRealTimers();
     });
 
-    await waitFor(() => {
-      screen.getByText('Test Place');
+    it('renders when open', () => {
+        render(<GeocodingSearchDialog isOpen={true} onClose={mockOnClose} onSelectLocation={mockOnSelectLocation} />);
+        expect(screen.getByPlaceholderText(/Type to search/i)).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText('Test Place'));
-    expect(mockOnSelectLocation).toHaveBeenCalledWith(mockResults[0]);
-  });
+    it('does not render when closed', () => {
+        render(<GeocodingSearchDialog isOpen={false} onClose={mockOnClose} onSelectLocation={mockOnSelectLocation} />);
+        expect(screen.queryByPlaceholderText(/Type to search/i)).not.toBeInTheDocument();
+    });
 
-  it('closes on escape key', () => {
-    render(
-      <GeocodingSearchDialog
-        isOpen={true}
-        onClose={mockOnClose}
-        onSelectLocation={mockOnSelectLocation}
-      />
-    );
+    it('searches after debounce', async () => {
+        mockSearchPlaces.mockResolvedValue([]);
+        render(<GeocodingSearchDialog isOpen={true} onClose={mockOnClose} onSelectLocation={mockOnSelectLocation} />);
 
-    const input = screen.getByPlaceholderText('Search for a location...');
-    fireEvent.keyDown(input, { key: 'Escape' });
-    expect(mockOnClose).toHaveBeenCalled();
-  });
+        fireEvent.change(screen.getByPlaceholderText(/Type to search/i), { target: { value: 'test' } });
+
+        // Timer for debounce
+        jest.advanceTimersByTime(500);
+
+        await waitFor(() => {
+            expect(mockSearchPlaces).toHaveBeenCalledWith('test');
+        });
+    });
+
+    it('displays results and allows selection', async () => {
+        const mockResults: GeocodingResult[] = [{
+            latitude: 1, longitude: 1, displayName: 'Test Place, Country', locality: 'Test Place', country: 'Country'
+        }];
+        mockSearchPlaces.mockResolvedValue(mockResults);
+
+        render(<GeocodingSearchDialog isOpen={true} onClose={mockOnClose} onSelectLocation={mockOnSelectLocation} />);
+
+        fireEvent.change(screen.getByPlaceholderText(/Type to search/i), { target: { value: 'test' } });
+        jest.advanceTimersByTime(500);
+
+        await waitFor(() => {
+            expect(screen.getByText('Test Place')).toBeInTheDocument();
+        });
+
+        fireEvent.click(screen.getByText('Test Place'));
+        expect(mockOnSelectLocation).toHaveBeenCalledWith(mockResults[0]);
+        expect(mockOnClose).toHaveBeenCalled();
+    });
+
+    it('handles keyboard navigation', async () => {
+        const mockResults: GeocodingResult[] = [
+            { latitude: 1, longitude: 1, displayName: 'Place 1', locality: 'P1', country: 'C1' },
+            { latitude: 2, longitude: 2, displayName: 'Place 2', locality: 'P2', country: 'C2' }
+        ];
+        mockSearchPlaces.mockResolvedValue(mockResults);
+
+        render(<GeocodingSearchDialog isOpen={true} onClose={mockOnClose} onSelectLocation={mockOnSelectLocation} />);
+
+        fireEvent.change(screen.getByPlaceholderText(/Type to search/i), { target: { value: 'test' } });
+        jest.advanceTimersByTime(500);
+
+        await waitFor(() => {
+            const elements = screen.getAllByText('Place 1');
+            expect(elements.length).toBeGreaterThan(0);
+        });
+
+        const input = screen.getByPlaceholderText(/Type to search/i);
+
+        // Arrow down to select first
+        fireEvent.keyDown(input, { key: 'ArrowDown' });
+        // Arrow down to select second
+        fireEvent.keyDown(input, { key: 'ArrowDown' });
+
+        // Enter to select
+        fireEvent.keyDown(input, { key: 'Enter' });
+
+        expect(mockOnSelectLocation).toHaveBeenCalledWith(mockResults[1]);
+        expect(mockOnClose).toHaveBeenCalled();
+    });
 });

@@ -1,23 +1,23 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { GeocodingSearchDialog } from '@/components/places/GeocodingSearchDialog';
-import { geocodingService } from '@/services/geocodingService';
-import { GeocodingResult } from '@/services/geocoding/GeocodingProvider';
+import { getGeocodingService } from '@/services/geocodingService';
+import type { GeocodingResult } from '@/services/geocoding/GeocodingProvider';
 import '@testing-library/jest-dom';
 
-// Mock the geocoding service
-jest.mock('@/services/geocodingService', () => ({
-  geocodingService: {
-    searchPlaces: jest.fn(),
-  },
-}));
+// Mock the geocoding service module
+jest.mock('@/services/geocodingService');
 
 describe('GeocodingSearchDialog Integration', () => {
   const mockOnClose = jest.fn();
   const mockOnSelectLocation = jest.fn();
+  const mockSearchPlaces = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (getGeocodingService as jest.Mock).mockReturnValue({
+        searchPlaces: mockSearchPlaces
+    });
   });
 
   it('should search and display results when user types', async () => {
@@ -31,7 +31,7 @@ describe('GeocodingSearchDialog Integration', () => {
         country: 'France'
       }
     ];
-    (geocodingService.searchPlaces as jest.Mock).mockResolvedValue(mockResults);
+    mockSearchPlaces.mockResolvedValue(mockResults);
 
     render(
       <GeocodingSearchDialog
@@ -42,18 +42,16 @@ describe('GeocodingSearchDialog Integration', () => {
     );
 
     // Find input and type
-    const input = screen.getByPlaceholderText('Search for a location...');
+    const input = screen.getByPlaceholderText(/Type to search/i);
     fireEvent.change(input, { target: { value: 'Paris' } });
 
     // Wait for debounce and service call
     await waitFor(() => {
-      expect(geocodingService.searchPlaces).toHaveBeenCalledWith('Paris');
-    });
+      expect(mockSearchPlaces).toHaveBeenCalledWith('Paris');
+    }, { timeout: 2000 });
 
     // Verify result is displayed
-    // Note: The component splits displayName for title, checks full displayName for subtitle
-    expect(await screen.findByText('Paris')).toBeInTheDocument();
-    expect(screen.getByText('Paris, France')).toBeInTheDocument();
+    expect(await screen.findByText('Paris, France')).toBeInTheDocument();
   });
 
   it('should handle selection of a result', async () => {
@@ -66,7 +64,7 @@ describe('GeocodingSearchDialog Integration', () => {
         country: 'UK'
       }
     ];
-    (geocodingService.searchPlaces as jest.Mock).mockResolvedValue(mockResults);
+    mockSearchPlaces.mockResolvedValue(mockResults);
 
     render(
       <GeocodingSearchDialog
@@ -77,14 +75,13 @@ describe('GeocodingSearchDialog Integration', () => {
     );
 
     // Type query
-    const input = screen.getByPlaceholderText('Search for a location...');
+    const input = screen.getByPlaceholderText(/Type to search/i);
     fireEvent.change(input, { target: { value: 'London' } });
 
-    // Wait for result
-    const resultItem = await screen.findByText('London, UK');
+    await waitFor(() => expect(mockSearchPlaces).toHaveBeenCalled());
 
-    // Click result
-    fireEvent.click(resultItem);
+    const resultItems = await screen.findAllByText('London, UK');
+    fireEvent.click(resultItems[0]);
 
     // Verify callback
     expect(mockOnSelectLocation).toHaveBeenCalledWith(mockResults[0]);

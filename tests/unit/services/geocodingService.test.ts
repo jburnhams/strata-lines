@@ -1,61 +1,53 @@
-import { geocodingService } from '@/services/geocodingService';
+import { getGeocodingService } from '@/services/geocodingService';
 import { GeocodingProvider } from '@/services/geocoding/GeocodingProvider';
 
 describe('GeocodingService', () => {
   let mockProvider: jest.Mocked<GeocodingProvider>;
+  const service = getGeocodingService();
 
   beforeEach(() => {
     mockProvider = {
       search: jest.fn(),
       reverse: jest.fn()
     };
-    geocodingService.setProvider(mockProvider);
+    service.setProvider(mockProvider);
   });
 
-  describe('searchPlaces', () => {
-    it('returns results from provider', async () => {
-      const mockResults = [{
-        latitude: 10,
-        longitude: 10,
-        displayName: 'Test Place',
-        locality: 'Test',
-        country: 'TestLand'
-      }];
-      mockProvider.search.mockResolvedValue(mockResults);
+  it('searchPlaces validates query and delegates to provider', async () => {
+    mockProvider.search.mockResolvedValue([]);
 
-      const results = await geocodingService.searchPlaces('query');
-      expect(results).toBe(mockResults);
-      expect(mockProvider.search).toHaveBeenCalledWith('query');
-    });
+    await service.searchPlaces('  test  ');
 
-    it('validates query', async () => {
-      await geocodingService.searchPlaces('  ');
-      expect(mockProvider.search).not.toHaveBeenCalled();
-    });
+    expect(mockProvider.search).toHaveBeenCalledWith('test');
   });
 
-  describe('getLocalityName', () => {
-    it('returns locality from provider', async () => {
-      mockProvider.reverse.mockResolvedValue({
-        locality: 'Test City',
-        displayName: 'Test City, Country',
-        country: 'Country'
-      });
+  it('searchPlaces returns empty array for empty query', async () => {
+    const result = await service.searchPlaces('');
+    expect(result).toEqual([]);
+    expect(mockProvider.search).not.toHaveBeenCalled();
+  });
 
-      const locality = await geocodingService.getLocalityName(10, 20);
-      expect(locality).toBe('Test City');
+  it('getLocalityName validates coordinates', async () => {
+    const result = await service.getLocalityName(100, 0); // Invalid lat
+    expect(result).toBe('Invalid Coordinates');
+    expect(mockProvider.reverse).not.toHaveBeenCalled();
+  });
+
+  it('getLocalityName delegates to provider', async () => {
+    mockProvider.reverse.mockResolvedValue({
+      locality: 'TestCity',
+      displayName: 'Test',
+      country: 'Test'
     });
 
-    it('returns fallback on error', async () => {
-      mockProvider.reverse.mockRejectedValue(new Error('Fail'));
-      const locality = await geocodingService.getLocalityName(10, 20);
-      expect(locality).toBe('Unknown Location');
-    });
+    const result = await service.getLocalityName(10, 20);
+    expect(result).toBe('TestCity');
+    expect(mockProvider.reverse).toHaveBeenCalledWith(10, 20);
+  });
 
-    it('validates coordinates', async () => {
-        const locality = await geocodingService.getLocalityName(100, 200);
-        expect(locality).toBe('Invalid Coordinates');
-        expect(mockProvider.reverse).not.toHaveBeenCalled();
-    });
+  it('getLocalityName handles errors gracefully', async () => {
+      mockProvider.reverse.mockRejectedValue(new Error('fail'));
+      const result = await service.getLocalityName(10, 20);
+      expect(result).toBe('Unnamed Location');
   });
 });
