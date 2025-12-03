@@ -26,6 +26,7 @@ jest.mock('@/services/db', () => ({
   deleteTrack: jest.fn(),
   clearTracks: jest.fn(),
   updateTrackVisibility: jest.fn(),
+  getAllPlacesFromDb: jest.fn().mockResolvedValue([]),
 }));
 
 describe('Responsive Layout Integration', () => {

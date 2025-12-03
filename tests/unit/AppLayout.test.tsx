@@ -76,6 +76,22 @@ jest.mock('@/hooks/useTrackManagement', () => ({
   })),
 }));
 
+jest.mock('@/hooks/usePlaceManagement', () => ({
+  usePlaceManagement: jest.fn(() => ({
+    places: [],
+    isLoading: false,
+    addPlace: jest.fn(),
+    updatePlace: jest.fn(),
+    deletePlace: jest.fn(),
+    togglePlaceVisibility: jest.fn(),
+    toggleAllPlacesVisibility: jest.fn(),
+    getPlaceById: jest.fn(),
+    getVisiblePlaces: jest.fn(),
+    notification: null,
+    setNotification: jest.fn(),
+  })),
+}));
+
 // Mock services
 jest.mock('@/services/db', () => ({
   getTracks: jest.fn().mockResolvedValue([]),
