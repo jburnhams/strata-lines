@@ -1,26 +1,25 @@
 import { useState, useCallback, useEffect } from 'react';
-import L from 'leaflet';
+import type { Place } from '@/types';
 import * as db from '@/services/db';
-import type { Place, Notification } from '@/types';
 
 export interface UsePlaceManagementReturn {
   places: Place[];
   isLoading: boolean;
-  notification: Notification | null;
-  setNotification: (n: Notification | null) => void;
-  addPlace: (place: Place) => Promise<void>;
+  addPlace: (place: Omit<Place, 'id' | 'createdAt'>) => Promise<void>;
   updatePlace: (id: string, updates: Partial<Place>) => Promise<void>;
   deletePlace: (id: string) => Promise<void>;
   togglePlaceVisibility: (id: string) => Promise<void>;
   toggleAllPlacesVisibility: (visible: boolean) => Promise<void>;
-  getVisiblePlaces: () => Place[];
   getPlaceById: (id: string) => Place | undefined;
+  getVisiblePlaces: () => Place[];
+  notification: { type: 'error' | 'info'; message: string } | null;
+  setNotification: (n: { type: 'error' | 'info'; message: string } | null) => void;
 }
 
 export const usePlaceManagement = (): UsePlaceManagementReturn => {
   const [places, setPlaces] = useState<Place[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [notification, setNotification] = useState<Notification | null>(null);
+  const [notification, setNotification] = useState<{ type: 'error' | 'info'; message: string } | null>(null);
 
   // Load places on mount
   useEffect(() => {
@@ -39,46 +38,50 @@ export const usePlaceManagement = (): UsePlaceManagementReturn => {
     loadPlaces();
   }, []);
 
-  const getVisiblePlaces = useCallback(() => {
-    return places.filter(p => p.isVisible);
-  }, [places]);
-
-  const getPlaceById = useCallback((id: string) => {
-    return places.find(p => p.id === id);
-  }, [places]);
-
-  const addPlace = useCallback(async (place: Place) => {
-    // Duplicate check
-    const isDuplicate = places.some(existing => {
-      const dist = L.latLng(existing.latitude, existing.longitude)
-        .distanceTo(L.latLng(place.latitude, place.longitude));
-      return dist < 10; // 10 meters
-    });
-
-    if (isDuplicate) {
-      setNotification({ type: 'error', message: 'A place already exists at this location.' });
+  const addPlace = useCallback(async (placeData: Omit<Place, 'id' | 'createdAt'>) => {
+    // Validation
+    if (!placeData.title || placeData.title.trim() === '') {
+      setNotification({ type: 'error', message: 'Place title is required.' });
       return;
     }
 
+    // Check for duplicates (within ~10 meters)
+    // 0.0001 degrees is roughly 11 meters
+    const isDuplicate = places.some(p => {
+        return Math.abs(p.latitude - placeData.latitude) < 0.0001 &&
+               Math.abs(p.longitude - placeData.longitude) < 0.0001;
+    });
+
+    if (isDuplicate) {
+        setNotification({ type: 'error', message: 'A place already exists at this location.' });
+        return;
+    }
+
+    const newPlace: Place = {
+      ...placeData,
+      id: crypto.randomUUID(),
+      createdAt: Date.now(),
+    };
+
     try {
-      await db.savePlaceToDb(place);
-      setPlaces(prev => [place, ...prev]);
+      await db.savePlaceToDb(newPlace);
+      setPlaces(prev => [newPlace, ...prev]);
       setNotification({ type: 'info', message: 'Place added successfully.' });
     } catch (error) {
       console.error('Failed to add place:', error);
-      setNotification({ type: 'error', message: 'Failed to add place.' });
+      setNotification({ type: 'error', message: 'Failed to save place.' });
     }
   }, [places]);
 
   const updatePlace = useCallback(async (id: string, updates: Partial<Place>) => {
     if (updates.title !== undefined && updates.title.trim() === '') {
-        setNotification({ type: 'error', message: 'Title cannot be empty.' });
-        return;
+      setNotification({ type: 'error', message: 'Place title cannot be empty.' });
+      return;
     }
 
     try {
-      const updated = await db.updatePlaceInDb(id, updates);
-      setPlaces(prev => prev.map(p => p.id === id ? updated : p));
+      const updatedPlace = await db.updatePlaceInDb(id, updates);
+      setPlaces(prev => prev.map(p => p.id === id ? updatedPlace : p));
     } catch (error) {
       console.error('Failed to update place:', error);
       setNotification({ type: 'error', message: 'Failed to update place.' });
@@ -89,6 +92,7 @@ export const usePlaceManagement = (): UsePlaceManagementReturn => {
     try {
       await db.deletePlaceFromDb(id);
       setPlaces(prev => prev.filter(p => p.id !== id));
+      setNotification({ type: 'info', message: 'Place deleted.' });
     } catch (error) {
       console.error('Failed to delete place:', error);
       setNotification({ type: 'error', message: 'Failed to delete place.' });
@@ -98,46 +102,43 @@ export const usePlaceManagement = (): UsePlaceManagementReturn => {
   const togglePlaceVisibility = useCallback(async (id: string) => {
     const place = places.find(p => p.id === id);
     if (!place) return;
+    await updatePlace(id, { isVisible: !place.isVisible });
+  }, [places, updatePlace]);
 
-    const newVisibility = !place.isVisible;
+  const toggleAllPlacesVisibility = useCallback(async (visible: boolean) => {
     // Optimistic update
-    setPlaces(prev => prev.map(p => p.id === id ? { ...p, isVisible: newVisibility } : p));
+    setPlaces(prev => prev.map(p => ({ ...p, isVisible: visible })));
 
     try {
-      await db.updatePlaceInDb(id, { isVisible: newVisibility });
+       await Promise.all(places.map(p => db.updatePlaceInDb(p.id, { isVisible: visible })));
     } catch (error) {
-      console.error('Failed to toggle visibility:', error);
-      // Revert
-      setPlaces(prev => prev.map(p => p.id === id ? { ...p, isVisible: !newVisibility } : p));
-      setNotification({ type: 'error', message: 'Failed to toggle visibility.' });
+        console.error('Failed to toggle all places:', error);
+        setNotification({ type: 'error', message: 'Failed to update visibility for all places.' });
+        // Reload to ensure state consistency
+        const loaded = await db.getAllPlacesFromDb();
+        setPlaces(loaded);
     }
   }, [places]);
 
-  const toggleAllPlacesVisibility = useCallback(async (visible: boolean) => {
-     // Optimistic
-     const oldPlaces = [...places];
-     setPlaces(prev => prev.map(p => ({ ...p, isVisible: visible })));
+  const getPlaceById = useCallback((id: string) => {
+    return places.find(p => p.id === id);
+  }, [places]);
 
-     try {
-       await Promise.all(places.map(p => db.updatePlaceInDb(p.id, { isVisible: visible })));
-     } catch (error) {
-       console.error('Failed to toggle all visibility:', error);
-       setPlaces(oldPlaces);
-       setNotification({ type: 'error', message: 'Failed to update visibility.' });
-     }
+  const getVisiblePlaces = useCallback(() => {
+    return places.filter(p => p.isVisible);
   }, [places]);
 
   return {
     places,
     isLoading,
-    notification,
-    setNotification,
     addPlace,
     updatePlace,
     deletePlace,
     togglePlaceVisibility,
     toggleAllPlacesVisibility,
+    getPlaceById,
     getVisiblePlaces,
-    getPlaceById
+    notification,
+    setNotification
   };
 };

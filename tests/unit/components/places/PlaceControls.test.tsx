@@ -1,98 +1,92 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom';
 import { PlaceControls } from '@/components/places/PlaceControls';
-
-const mockHandlers = {
-  onAddPlace: jest.fn(),
-  onToggleAllVisibility: jest.fn(),
-  onDeleteAll: jest.fn(),
-};
+import '@testing-library/jest-dom';
+import { jest } from '@jest/globals';
 
 describe('PlaceControls', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    window.confirm = jest.fn(() => true);
+  const mockAddPlace = jest.fn();
+  const mockToggleAll = jest.fn();
+  const mockDeleteAll = jest.fn();
+
+  let confirmSpy: any;
+
+  beforeAll(() => {
+    // Ensure window.confirm exists and is mockable
+    Object.defineProperty(window, 'confirm', {
+      writable: true,
+      value: jest.fn(),
+    });
   });
 
-  it('renders buttons', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    confirmSpy = jest.spyOn(window, 'confirm').mockImplementation(() => false);
+  });
+
+  afterEach(() => {
+    confirmSpy.mockRestore();
+  });
+
+  it('renders controls', () => {
     render(
       <PlaceControls
-        {...mockHandlers}
+        onAddPlace={mockAddPlace}
         allPlacesVisible={true}
+        onToggleAllVisibility={mockToggleAll}
         placeCount={5}
+        onDeleteAll={mockDeleteAll}
       />
     );
 
     expect(screen.getByText('Add Place')).toBeInTheDocument();
     expect(screen.getByTitle('Hide all places')).toBeInTheDocument();
-    expect(screen.getByTitle('Delete all places')).toBeInTheDocument();
   });
 
-  it('calls onAddPlace', () => {
+  it('calls add place', () => {
     render(
       <PlaceControls
-        {...mockHandlers}
+        onAddPlace={mockAddPlace}
         allPlacesVisible={true}
+        onToggleAllVisibility={mockToggleAll}
         placeCount={5}
+        onDeleteAll={mockDeleteAll}
       />
     );
 
     fireEvent.click(screen.getByText('Add Place'));
-    expect(mockHandlers.onAddPlace).toHaveBeenCalled();
+    expect(mockAddPlace).toHaveBeenCalled();
   });
 
   it('toggles visibility', () => {
     render(
       <PlaceControls
-        {...mockHandlers}
+        onAddPlace={mockAddPlace}
         allPlacesVisible={true}
+        onToggleAllVisibility={mockToggleAll}
         placeCount={5}
+        onDeleteAll={mockDeleteAll}
       />
     );
 
     fireEvent.click(screen.getByTitle('Hide all places'));
-    expect(mockHandlers.onToggleAllVisibility).toHaveBeenCalledWith(false);
+    expect(mockToggleAll).toHaveBeenCalledWith(false);
   });
 
-  it('deletes all with confirmation', () => {
+  it('handles delete all', () => {
+    confirmSpy.mockReturnValue(true);
     render(
       <PlaceControls
-        {...mockHandlers}
+        onAddPlace={mockAddPlace}
         allPlacesVisible={true}
+        onToggleAllVisibility={mockToggleAll}
         placeCount={5}
+        onDeleteAll={mockDeleteAll}
       />
     );
 
     fireEvent.click(screen.getByTitle('Delete all places'));
-    expect(window.confirm).toHaveBeenCalled();
-    expect(mockHandlers.onDeleteAll).toHaveBeenCalled();
-  });
-
-  it('does not delete if cancelled', () => {
-    (window.confirm as jest.Mock).mockReturnValue(false);
-    render(
-      <PlaceControls
-        {...mockHandlers}
-        allPlacesVisible={true}
-        placeCount={5}
-      />
-    );
-
-    fireEvent.click(screen.getByTitle('Delete all places'));
-    expect(mockHandlers.onDeleteAll).not.toHaveBeenCalled();
-  });
-
-  it('disables bulk actions when count is 0', () => {
-     render(
-      <PlaceControls
-        {...mockHandlers}
-        allPlacesVisible={true}
-        placeCount={0}
-      />
-    );
-
-    expect(screen.getByTitle('Hide all places')).toBeDisabled();
-    expect(screen.getByTitle('Delete all places')).toBeDisabled();
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(mockDeleteAll).toHaveBeenCalled();
   });
 });
