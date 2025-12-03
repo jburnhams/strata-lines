@@ -286,8 +286,23 @@ const App: React.FC = () => {
       <ControlsPanel
         tracks={trackManagement.filteredTracks}
         places={placeManagement.places}
-        onAddPlaceClick={() => {
-             alert("Place adding will be available in the next update.");
+        onAddPlaceClick={(result) => {
+          if (result) {
+            placeManagement.addPlace({
+               title: result.locality || result.displayName.split(',')[0],
+               latitude: result.latitude,
+               longitude: result.longitude,
+               isVisible: true,
+               source: 'manual',
+               id: crypto.randomUUID(),
+               createdAt: Date.now(),
+               showIcon: true,
+               iconStyle: 'pin'
+            });
+          } else {
+             // Fallback if no result passed (legacy behavior or direct click without selection if we support it later)
+             // For now, onAddPlaceClick is called with result from the dialog
+          }
         }}
         updatePlace={placeManagement.updatePlace}
         deletePlace={placeManagement.deletePlace}
