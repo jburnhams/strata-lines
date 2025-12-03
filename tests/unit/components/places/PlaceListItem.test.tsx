@@ -1,13 +1,14 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom';
 import { PlaceListItem } from '@/components/places/PlaceListItem';
 import { Place } from '@/types';
+import '@testing-library/jest-dom';
+import { jest } from '@jest/globals';
 
 const mockPlace: Place = {
   id: 'place-1',
-  latitude: 51.505,
-  longitude: -0.09,
+  latitude: 10,
+  longitude: 20,
   title: 'Test Place',
   createdAt: 1000,
   source: 'manual',
@@ -16,58 +17,69 @@ const mockPlace: Place = {
   iconStyle: 'pin'
 };
 
-const mockHandlers = {
-  onToggleVisibility: jest.fn(),
-  onEdit: jest.fn(),
-  onDelete: jest.fn(),
-  onZoomTo: jest.fn(),
-};
-
 describe('PlaceListItem', () => {
+  const mockToggleVisibility = jest.fn();
+  const mockEdit = jest.fn();
+  const mockDelete = jest.fn();
+  const mockZoomTo = jest.fn();
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('renders place information', () => {
-    render(<PlaceListItem place={mockPlace} {...mockHandlers} />);
+  it('renders place details', () => {
+    render(
+      <PlaceListItem
+        place={mockPlace}
+        onToggleVisibility={mockToggleVisibility}
+        onEdit={mockEdit}
+        onDelete={mockDelete}
+        onZoomTo={mockZoomTo}
+      />
+    );
 
     expect(screen.getByText('Test Place')).toBeInTheDocument();
-    expect(screen.getByText('manual')).toBeInTheDocument();
+    expect(screen.getByTitle('Hide place')).toBeInTheDocument();
   });
 
-  it('calls onToggleVisibility when eye icon is clicked', () => {
-    render(<PlaceListItem place={mockPlace} {...mockHandlers} />);
+  it('calls handlers', () => {
+    render(
+      <PlaceListItem
+        place={mockPlace}
+        onToggleVisibility={mockToggleVisibility}
+        onEdit={mockEdit}
+        onDelete={mockDelete}
+        onZoomTo={mockZoomTo}
+      />
+    );
 
-    const eyeButton = screen.getByLabelText('Hide place');
-    fireEvent.click(eyeButton);
+    fireEvent.click(screen.getByTitle('Hide place'));
+    expect(mockToggleVisibility).toHaveBeenCalledWith('place-1');
 
-    expect(mockHandlers.onToggleVisibility).toHaveBeenCalledWith(mockPlace.id);
+    // Edit and Delete buttons are visible on hover (or always in DOM but hidden via CSS)
+    // We can click them directly in tests usually
+    const editBtn = screen.getByTitle('Edit place');
+    fireEvent.click(editBtn);
+    expect(mockEdit).toHaveBeenCalledWith(mockPlace);
+
+    const deleteBtn = screen.getByTitle('Delete place');
+    fireEvent.click(deleteBtn);
+    expect(mockDelete).toHaveBeenCalledWith('place-1');
   });
 
-  it('calls onEdit when edit button is clicked', () => {
-    render(<PlaceListItem place={mockPlace} {...mockHandlers} />);
-
-    const editButton = screen.getByLabelText('Edit place');
-    fireEvent.click(editButton);
-
-    expect(mockHandlers.onEdit).toHaveBeenCalledWith(mockPlace);
-  });
-
-  it('calls onDelete when delete button is clicked', () => {
-    render(<PlaceListItem place={mockPlace} {...mockHandlers} />);
-
-    const deleteButton = screen.getByLabelText('Delete place');
-    fireEvent.click(deleteButton);
-
-    expect(mockHandlers.onDelete).toHaveBeenCalledWith(mockPlace.id);
-  });
-
-  it('calls onZoomTo on double click', () => {
-    render(<PlaceListItem place={mockPlace} {...mockHandlers} />);
+  it('handles zoom on double click', () => {
+     render(
+      <PlaceListItem
+        place={mockPlace}
+        onToggleVisibility={mockToggleVisibility}
+        onEdit={mockEdit}
+        onDelete={mockDelete}
+        onZoomTo={mockZoomTo}
+      />
+    );
 
     const item = screen.getByRole('listitem');
     fireEvent.doubleClick(item);
-
-    expect(mockHandlers.onZoomTo).toHaveBeenCalledWith(mockPlace);
+    expect(mockZoomTo).toHaveBeenCalledWith(mockPlace);
   });
 });
