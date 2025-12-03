@@ -16,6 +16,26 @@ jest.mock('@/components/MapComponent', () => ({
 const mockPrompt = jest.fn();
 window.prompt = mockPrompt;
 
+// Mock GeocodingSearchDialog
+jest.mock('@/components/places/GeocodingSearchDialog', () => {
+  return (props: any) => {
+    return props.isOpen ? (
+      <div data-testid="geocoding-dialog">
+        <button
+          onClick={() => props.onSelectLocation({
+            displayName: 'Simulated Place',
+            locality: 'Simulated Locality',
+            latitude: 20,
+            longitude: 20
+          })}
+        >
+          Select Simulated Location
+        </button>
+      </div>
+    ) : null;
+  };
+});
+
 const mockPlace: Place = {
   id: '1',
   latitude: 51.505,
@@ -59,17 +79,27 @@ describe('Places Workflow', () => {
     }
   });
 
-  it('can add a place (simulated via onAddPlace callback)', async () => {
-    const alertMock = jest.spyOn(window, 'alert').mockImplementation(() => {});
-
+  it('can add a place via dialog workflow', async () => {
     render(<App />);
 
     await waitFor(() => screen.getByText('Add Place'));
 
     fireEvent.click(screen.getByText('Add Place'));
 
-    expect(alertMock).toHaveBeenCalledWith("Place adding will be available in the next update.");
-    alertMock.mockRestore();
+    // Expect dialog to open
+    expect(screen.getByTestId('geocoding-dialog')).toBeInTheDocument();
+
+    // Select location
+    fireEvent.click(screen.getByText('Select Simulated Location'));
+
+    // Should call savePlaceToDb
+    await waitFor(() => {
+        expect(db.savePlaceToDb).toHaveBeenCalledWith(expect.objectContaining({
+            title: 'Simulated Locality',
+            latitude: 20,
+            longitude: 20
+        }));
+    });
   });
 
   it('can toggle visibility', async () => {
