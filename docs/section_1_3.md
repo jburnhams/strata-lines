@@ -120,7 +120,7 @@ Create `src/services/geocodingService.ts`:
   - [x] Validate query not empty
   - [x] Trim whitespace
   - [x] Call provider.search()
-  - [ ] Cache results for 5 minutes (optional optimization)
+  - [x] Cache results for 5 minutes (optional optimization)
   - [x] Return results or empty array on error
 
 - [x] Implement reverse geocoding wrapper
@@ -128,7 +128,7 @@ Create `src/services/geocodingService.ts`:
   - [x] Validate coordinates in valid range
   - [x] Call provider.reverse()
   - [x] Return locality string
-  - [ ] Cache results by rounded coordinates (optional)
+  - [x] Cache results by rounded coordinates (optional)
   - [x] Fallback to "Unnamed Location" on error
 
 - [x] Implement provider switching
@@ -167,7 +167,7 @@ Create `src/components/places/GeocodingSearchDialog.tsx`:
   - [x] Cancel button to close dialog
 
 - [x] Implement keyboard navigation
-  - [x] Arrow keys to navigate results
+  - [x] Arrow keys navigate results
   - [x] Enter to select highlighted result
   - [x] Escape to close dialog
   - [x] Tab to move between input and results
