@@ -2,13 +2,18 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PlaceListItem } from '@/components/places/PlaceListItem';
 import { Place } from '@/types';
-import '@testing-library/jest-dom';
-import { jest } from '@jest/globals';
+
+jest.mock('@/components/Icons', () => ({
+  EditIcon: () => <div data-testid="edit-icon" />,
+  TrashIcon: () => <div data-testid="trash-icon" />,
+  EyeIcon: () => <div data-testid="eye-icon" />,
+  EyeOffIcon: () => <div data-testid="eye-off-icon" />
+}));
 
 const mockPlace: Place = {
-  id: 'place-1',
-  latitude: 10,
-  longitude: 20,
+  id: '1',
+  latitude: 51.505,
+  longitude: -0.09,
   title: 'Test Place',
   createdAt: 1000,
   source: 'manual',
@@ -23,10 +28,6 @@ describe('PlaceListItem', () => {
   const mockDelete = jest.fn();
   const mockZoomTo = jest.fn();
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   it('renders place details', () => {
     render(
       <PlaceListItem
@@ -39,7 +40,8 @@ describe('PlaceListItem', () => {
     );
 
     expect(screen.getByText('Test Place')).toBeInTheDocument();
-    expect(screen.getByTitle('Hide place')).toBeInTheDocument();
+    expect(screen.getByText('M')).toBeInTheDocument(); // Manual source label
+    expect(screen.getByTestId('eye-icon')).toBeInTheDocument();
   });
 
   it('calls handlers', () => {
@@ -53,24 +55,24 @@ describe('PlaceListItem', () => {
       />
     );
 
-    fireEvent.click(screen.getByTitle('Hide place'));
-    expect(mockToggleVisibility).toHaveBeenCalledWith('place-1');
+    fireEvent.click(screen.getByTestId('eye-icon').parentElement!);
+    expect(mockToggleVisibility).toHaveBeenCalledWith('1');
 
-    // Edit and Delete buttons are visible on hover (or always in DOM but hidden via CSS)
-    // We can click them directly in tests usually
-    const editBtn = screen.getByTitle('Edit place');
-    fireEvent.click(editBtn);
+    fireEvent.click(screen.getByTestId('edit-icon').parentElement!);
     expect(mockEdit).toHaveBeenCalledWith(mockPlace);
 
-    const deleteBtn = screen.getByTitle('Delete place');
-    fireEvent.click(deleteBtn);
-    expect(mockDelete).toHaveBeenCalledWith('place-1');
+    fireEvent.click(screen.getByTestId('trash-icon').parentElement!);
+    expect(mockDelete).toHaveBeenCalledWith('1');
+
+    // Test double click on title container
+    fireEvent.doubleClick(screen.getByText('Test Place'));
+    expect(mockZoomTo).toHaveBeenCalledWith(mockPlace);
   });
 
-  it('handles zoom on double click', () => {
-     render(
+  it('shows hidden eye icon when not visible', () => {
+    render(
       <PlaceListItem
-        place={mockPlace}
+        place={{ ...mockPlace, isVisible: false }}
         onToggleVisibility={mockToggleVisibility}
         onEdit={mockEdit}
         onDelete={mockDelete}
@@ -78,8 +80,6 @@ describe('PlaceListItem', () => {
       />
     );
 
-    const item = screen.getByRole('listitem');
-    fireEvent.doubleClick(item);
-    expect(mockZoomTo).toHaveBeenCalledWith(mockPlace);
+    expect(screen.getByTestId('eye-off-icon')).toBeInTheDocument();
   });
 });

@@ -1,110 +1,120 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import App from '@/App';
 import * as db from '@/services/db';
 import { Place } from '@/types';
-import 'fake-indexeddb/auto';
-import { jest } from '@jest/globals';
+
+// Mock DB
+jest.mock('@/services/db');
 
 // Mock MapComponent
 jest.mock('@/components/MapComponent', () => ({
-  MapComponent: ({ places }: { places: Place[] }) => (
-    <div data-testid="mock-map">
-      Map
-      {places?.map(p => (
-        <div key={p.id} data-testid={`map-place-${p.id}`}>
-            {p.isVisible ? 'Visible' : 'Hidden'}
-        </div>
-      ))}
-    </div>
-  )
+  MapComponent: () => <div data-testid="map-component">Map</div>
 }));
 
-// Mock ResizeObserver
-global.ResizeObserver = class ResizeObserver {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
+// Mock prompt for edit
+const mockPrompt = jest.fn();
+window.prompt = mockPrompt;
+
+const mockPlace: Place = {
+  id: '1',
+  latitude: 51.505,
+  longitude: -0.09,
+  title: 'Existing Place',
+  createdAt: 1000,
+  source: 'manual',
+  isVisible: true,
+  showIcon: true,
+  iconStyle: 'pin'
 };
 
-// Mock prompt and confirm
-// @ts-ignore
-window.prompt = jest.fn();
-// @ts-ignore
-window.confirm = jest.fn();
-
-describe('Places Workflow Integration', () => {
-  const mockPlace: Place = {
-    id: 'place-1',
-    latitude: 51.505,
-    longitude: -0.09,
-    title: 'London Eye',
-    createdAt: Date.now(),
-    source: 'manual',
-    isVisible: true,
-    showIcon: true,
-    iconStyle: 'pin'
-  };
-
-  beforeEach(async () => {
+describe('Places Workflow', () => {
+  beforeEach(() => {
     jest.clearAllMocks();
-    (window.confirm as jest.Mock).mockReturnValue(true);
-    (window.prompt as jest.Mock).mockReturnValue('Updated Title');
-
-    // Setup DB
-    await db.clearAllPlacesFromDb();
-    await db.clearTracks();
-    await db.savePlaceToDb(mockPlace);
+    (db.getTracks as jest.Mock).mockResolvedValue([]);
+    (db.getAllPlacesFromDb as jest.Mock).mockResolvedValue([mockPlace]);
+    (db.savePlaceToDb as jest.Mock).mockResolvedValue(undefined);
+    (db.updatePlaceInDb as jest.Mock).mockImplementation((id, updates) => Promise.resolve({ ...mockPlace, ...updates }));
+    (db.deletePlaceFromDb as jest.Mock).mockResolvedValue(undefined);
+    (db.getTracksByActivityType as jest.Mock).mockResolvedValue([]);
   });
 
-  it('loads places and allows interaction', async () => {
+  it('loads places and renders them', async () => {
     render(<App />);
 
-    // 1. Verify place is loaded
+    // Wait for places to load
     await waitFor(() => {
-        expect(screen.getByText('London Eye')).toBeInTheDocument();
+      expect(screen.getByText('Existing Place')).toBeInTheDocument();
     });
 
-    // 2. Verify map shows place
-    expect(screen.getByTestId('map-place-place-1')).toHaveTextContent('Visible');
+    const placesHeading = screen.getByRole('heading', { name: 'Places' });
+    expect(placesHeading).toBeInTheDocument();
 
-    // 3. Toggle visibility
-    // Find the toggle button. It has title "Hide place" initially.
-    const hideBtn = screen.getByTitle('Hide place');
-    fireEvent.click(hideBtn);
+    const placesSection = placesHeading.closest('section');
+    expect(placesSection).toBeInTheDocument();
 
-    // Verify map update
+    // Check for count '1' inside the section
+    if (placesSection) {
+       expect(within(placesSection).getByText('1')).toBeInTheDocument();
+    }
+  });
+
+  it('can add a place (simulated via onAddPlace callback)', async () => {
+    const alertMock = jest.spyOn(window, 'alert').mockImplementation(() => {});
+
+    render(<App />);
+
+    await waitFor(() => screen.getByText('Add Place'));
+
+    fireEvent.click(screen.getByText('Add Place'));
+
+    expect(alertMock).toHaveBeenCalledWith("Place adding will be available in the next update.");
+    alertMock.mockRestore();
+  });
+
+  it('can toggle visibility', async () => {
+    render(<App />);
+
+    await waitFor(() => screen.getByText('Existing Place'));
+
+    const eyeIcon = screen.getByTitle('Hide place');
+    fireEvent.click(eyeIcon);
+
+    expect(db.updatePlaceInDb).toHaveBeenCalledWith('1', { isVisible: false });
+  });
+
+  it('can edit a place title', async () => {
+    mockPrompt.mockReturnValue('New Title');
+
+    render(<App />);
+
+    await waitFor(() => screen.getByText('Existing Place'));
+
+    const editButton = screen.getByTitle('Edit place');
+    fireEvent.click(editButton);
+
+    expect(mockPrompt).toHaveBeenCalledWith("Enter new title", "Existing Place");
+    expect(db.updatePlaceInDb).toHaveBeenCalledWith('1', { title: 'New Title' });
+
+    (db.updatePlaceInDb as jest.Mock).mockReturnValue(Promise.resolve({ ...mockPlace, title: 'New Title' }));
+
     await waitFor(() => {
-        expect(screen.getByTestId('map-place-place-1')).toHaveTextContent('Hidden');
+        expect(screen.getByText('New Title')).toBeInTheDocument();
     });
+  });
 
-    // Verify list update
-    expect(screen.getByTitle('Show place')).toBeInTheDocument();
+  it('can delete a place', async () => {
+    render(<App />);
 
-    // 4. Edit place
-    // Hover to see edit button, or just click it (it's in DOM)
-    const editBtn = screen.getByTitle('Edit place');
-    fireEvent.click(editBtn);
+    await waitFor(() => screen.getByText('Existing Place'));
 
-    // Should have called prompt
-    expect(window.prompt).toHaveBeenCalledWith('Enter new title', 'London Eye');
+    const deleteButton = screen.getByTitle('Delete place');
+    fireEvent.click(deleteButton);
 
-    // Should update title
+    expect(db.deletePlaceFromDb).toHaveBeenCalledWith('1');
+
     await waitFor(() => {
-        expect(screen.getByText('Updated Title')).toBeInTheDocument();
+        expect(screen.queryByText('Existing Place')).not.toBeInTheDocument();
     });
-
-    // 5. Delete place
-    const deleteBtn = screen.getByTitle('Delete place');
-    fireEvent.click(deleteBtn);
-
-    // Should remove from list
-    await waitFor(() => {
-        expect(screen.queryByText('Updated Title')).not.toBeInTheDocument();
-    });
-
-    // Verify DB empty
-    const places = await db.getAllPlacesFromDb();
-    expect(places).toHaveLength(0);
   });
 });

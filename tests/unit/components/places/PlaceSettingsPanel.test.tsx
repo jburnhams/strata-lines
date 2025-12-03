@@ -1,8 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PlaceSettingsPanel } from '@/components/places/PlaceSettingsPanel';
-import '@testing-library/jest-dom';
-import { jest } from '@jest/globals';
 
 describe('PlaceSettingsPanel', () => {
   const mockTitleSizeChange = jest.fn();
@@ -23,10 +21,12 @@ describe('PlaceSettingsPanel', () => {
     );
 
     expect(screen.getByText('Place Settings')).toBeInTheDocument();
+    expect(screen.getByText('Show Icons')).toBeInTheDocument();
+    expect(screen.getByText('Title Size')).toBeInTheDocument();
     expect(screen.getByText('50%')).toBeInTheDocument();
   });
 
-  it('changes title size', () => {
+  it('handles icon toggle', () => {
     render(
       <PlaceSettingsPanel
         titleSize={50}
@@ -36,34 +36,23 @@ describe('PlaceSettingsPanel', () => {
       />
     );
 
-    // Using getAllByRole because sometimes there might be other inputs,
-    // but here likely only one slider.
-    // However, input type="range" maps to role="slider" in ARIA.
-    // We can also use getByDisplayValue or label if available.
-    // Let's try direct selector if getByRole is ambiguous.
-    // But better to assume standard accessibility.
+    const checkbox = screen.getByRole('checkbox');
+    fireEvent.click(checkbox);
+    expect(mockToggleIcons).toHaveBeenCalledWith(false);
+  });
 
-    // Actually, in the component: <input type="range" ... />.
-    // It doesn't have an aria-label, but it has a visible label preceding it.
-    // "Title Size"
+  it('handles size change', () => {
+    render(
+      <PlaceSettingsPanel
+        titleSize={50}
+        onTitleSizeChange={mockTitleSizeChange}
+        showIconsGlobally={true}
+        onToggleIconsGlobally={mockToggleIcons}
+      />
+    );
 
     const slider = screen.getByRole('slider');
     fireEvent.change(slider, { target: { value: '75' } });
     expect(mockTitleSizeChange).toHaveBeenCalledWith(75);
-  });
-
-  it('toggles icons', () => {
-    render(
-      <PlaceSettingsPanel
-        titleSize={50}
-        onTitleSizeChange={mockTitleSizeChange}
-        showIconsGlobally={true}
-        onToggleIconsGlobally={mockToggleIcons}
-      />
-    );
-
-    const checkbox = screen.getByLabelText('Show Icons Globally');
-    fireEvent.click(checkbox);
-    expect(mockToggleIcons).toHaveBeenCalledWith(false);
   });
 });
