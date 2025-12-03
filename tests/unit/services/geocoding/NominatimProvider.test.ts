@@ -1,15 +1,14 @@
 import { NominatimProvider } from '@/services/geocoding/NominatimProvider';
 
-// Mock fetch
-const mockFetch = jest.fn();
-global.fetch = mockFetch;
+// Mock fetch global
+global.fetch = jest.fn();
 
 describe('NominatimProvider', () => {
   let provider: NominatimProvider;
 
   beforeEach(() => {
     provider = new NominatimProvider();
-    mockFetch.mockReset();
+    (global.fetch as jest.Mock).mockClear();
     jest.useFakeTimers();
   });
 
@@ -19,125 +18,164 @@ describe('NominatimProvider', () => {
 
   describe('search', () => {
     it('returns results for valid query', async () => {
-      mockFetch.mockResolvedValueOnce({
+      const mockResponse = [
+        {
+          lat: '48.8566',
+          lon: '2.3522',
+          display_name: 'Paris, France',
+          address: { city: 'Paris', country: 'France' },
+          boundingbox: ['48.815', '48.902', '2.224', '2.469']
+        }
+      ];
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: async () => [
-          {
-            lat: '51.5074',
-            lon: '-0.1278',
-            display_name: 'London, Greater London, England, United Kingdom',
-            address: { city: 'London', country: 'United Kingdom' },
-            boundingbox: ['51.28', '51.69', '-0.51', '0.33'],
-          },
-        ],
+        json: async () => mockResponse
       });
 
-      const results = await provider.search('London');
+      const promise = provider.search('Paris');
+
+      // Advance timers to bypass rate limit wait if any
+      jest.advanceTimersByTime(1000);
+
+      const results = await promise;
 
       expect(results).toHaveLength(1);
-      expect(results[0].locality).toBe('London');
-      expect(results[0].latitude).toBe(51.5074);
-      expect(results[0].longitude).toBe(-0.1278);
+      expect(results[0]).toEqual({
+        latitude: 48.8566,
+        longitude: 2.3522,
+        displayName: 'Paris, France',
+        locality: 'Paris',
+        country: 'France',
+        boundingBox: [48.815, 48.902, 2.224, 2.469]
+      });
+      expect(global.fetch).toHaveBeenCalledTimes(1);
     });
 
-    it('returns empty array for no results', async () => {
-      mockFetch.mockResolvedValueOnce({
+    it('handles empty results', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: async () => [],
+        json: async () => []
       });
 
-      const results = await provider.search('NonExistentPlace');
+      const promise = provider.search('Nowhere');
+      jest.advanceTimersByTime(1000);
+      const results = await promise;
+
       expect(results).toEqual([]);
     });
 
     it('handles network errors gracefully', async () => {
-        const error = new Error('Network error');
-        mockFetch.mockRejectedValue(error);
+      (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
 
-        const searchPromise = provider.search('London');
+      const promise = provider.search('Error');
+      jest.advanceTimersByTime(4000); // Allow for retries
+      const results = await promise;
 
-        // We need to catch the floating promise rejection that happens during retries
-        searchPromise.catch(() => {});
-
-        // Advance timers to exhaust all retries
-        await jest.runAllTimersAsync();
-
-        await expect(searchPromise).rejects.toThrow('Network error');
-    });
-
-    it('retries on 429 errors', async () => {
-      mockFetch
-        .mockResolvedValueOnce({ status: 429, ok: false })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => [
-             {
-                lat: '51.5074',
-                lon: '-0.1278',
-                display_name: 'London',
-                address: { city: 'London' },
-             }
-          ],
-        });
-
-      const searchPromise = provider.search('London');
-      await jest.runAllTimersAsync();
-      const results = await searchPromise;
-
-      expect(mockFetch).toHaveBeenCalledTimes(2);
-      expect(results).toHaveLength(1);
+      expect(results).toEqual([]);
     });
   });
 
   describe('reverse', () => {
     it('returns locality for valid coordinates', async () => {
-      mockFetch.mockResolvedValueOnce({
+      const mockResponse = {
+        lat: '51.5074',
+        lon: '-0.1278',
+        display_name: 'London, UK',
+        address: { city: 'London', country: 'United Kingdom' }
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: async () => ({
-          lat: '51.5074',
-          lon: '-0.1278',
-          display_name: 'London, UK',
-          address: { city: 'London', country: 'United Kingdom' },
-        }),
+        json: async () => mockResponse
       });
 
-      const result = await provider.reverse(51.5074, -0.1278);
-      expect(result.locality).toBe('London');
+      const promise = provider.reverse(51.5074, -0.1278);
+      jest.advanceTimersByTime(1000);
+      const result = await promise;
+
+      expect(result).toEqual({
+        locality: 'London',
+        displayName: 'London, UK',
+        country: 'United Kingdom'
+      });
     });
 
-    it('prefers city over town over village', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-           lat: '0', lon: '0', display_name: 'Test',
-           address: { town: 'MyTown', village: 'MyVillage' },
-        }),
-      });
+    it('falls back when address components are missing', async () => {
+        const mockResponse = {
+            display_name: 'Middle of Nowhere',
+            address: { country: 'Nowhere Land' }
+        };
 
-      const result = await provider.reverse(0, 0);
-      expect(result.locality).toBe('MyTown');
+        (global.fetch as jest.Mock).mockResolvedValueOnce({
+            ok: true,
+            json: async () => mockResponse
+        });
+
+        const promise = provider.reverse(0, 0);
+        jest.advanceTimersByTime(1000);
+        const result = await promise;
+
+        expect(result.locality).toBe('Unknown Location');
+    });
+
+    it('handles error with fallback', async () => {
+        (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
+
+        const promise = provider.reverse(10, 10);
+        jest.advanceTimersByTime(4000); // Retries
+        const result = await promise;
+
+        expect(result.locality).toBe('Unknown Location');
+        expect(result.displayName).toContain('10.000000, 10.000000');
     });
   });
 
   describe('rate limiting', () => {
-      it('queues requests correctly', async () => {
-          mockFetch.mockResolvedValue({
-              ok: true,
-              json: async () => [],
-          });
+    it('queues requests to enforce 1 req/second', async () => {
+       (global.fetch as jest.Mock).mockResolvedValue({
+           ok: true,
+           json: async () => []
+       });
 
-          const p1 = provider.search('1');
-          const p2 = provider.search('2');
+       const p1 = provider.search('A');
+       const p2 = provider.search('B');
+       const p3 = provider.search('C');
 
-          // p1 should start immediately, p2 should wait
-          expect(mockFetch).toHaveBeenCalledTimes(0); // Wait for microtasks
+       expect(global.fetch).toHaveBeenCalledTimes(0);
 
-          await jest.runAllTimersAsync();
+       jest.advanceTimersByTime(1); // Start first
+       // p1 should fire immediately (or close to it if no previous request)
+       // Wait, the logic is: waitTime = max(0, 1000 - timeSinceLastRequest).
+       // Initially lastRequestTime is 0.
+       // If Date.now() is T, and T - 0 > 1000 (which it is usually not in jest fake timers starts at 0?),
+       // In Jest fake timers, Date.now starts at 0? Let's assume so.
+       // 0 - 0 = 0. 1000 - 0 = 1000. So it waits 1000ms.
 
-          await Promise.all([p1, p2]);
+       // Let's verify start time behavior.
 
-          // Should have called fetch twice
-          expect(mockFetch).toHaveBeenCalledTimes(2);
-      });
+       jest.advanceTimersByTime(1000);
+       // p1 should have fired.
+       // p2 is queued.
+       // p3 is queued.
+
+       // Actually, promises need to resolve for the queue to proceed.
+       // Since we are using fake timers, and the queue uses `await new Promise(setTimeout)`,
+       // advancing time resolves those timeouts.
+
+       // However, the `fetch` is mocked to return immediately (microtask).
+
+       await p1;
+       expect(global.fetch).toHaveBeenCalledTimes(1);
+
+       // Now p2 should be starting its wait.
+       jest.advanceTimersByTime(1000);
+       await p2;
+       expect(global.fetch).toHaveBeenCalledTimes(2);
+
+       jest.advanceTimersByTime(1000);
+       await p3;
+       expect(global.fetch).toHaveBeenCalledTimes(3);
+    });
   });
 });

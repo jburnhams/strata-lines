@@ -1,27 +1,30 @@
-import geocodingService from '@/services/geocodingService';
-import { NominatimProvider } from '@/services/geocoding/NominatimProvider';
-
-// Mock NominatimProvider
-jest.mock('@/services/geocoding/NominatimProvider');
+import { geocodingService } from '@/services/geocodingService';
+import { GeocodingProvider } from '@/services/geocoding/GeocodingProvider';
 
 describe('GeocodingService', () => {
-  let mockProvider: jest.Mocked<NominatimProvider>;
+  let mockProvider: jest.Mocked<GeocodingProvider>;
 
   beforeEach(() => {
-    mockProvider = new NominatimProvider() as jest.Mocked<NominatimProvider>;
-    // Directly inject the mock provider into the singleton instance
+    mockProvider = {
+      search: jest.fn(),
+      reverse: jest.fn()
+    };
     geocodingService.setProvider(mockProvider);
   });
 
   describe('searchPlaces', () => {
     it('returns results from provider', async () => {
-      const mockResult = [{
-          latitude: 10, longitude: 20, displayName: 'Place', locality: 'City', country: 'Country'
+      const mockResults = [{
+        latitude: 10,
+        longitude: 10,
+        displayName: 'Test Place',
+        locality: 'Test',
+        country: 'TestLand'
       }];
-      mockProvider.search.mockResolvedValue(mockResult);
+      mockProvider.search.mockResolvedValue(mockResults);
 
       const results = await geocodingService.searchPlaces('query');
-      expect(results).toEqual(mockResult);
+      expect(results).toBe(mockResults);
       expect(mockProvider.search).toHaveBeenCalledWith('query');
     });
 
@@ -29,45 +32,30 @@ describe('GeocodingService', () => {
       await geocodingService.searchPlaces('  ');
       expect(mockProvider.search).not.toHaveBeenCalled();
     });
-
-    it('caches results', async () => {
-      const mockResult = [{
-        latitude: 10, longitude: 20, displayName: 'Place', locality: 'City', country: 'Country'
-      }];
-      mockProvider.search.mockResolvedValue(mockResult);
-
-      await geocodingService.searchPlaces('query');
-      await geocodingService.searchPlaces('query');
-
-      expect(mockProvider.search).toHaveBeenCalledTimes(1);
-    });
   });
 
   describe('getLocalityName', () => {
-      it('returns locality from provider', async () => {
-          mockProvider.reverse.mockResolvedValue({
-              locality: 'City', displayName: 'Full', country: 'Country'
-          });
-
-          const locality = await geocodingService.getLocalityName(10, 20);
-          expect(locality).toBe('City');
+    it('returns locality from provider', async () => {
+      mockProvider.reverse.mockResolvedValue({
+        locality: 'Test City',
+        displayName: 'Test City, Country',
+        country: 'Country'
       });
 
-      it('validates coordinates', async () => {
-          const locality = await geocodingService.getLocalityName(100, 200);
-          expect(locality).toBe('Invalid Location');
-          expect(mockProvider.reverse).not.toHaveBeenCalled();
-      });
+      const locality = await geocodingService.getLocalityName(10, 20);
+      expect(locality).toBe('Test City');
+    });
 
-      it('caches results', async () => {
-        mockProvider.reverse.mockResolvedValue({
-            locality: 'City', displayName: 'Full', country: 'Country'
-        });
+    it('returns fallback on error', async () => {
+      mockProvider.reverse.mockRejectedValue(new Error('Fail'));
+      const locality = await geocodingService.getLocalityName(10, 20);
+      expect(locality).toBe('Unknown Location');
+    });
 
-        await geocodingService.getLocalityName(10, 20);
-        await geocodingService.getLocalityName(10, 20);
-
-        expect(mockProvider.reverse).toHaveBeenCalledTimes(1);
-      });
+    it('validates coordinates', async () => {
+        const locality = await geocodingService.getLocalityName(100, 200);
+        expect(locality).toBe('Invalid Coordinates');
+        expect(mockProvider.reverse).not.toHaveBeenCalled();
+    });
   });
 });

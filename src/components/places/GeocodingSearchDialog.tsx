@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { geocodingService } from '../../services/geocodingService';
-import { GeocodingResult } from '../../services/geocoding/GeocodingProvider';
+import { geocodingService } from '@/services/geocodingService';
+import { GeocodingResult } from '@/services/geocoding/GeocodingProvider';
 
 interface GeocodingSearchDialogProps {
   isOpen: boolean;
@@ -8,10 +8,10 @@ interface GeocodingSearchDialogProps {
   onSelectLocation: (result: GeocodingResult) => void;
 }
 
-const GeocodingSearchDialog: React.FC<GeocodingSearchDialogProps> = ({
+export const GeocodingSearchDialog: React.FC<GeocodingSearchDialogProps> = ({
   isOpen,
   onClose,
-  onSelectLocation,
+  onSelectLocation
 }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<GeocodingResult[]>([]);
@@ -31,127 +31,128 @@ const GeocodingSearchDialog: React.FC<GeocodingSearchDialogProps> = ({
   }, [isOpen]);
 
   useEffect(() => {
-    const delayDebounceFn = setTimeout(async () => {
-      if (query.trim().length > 2) {
-        setIsLoading(true);
-        setError(null);
-        try {
-          const searchResults = await geocodingService.searchPlaces(query);
-          setResults(searchResults);
-          setSelectedIndex(-1);
-          if (searchResults.length === 0) {
-            setError('No results found.');
-          }
-        } catch (err) {
-            console.error(err);
-            setError('Failed to search.');
-        } finally {
-          setIsLoading(false);
-        }
+    const timer = setTimeout(() => {
+      if (query.length > 2) {
+        handleSearch();
       } else {
         setResults([]);
-        if (query.trim().length > 0) {
-            // keep previous error if any or just nothing
-        } else {
-             setError(null);
-        }
+        setError(null);
       }
     }, 500);
 
-    return () => clearTimeout(delayDebounceFn);
+    return () => clearTimeout(timer);
   }, [query]);
+
+  const handleSearch = async () => {
+    if (!query.trim()) return;
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await geocodingService.searchPlaces(query);
+      setResults(data);
+      setSelectedIndex(-1);
+      if (data.length === 0) {
+        setError('No results found.');
+      }
+    } catch (err) {
+      setError('Failed to search locations.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
-      setSelectedIndex((prev) =>
-        prev < results.length - 1 ? prev + 1 : prev
-      );
+      e.preventDefault();
+      setSelectedIndex(prev => (prev < results.length - 1 ? prev + 1 : prev));
     } else if (e.key === 'ArrowUp') {
-      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : 0));
+      e.preventDefault();
+      setSelectedIndex(prev => (prev > 0 ? prev - 1 : prev));
     } else if (e.key === 'Enter') {
-      if (selectedIndex >= 0 && selectedIndex < results.length) {
+      e.preventDefault();
+      if (selectedIndex >= 0 && results[selectedIndex]) {
         onSelectLocation(results[selectedIndex]);
-        onClose();
-      } else if (results.length > 0) {
-          // If none selected but enter pressed, select first?
-          // Or strictly require selection. Let's select first if available.
-          onSelectLocation(results[0]);
-          onClose();
+      } else {
+        handleSearch();
       }
     } else if (e.key === 'Escape') {
       onClose();
     }
   };
 
-  const handleSelect = (result: GeocodingResult) => {
-    onSelectLocation(result);
-    onClose();
-  };
-
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800">
-        <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">
-          Add Manual Place
-        </h2>
-
-        <div className="mb-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 bg-black bg-opacity-50" onClick={onClose}>
+      <div
+        className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="p-4 border-b border-gray-200 flex items-center gap-2">
+          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
           <input
             ref={inputRef}
             type="text"
-            className="w-full rounded-md border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            className="flex-1 outline-none text-lg"
             placeholder="Search for a location..."
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
           />
+          {query && (
+            <button
+              onClick={() => { setQuery(''); setResults([]); inputRef.current?.focus(); }}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
 
-        {isLoading && (
-            <div className="py-4 text-center text-gray-500 dark:text-gray-400">
-                Searching...
-            </div>
-        )}
+        <div className="max-h-[60vh] overflow-y-auto">
+          {isLoading && (
+            <div className="p-4 text-center text-gray-500">Searching...</div>
+          )}
 
-        {error && !isLoading && (
-            <div className="py-4 text-center text-red-500">
-                {error}
-            </div>
-        )}
+          {!isLoading && error && (
+            <div className="p-4 text-center text-red-500">{error}</div>
+          )}
 
-        <ul className="max-h-60 overflow-y-auto">
-          {results.map((result, index) => (
-            <li
-              key={`${result.latitude}-${result.longitude}-${index}`}
-              className={`cursor-pointer rounded-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                index === selectedIndex ? 'bg-blue-100 dark:bg-blue-900' : ''
-              }`}
-              onClick={() => handleSelect(result)}
-              onMouseEnter={() => setSelectedIndex(index)}
-            >
-              <div className="font-medium text-gray-900 dark:text-white">
-                {result.displayName.split(',')[0]}
-              </div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                {result.displayName}
-              </div>
-            </li>
-          ))}
-        </ul>
+          {!isLoading && results.length > 0 && (
+            <ul className="divide-y divide-gray-100">
+              {results.map((result, index) => (
+                <li
+                  key={`${result.latitude}-${result.longitude}-${index}`}
+                  className={`p-3 cursor-pointer hover:bg-gray-50 ${index === selectedIndex ? 'bg-blue-50' : ''}`}
+                  onClick={() => onSelectLocation(result)}
+                  onMouseEnter={() => setSelectedIndex(index)}
+                >
+                  <div className="font-medium text-gray-900">{result.displayName.split(',')[0]}</div>
+                  <div className="text-sm text-gray-500 truncate">{result.displayName}</div>
+                </li>
+              ))}
+            </ul>
+          )}
 
-        <div className="mt-6 flex justify-end gap-2">
-          <button
-            className="rounded-md px-4 py-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-            onClick={onClose}
-          >
-            Cancel
-          </button>
+          {!isLoading && !error && results.length === 0 && query.length > 2 && (
+             <div className="p-4 text-center text-gray-400 text-sm">No results found</div>
+          )}
+        </div>
+
+        <div className="p-3 bg-gray-50 text-right border-t border-gray-200">
+             <button
+                onClick={onClose}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+             >
+                Cancel
+             </button>
         </div>
       </div>
     </div>
   );
 };
-
-export default GeocodingSearchDialog;
