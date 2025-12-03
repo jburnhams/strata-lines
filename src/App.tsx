@@ -9,6 +9,7 @@ import { UK_CENTER_LATLNG, TILE_LAYERS } from '@/constants';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useExportState } from '@/hooks/useExportState';
 import { useTrackManagement } from '@/hooks/useTrackManagement';
+import { usePlaceManagement } from '@/hooks/usePlaceManagement';
 import { useIsMobile, useIsLandscape } from '@/hooks/useMediaQuery';
 import { performPngExport } from '@/services/exportService';
 
@@ -41,6 +42,10 @@ const App: React.FC = () => {
   const [tileLayerKey, setTileLayerKey] = useLocalStorage<string>('tileLayerKey', 'esriImagery');
   const [labelDensity, setLabelDensity] = useLocalStorage<number>('labelDensity', 1);
 
+  // Place state
+  const [placeTitleSize, setPlaceTitleSize] = useLocalStorage<number>('place-title-size', 50);
+  const [showIconsGlobally, setShowIconsGlobally] = useLocalStorage<boolean>('place-show-icons-globally', true);
+
   // Custom hooks
   const exportState = useExportState(previewZoom, zoom);
   const trackManagement = useTrackManagement(
@@ -49,6 +54,7 @@ const App: React.FC = () => {
     minLengthFilter,
     previewBounds
   );
+  const placeManagement = usePlaceManagement();
 
   // Clamp labelDensity to max value and ensure it's an integer
   useEffect(() => {
@@ -258,6 +264,7 @@ const App: React.FC = () => {
         <div ref={mapWrapperRef} className="h-full w-full">
           <MapComponent
             tracks={trackManagement.filteredTracks}
+            places={placeManagement.places}
             onUserMove={handleUserMove}
             center={L.latLng(mapCenter.lat, mapCenter.lng)}
             zoom={zoom}
@@ -278,6 +285,22 @@ const App: React.FC = () => {
       </div>
       <ControlsPanel
         tracks={trackManagement.filteredTracks}
+        places={placeManagement.places}
+        onAddPlaceClick={() => {
+             alert("Place adding will be available in the next update.");
+        }}
+        updatePlace={placeManagement.updatePlace}
+        deletePlace={placeManagement.deletePlace}
+        togglePlaceVisibility={placeManagement.togglePlaceVisibility}
+        toggleAllPlacesVisibility={placeManagement.toggleAllPlacesVisibility}
+        placeTitleSize={placeTitleSize}
+        setPlaceTitleSize={setPlaceTitleSize}
+        showIconsGlobally={showIconsGlobally}
+        setShowIconsGlobally={setShowIconsGlobally}
+        onZoomToPlace={(place) => {
+             setMapCenter({ lat: place.latitude, lng: place.longitude } as LatLng);
+             setZoom(16);
+        }}
         handleFiles={trackManagement.handleFiles}
         removeTrack={trackManagement.removeTrack}
         removeAllTracks={trackManagement.removeAllTracks}
@@ -301,8 +324,15 @@ const App: React.FC = () => {
         isExportingBase={isExportingBase}
         isExportingLines={isExportingLines}
         isExportingLabels={isExportingLabels}
-        notification={trackManagement.notification}
-        setNotification={trackManagement.setNotification}
+        notification={trackManagement.notification || placeManagement.notification}
+        setNotification={(n) => {
+            if (!n) {
+                trackManagement.setNotification(null);
+                placeManagement.setNotification(null);
+            } else {
+                trackManagement.setNotification(n);
+            }
+        }}
         lineColorStart={lineColorStart}
         setLineColorStart={setLineColorStart}
         lineColorEnd={lineColorEnd}

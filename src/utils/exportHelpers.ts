@@ -18,7 +18,8 @@ export const createCompatibleCanvas = (width: number, height: number): HTMLCanva
       const hasRealCanvas = testCtx && typeof testCtx.getImageData === 'function';
 
       if (hasRealCanvas) {
-        const { createCanvas } = require('@napi-rs/canvas');
+        const canvasPkg = '@napi-rs/canvas';
+        const { createCanvas } = require(canvasPkg);
         return createCanvas(width, height) as unknown as HTMLCanvasElement;
       }
     } catch {
@@ -447,7 +448,8 @@ export const resizeCanvas = (
       throw new Error('Failed to get source canvas context');
     }
     const imageData = sourceCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
-    const { createCanvas } = require('@napi-rs/canvas');
+    const canvasPkg = '@napi-rs/canvas';
+    const { createCanvas } = require(canvasPkg);
     const tempCanvas = createCanvas(sourceCanvas.width, sourceCanvas.height);
     const tempCtx = tempCanvas.getContext('2d');
     if (!tempCtx) {
@@ -749,7 +751,8 @@ export const renderCanvasForBounds = async (
 
       let req: any;
       try {
-        req = require('@napi-rs/canvas');
+        const canvasPkg = '@napi-rs/canvas';
+        req = require(canvasPkg);
       } catch (e) {
         throw new Error('Running in Node but @napi-rs/canvas is not available');
       }

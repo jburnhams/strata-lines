@@ -63,6 +63,17 @@ const defaultProps = {
   activityCounts: {},
   hiddenActivityTypes: new Set<string>(),
   toggleActivityFilter: jest.fn(),
+  places: [],
+  onAddPlaceClick: jest.fn(),
+  updatePlace: jest.fn(),
+  deletePlace: jest.fn(),
+  togglePlaceVisibility: jest.fn(),
+  toggleAllPlacesVisibility: jest.fn(),
+  placeTitleSize: 50,
+  setPlaceTitleSize: jest.fn(),
+  showIconsGlobally: true,
+  setShowIconsGlobally: jest.fn(),
+  onZoomToPlace: jest.fn(),
 };
 
 describe('ControlsPanel UI Text', () => {
