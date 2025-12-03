@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { Place } from '@/types';
 import * as db from '@/services/db';
+import L from 'leaflet';
 
 export interface UsePlaceManagementReturn {
   places: Place[];
@@ -46,10 +47,10 @@ export const usePlaceManagement = (): UsePlaceManagementReturn => {
     }
 
     // Check for duplicates (within ~10 meters)
-    // 0.0001 degrees is roughly 11 meters
     const isDuplicate = places.some(p => {
-        return Math.abs(p.latitude - placeData.latitude) < 0.0001 &&
-               Math.abs(p.longitude - placeData.longitude) < 0.0001;
+        const p1 = L.latLng(p.latitude, p.longitude);
+        const p2 = L.latLng(placeData.latitude, placeData.longitude);
+        return p1.distanceTo(p2) < 10;
     });
 
     if (isDuplicate) {
