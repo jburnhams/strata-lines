@@ -3,10 +3,11 @@ import { Place } from '@/types';
 import { PlacesList } from './PlacesList';
 import { PlaceControls } from './PlaceControls';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { GeocodingResult } from '../../services/geocoding/GeocodingProvider';
 
 interface PlacesSectionProps {
   places: Place[];
-  onAddPlaceClick: () => void;
+  onAddPlaceClick: (result?: GeocodingResult) => void;
   updatePlace: (id: string, updates: Partial<Place>) => void;
   deletePlace: (id: string) => void;
   togglePlaceVisibility: (id: string) => void;

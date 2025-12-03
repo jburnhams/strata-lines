@@ -3,6 +3,7 @@ import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { TextEncoder, TextDecoder } from 'util';
 import { ReadableStream, TransformStream, CompressionStream, DecompressionStream } from 'stream/web';
+import { randomUUID } from 'node:crypto';
 
 // Add TextEncoder/TextDecoder to global for jsdom
 global.TextEncoder = TextEncoder;
@@ -27,6 +28,14 @@ if (typeof globalThis.CompressionStream === 'undefined') {
 }
 if (typeof globalThis.DecompressionStream === 'undefined') {
   globalThis.DecompressionStream = DecompressionStream as any;
+}
+
+// Polyfill crypto.randomUUID for JSDOM
+if (!global.crypto) {
+    global.crypto = {} as any;
+}
+if (!global.crypto.randomUUID) {
+    global.crypto.randomUUID = randomUUID;
 }
 
 // Add performance.markResourceTiming polyfill for undici

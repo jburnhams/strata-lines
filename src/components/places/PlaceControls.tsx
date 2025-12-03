@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { PlusIcon, EyeIcon, EyeOffIcon, TrashIcon } from '@/components/Icons';
+import GeocodingSearchDialog from './GeocodingSearchDialog';
+import { GeocodingResult } from '../../services/geocoding/GeocodingProvider';
 
 interface PlaceControlsProps {
-  onAddPlace: () => void;
+  onAddPlace: (result?: GeocodingResult) => void;
   allPlacesVisible: boolean;
   onToggleAllVisibility: (visible: boolean) => void;
   placeCount: number;
@@ -17,9 +19,18 @@ export const PlaceControls: React.FC<PlaceControlsProps> = ({
   onDeleteAll
 }) => {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const handleDeleteAllClick = () => {
     setShowConfirmDelete(true);
+  };
+
+  const handleAddPlaceClick = () => {
+    setIsSearchOpen(true);
+  };
+
+  const handleLocationSelect = (result: GeocodingResult) => {
+    onAddPlace(result);
   };
 
   const confirmDeleteAll = () => {
@@ -30,12 +41,18 @@ export const PlaceControls: React.FC<PlaceControlsProps> = ({
   return (
     <div className="flex flex-col space-y-2 mb-2">
       <button
-        onClick={onAddPlace}
+        onClick={handleAddPlaceClick}
         className="flex items-center justify-center space-x-2 w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
       >
         <PlusIcon className="h-5 w-5" />
         <span className="font-medium">Add Place</span>
       </button>
+
+      <GeocodingSearchDialog
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        onSelectLocation={handleLocationSelect}
+      />
 
       <div className="flex items-center space-x-2">
         <button

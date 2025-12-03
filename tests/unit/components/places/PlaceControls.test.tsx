@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PlaceControls } from '@/components/places/PlaceControls';
+import GeocodingSearchDialog from '@/components/places/GeocodingSearchDialog';
 
 jest.mock('@/components/Icons', () => ({
   PlusIcon: () => <div data-testid="plus-icon" />,
@@ -8,6 +9,26 @@ jest.mock('@/components/Icons', () => ({
   EyeOffIcon: () => <div data-testid="eye-off-icon" />,
   TrashIcon: () => <div data-testid="trash-icon" />
 }));
+
+jest.mock('@/components/places/GeocodingSearchDialog', () => {
+  return jest.fn((props) => {
+    return props.isOpen ? (
+      <div data-testid="geocoding-dialog">
+        <button
+          onClick={() => props.onSelectLocation({
+            displayName: 'Test Place',
+            locality: 'Test Locality',
+            latitude: 10,
+            longitude: 10
+          })}
+        >
+          Select Location
+        </button>
+        <button onClick={props.onClose}>Close</button>
+      </div>
+    ) : null;
+  });
+});
 
 describe('PlaceControls', () => {
   const mockAddPlace = jest.fn();
@@ -34,7 +55,7 @@ describe('PlaceControls', () => {
     expect(screen.getByText('Clear All')).toBeInTheDocument();
   });
 
-  it('calls onAddPlace', () => {
+  it('opens dialog on Add Place click and calls onAddPlace when location selected', () => {
     render(
       <PlaceControls
         onAddPlace={mockAddPlace}
@@ -46,7 +67,12 @@ describe('PlaceControls', () => {
     );
 
     fireEvent.click(screen.getByText('Add Place'));
-    expect(mockAddPlace).toHaveBeenCalled();
+    expect(screen.getByTestId('geocoding-dialog')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Select Location'));
+    expect(mockAddPlace).toHaveBeenCalledWith(expect.objectContaining({
+      locality: 'Test Locality'
+    }));
   });
 
   it('toggles all visibility', () => {

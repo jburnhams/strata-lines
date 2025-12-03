@@ -9,11 +9,12 @@ import { MenuIcon, XIcon, PlusIcon, ChevronUpIcon, ChevronDownIcon, ChevronLeftI
 import { PlacesSection } from '@/components/places/PlacesSection';
 import { PlaceSettingsPanel } from '@/components/places/PlaceSettingsPanel';
 import type { Place } from '@/types';
+import { GeocodingResult } from '@/services/geocoding/GeocodingProvider';
 
 interface ControlsPanelProps {
   tracks: Track[];
   places: Place[];
-  onAddPlaceClick: () => void;
+  onAddPlaceClick: (result?: GeocodingResult) => void;
   updatePlace: (id: string, updates: Partial<Place>) => void;
   deletePlace: (id: string) => void;
   togglePlaceVisibility: (id: string) => void;
