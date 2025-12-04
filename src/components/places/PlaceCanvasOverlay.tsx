@@ -3,10 +3,17 @@ import { useMap } from 'react-leaflet';
 import type { Place, ExportSettings, PlaceTextStyle } from '@/types';
 import { renderPlacesOnCanvas } from '@/services/placeRenderingService';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { calculateOptimalPositions } from '@/services/titlePositioningService';
+import type { PlaceTitlePosition } from '@/types';
 
 export const PlaceCanvasOverlay: React.FC<{ places: Place[] }> = ({ places }) => {
   const map = useMap();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const positionsRef = useRef<Map<string, PlaceTitlePosition> | undefined>(undefined);
+  const lastCalcZoomRef = useRef<number>(-1);
+  const lastCalcPlacesRef = useRef<Place[]>(places);
+  const lastCalcSettingsRef = useRef<ExportSettings | null>(null);
 
   // Settings
   const [includePlaces] = useLocalStorage<boolean>('exportIncludePlaces', true);
@@ -23,12 +30,19 @@ export const PlaceCanvasOverlay: React.FC<{ places: Place[] }> = ({ places }) =>
     glowBlur: 0
   });
 
+  const [placePreferredTitleGap] = useLocalStorage<number>('placePreferredTitleGap', 20);
+  const [placeAllowOverlap] = useLocalStorage<boolean>('placeAllowOverlap', true);
+  const [placeOptimizePositions] = useLocalStorage<boolean>('placeOptimizePositions', true);
+
   const settings = useMemo<ExportSettings>(() => ({
     includePlaces,
     placeTitleSize,
     placeShowIconsGlobally,
-    placeTextStyle
-  }), [includePlaces, placeTitleSize, placeShowIconsGlobally, placeTextStyle]);
+    placeTextStyle,
+    placePreferredTitleGap,
+    placeAllowOverlap,
+    placeOptimizePositions
+  }), [includePlaces, placeTitleSize, placeShowIconsGlobally, placeTextStyle, placePreferredTitleGap, placeAllowOverlap, placeOptimizePositions]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -78,7 +92,21 @@ export const PlaceCanvasOverlay: React.FC<{ places: Place[] }> = ({ places }) =>
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.scale(dpr, dpr);
 
-        await renderPlacesOnCanvas(canvas, places, bounds, zoom, settings);
+        // Recalculate positions if needed
+        if (
+          !positionsRef.current ||
+          Math.abs(zoom - lastCalcZoomRef.current) > 0.05 ||
+          places !== lastCalcPlacesRef.current ||
+          settings !== lastCalcSettingsRef.current
+        ) {
+           positionsRef.current = calculateOptimalPositions(places, map, settings);
+
+           lastCalcZoomRef.current = zoom;
+           lastCalcPlacesRef.current = places;
+           lastCalcSettingsRef.current = settings;
+        }
+
+        await renderPlacesOnCanvas(canvas, places, bounds, zoom, settings, undefined, positionsRef.current);
     }
   };
 

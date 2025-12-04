@@ -1,5 +1,6 @@
+import L from 'leaflet';
 import { createCompatibleCanvas } from './canvasUtils';
-import type { PlaceTextStyle } from '@/types';
+import type { PlaceTextStyle, Place, PlaceTitlePosition } from '@/types';
 
 // Cache for auto text color results
 const colorCache = new Map<string, string>();
@@ -50,9 +51,10 @@ export const measureTextBounds = (
   lines: string[],
   fontSize: number,
   fontFamily: string,
-  ctx: CanvasRenderingContext2D
+  ctx: CanvasRenderingContext2D,
+  fontWeight: string = 'normal'
 ): { width: number, height: number } => {
-  ctx.font = `${fontSize}px ${fontFamily}`; // Ensure font is set
+  ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`; // Ensure font is set
   let maxWidth = 0;
   lines.forEach(line => {
     const w = ctx.measureText(line).width;
@@ -209,4 +211,66 @@ export const renderTextWithEffects = (
     ctx.fillStyle = style.color === 'auto' ? '#000000' : style.color;
     ctx.fillText(line, x, lineY);
   });
+};
+
+/**
+ * Calculate bounding box for title at given position.
+ * Position 'left': right edge touches icon left edge minus gap.
+ * Position 'right': left edge touches icon right edge plus gap.
+ * Vertical center aligns with icon vertical center.
+ * Add padding for buffer zone.
+ */
+export const calculateTitleBounds = (
+  place: Place,
+  titleLines: string[],
+  fontSize: number,
+  iconX: number,
+  iconY: number,
+  position: PlaceTitlePosition,
+  padding: number = 0,
+  iconSize: number = 20,
+  gap: number = 5
+): DOMRect => {
+  const canvas = createCompatibleCanvas(1, 1);
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) {
+     return new DOMRect(0, 0, 0, 0);
+  }
+
+  const fontFamily = place.textStyle?.fontFamily || 'Noto Sans';
+  const fontWeight = place.textStyle?.fontWeight || 'bold';
+
+  const { width: textWidth, height: textHeight } = measureTextBounds(
+    titleLines,
+    fontSize,
+    fontFamily,
+    ctx,
+    fontWeight
+  );
+
+  let x = 0;
+  const y = iconY - textHeight / 2; // Vertically centered
+
+  if (position === 'left') {
+    // right edge at iconX - iconSize/2 - gap
+    const rightEdge = iconX - iconSize / 2 - gap;
+    x = rightEdge - textWidth;
+  } else {
+    // left edge at iconX + iconSize/2 + gap
+    x = iconX + iconSize / 2 + gap;
+  }
+
+  return new DOMRect(
+    x - padding,
+    y - padding,
+    textWidth + padding * 2,
+    textHeight + padding * 2
+  );
+};
+
+export const titleBoundsToGeoBounds = (pixelBounds: DOMRect, map: L.Map): L.LatLngBounds => {
+  const nw = map.layerPointToLatLng(L.point(pixelBounds.left, pixelBounds.top));
+  const se = map.layerPointToLatLng(L.point(pixelBounds.right, pixelBounds.bottom));
+  return L.latLngBounds(nw, se);
 };

@@ -71,7 +71,7 @@ describe('placeTextRenderer', () => {
       const bounds = measureTextBounds(lines, 12, 'Arial', mockCtx);
       expect(bounds.width).toBe(60);
       expect(bounds.height).toBe(lines.length * 12 * 1.2);
-      expect(mockCtx.font).toBe('12px Arial');
+      expect(mockCtx.font).toBe('normal 12px Arial');
     });
   });
 
