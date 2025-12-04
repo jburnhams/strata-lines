@@ -74,6 +74,10 @@ const defaultProps = {
   showIconsGlobally: true,
   setShowIconsGlobally: jest.fn(),
   onZoomToPlace: jest.fn(),
+  createTrackPlace: jest.fn(),
+  removeTrackPlace: jest.fn(),
+  createAllTrackPlaces: jest.fn(),
+  removeAllTrackPlaces: jest.fn(),
 };
 
 describe('ControlsPanel', () => {

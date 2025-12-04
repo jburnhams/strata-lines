@@ -2,9 +2,11 @@ import { useState, useCallback, useMemo } from 'react';
 import JSZip from 'jszip';
 import { processGpxFiles } from '@/services/gpxProcessor';
 import * as db from '@/services/db';
-import type { Track } from '@/types';
+import type { Track, Place, TrackPlaceType } from '@/types';
 import { trackToGpxString } from '@/services/gpxGenerator';
 import { getTracksBounds } from '@/services/utils';
+import { findTrackMiddlePoint, findOptimalMiddlePoint } from '@/utils/trackPlaceUtils';
+import { getGeocodingService } from '@/services/geocodingService';
 import { assignTrackColors } from '@/utils/colorAssignment';
 import type { LatLngBounds } from 'leaflet';
 
@@ -361,6 +363,111 @@ export const useTrackManagement = (
     }
   }, [filteredTracks]);
 
+  const createTrackPlace = useCallback(async (trackId: string, type: TrackPlaceType, useLocalityName: boolean = false): Promise<Place | undefined> => {
+    const track = tracks.find(t => t.id === trackId);
+    if (!track || track.points.length === 0) return;
+
+    // Check if place already exists
+    if (type === 'start' && track.startPlaceId) return;
+    if (type === 'middle' && track.middlePlaceId) return;
+    if (type === 'end' && track.endPlaceId) return;
+
+    let point: [number, number];
+    if (type === 'start') {
+      point = track.points[0];
+    } else if (type === 'end') {
+      point = track.points[track.points.length - 1];
+    } else {
+      const existingPlaces = await db.getPlacesByTrackId(trackId);
+      point = findOptimalMiddlePoint(track, existingPlaces);
+    }
+
+    let title = track.name;
+    if (useLocalityName) {
+      try {
+        const service = getGeocodingService();
+        const locality = await service.getLocalityName(point[0], point[1]);
+        if (locality) title = locality;
+      } catch (e) {
+        console.warn('Geocoding failed, using track name', e);
+      }
+    }
+
+    // Generate ID
+    const placeId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+
+    const place: Place = {
+      id: placeId,
+      latitude: point[0],
+      longitude: point[1],
+      title,
+      createdAt: Date.now(),
+      source: `track-${type}` as any,
+      trackId,
+      isVisible: true,
+      showIcon: true,
+      iconStyle: 'pin',
+      iconConfig: {
+          style: 'pin',
+          size: 30,
+          color: '#ef4444'
+      }
+    };
+
+    await db.savePlaceToDb(place);
+
+    // Update track with place ID
+    const update: Partial<Track> = {};
+    if (type === 'start') update.startPlaceId = place.id;
+    if (type === 'middle') update.middlePlaceId = place.id;
+    if (type === 'end') update.endPlaceId = place.id;
+
+    const updatedTrack = { ...track, ...update };
+    await db.addTrack(updatedTrack);
+
+    // Update local state
+    setTracks(prev => prev.map(t => t.id === trackId ? updatedTrack : t));
+
+    return place;
+  }, [tracks]);
+
+  const removeTrackPlace = useCallback(async (trackId: string, type: TrackPlaceType) => {
+    const track = tracks.find(t => t.id === trackId);
+    if (!track) return;
+
+    let placeId: string | undefined;
+    if (type === 'start') placeId = track.startPlaceId;
+    if (type === 'middle') placeId = track.middlePlaceId;
+    if (type === 'end') placeId = track.endPlaceId;
+
+    if (!placeId) return;
+
+    await db.deletePlaceFromDb(placeId);
+
+    const update: Partial<Track> = {};
+    if (type === 'start') update.startPlaceId = undefined;
+    if (type === 'middle') update.middlePlaceId = undefined;
+    if (type === 'end') update.endPlaceId = undefined;
+
+    const updatedTrack = { ...track, ...update };
+    await db.addTrack(updatedTrack);
+
+    setTracks(prev => prev.map(t => t.id === trackId ? updatedTrack : t));
+  }, [tracks]);
+
+  const createAllTrackPlaces = useCallback(async (trackId: string, useLocalityName: boolean = false) => {
+      const start = await createTrackPlace(trackId, 'start', useLocalityName);
+      const end = await createTrackPlace(trackId, 'end', useLocalityName);
+      const middle = await createTrackPlace(trackId, 'middle', useLocalityName);
+      return { start, middle, end };
+  }, [createTrackPlace]);
+
+  const removeAllTrackPlaces = useCallback(async (trackId: string) => {
+      await removeTrackPlace(trackId, 'start');
+      await removeTrackPlace(trackId, 'middle');
+      await removeTrackPlace(trackId, 'end');
+  }, [removeTrackPlace]);
+
   return {
     tracks,
     setTracks,
@@ -381,5 +488,9 @@ export const useTrackManagement = (
     activityCounts,
     hiddenActivityTypes,
     toggleActivityFilter,
+    createTrackPlace,
+    removeTrackPlace,
+    createAllTrackPlaces,
+    removeAllTrackPlaces,
   };
 };

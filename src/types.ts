@@ -21,6 +21,17 @@ export interface Track {
   startTime?: number; // Unix timestamp in milliseconds
   bounds?: TrackBounds;
   sourceFileId?: string;
+  startPlaceId?: string;
+  middlePlaceId?: string;
+  endPlaceId?: string;
+}
+
+export type TrackPlaceType = 'start' | 'middle' | 'end';
+
+export interface TrackPlaceOptions {
+  trackId: string;
+  type: TrackPlaceType;
+  useLocalityName: boolean;
 }
 
 export type UnprocessedTrack = Omit<Track, 'id'>;
