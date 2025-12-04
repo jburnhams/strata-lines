@@ -108,18 +108,28 @@ export const TrackListItem: React.FC<TrackListItemProps> = ({
                 </div>
                 <div className="flex gap-1">
                      <button
-                        onClick={() => createAllTrackPlaces(track.id, false)}
-                        className="text-orange-400 hover:text-orange-300 px-1 hover:bg-gray-700 rounded"
+                        onClick={async () => {
+                            setLoading(prev => ({ ...prev, allAdd: true }));
+                            try { await createAllTrackPlaces(track.id, false); }
+                            finally { setLoading(prev => ({ ...prev, allAdd: false })); }
+                        }}
+                        disabled={loading['allAdd']}
+                        className="text-orange-400 hover:text-orange-300 px-1 hover:bg-gray-700 rounded disabled:text-gray-600"
                         title="Add All"
                      >
-                        +All
+                        {loading['allAdd'] ? '...' : '+All'}
                      </button>
                      <button
-                        onClick={() => removeAllTrackPlaces(track.id)}
-                        className="text-red-400 hover:text-red-300 px-1 hover:bg-gray-700 rounded"
+                        onClick={async () => {
+                             setLoading(prev => ({ ...prev, allRem: true }));
+                             try { await removeAllTrackPlaces(track.id); }
+                             finally { setLoading(prev => ({ ...prev, allRem: false })); }
+                        }}
+                        disabled={loading['allRem']}
+                        className="text-red-400 hover:text-red-300 px-1 hover:bg-gray-700 rounded disabled:text-gray-600"
                         title="Remove All"
                      >
-                        -All
+                        {loading['allRem'] ? '...' : '-All'}
                      </button>
                 </div>
             </div>

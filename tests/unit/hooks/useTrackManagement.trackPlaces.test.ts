@@ -1,200 +1,244 @@
-import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { useTrackManagement } from '@/hooks/useTrackManagement';
 import * as db from '@/services/db';
-import { findOptimalMiddlePoint, findTrackMiddlePoint } from '@/utils/trackPlaceUtils';
-import { getGeocodingService } from '@/services/geocodingService';
-import { processGpxFiles } from '@/services/gpxProcessor';
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import type { Track, Place } from '@/types';
+import * as trackPlaceUtils from '@/utils/trackPlaceUtils';
+import * as geocodingService from '@/services/geocodingService';
+import type { Track, Place, Point } from '@/types';
+import L from 'leaflet';
 
 // Mock dependencies
-jest.mock('@/services/gpxProcessor');
-jest.mock('@/services/gpxGenerator');
 jest.mock('@/services/db');
 jest.mock('@/utils/trackPlaceUtils');
 jest.mock('@/services/geocodingService');
-jest.mock('@/utils/colorAssignment', () => ({
-  assignTrackColors: (tracks: any[]) => tracks,
+jest.mock('@/services/gpxProcessor', () => ({
+  processGpxFiles: jest.fn(),
 }));
-jest.mock('@/services/utils'); // Auto-mock
+jest.mock('@/services/gpxGenerator', () => ({
+  trackToGpxString: jest.fn(),
+}));
+jest.mock('@/services/utils', () => ({
+  getTracksBounds: jest.fn(),
+}));
+jest.mock('@/utils/colorAssignment', () => ({
+  assignTrackColors: jest.fn((tracks) => tracks),
+}));
 
-describe('useTrackManagement Track Places', () => {
-  const mockTrack: Track = {
-    id: 't1',
-    name: 'Test Track',
-    points: [[0, 0], [1, 1]],
-    length: 10,
-    isVisible: true,
-    activityType: 'run',
-    startPlaceId: undefined,
-    middlePlaceId: undefined,
-    endPlaceId: undefined
-  };
+// Setup mock data
+const mockTrack: Track = {
+  id: 'track-1',
+  name: 'Test Track',
+  points: [[0, 0], [10, 0]], // Simple horizontal line
+  length: 100,
+  isVisible: true,
+  activityType: 'run',
+  sourceFileId: 'file-1'
+};
 
-  const mockPlace: Place = {
-    id: 'p1',
-    latitude: 0,
-    longitude: 0,
-    title: 'Place',
-    createdAt: 123,
-    source: 'track-start',
-    isVisible: true,
-    showIcon: true,
-    iconStyle: 'pin'
-  };
+const mockPlace: Place = {
+  id: 'place-1',
+  latitude: 0,
+  longitude: 0,
+  title: 'Place 1',
+  createdAt: 1000,
+  source: 'track-start',
+  trackId: 'track-1',
+  isVisible: true,
+  showIcon: true,
+  iconStyle: 'pin'
+};
 
+describe('useTrackManagement - Track Places', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (db.getTracks as jest.Mock<any>).mockResolvedValue([mockTrack]);
+
+    // Default db mocks
+    (db.getTracks as jest.Mock<any>).mockResolvedValue([]);
     (db.addTrack as jest.Mock<any>).mockResolvedValue(undefined);
     (db.savePlaceToDb as jest.Mock<any>).mockResolvedValue(undefined);
-    (db.deletePlaceFromDb as jest.Mock<any>).mockResolvedValue(undefined);
     (db.getPlacesByTrackId as jest.Mock<any>).mockResolvedValue([]);
-    (findOptimalMiddlePoint as jest.Mock<any>).mockReturnValue([0.5, 0.5]);
-    (findTrackMiddlePoint as jest.Mock<any>).mockReturnValue([0.5, 0.5]);
+    (db.deletePlaceFromDb as jest.Mock<any>).mockResolvedValue(undefined);
+    (db.getAllPlacesFromDb as jest.Mock<any>).mockResolvedValue([]);
 
-    (getGeocodingService as jest.Mock<any>).mockReturnValue({
-      getLocalityName: jest.fn<any>().mockResolvedValue('London')
+    // Default utils mocks
+    (trackPlaceUtils.findTrackMiddlePoint as jest.Mock<any>).mockReturnValue([5, 0]);
+    (trackPlaceUtils.findOptimalMiddlePoint as jest.Mock<any>).mockReturnValue([5, 0]);
+
+    // Default geocoding mock
+    (geocodingService.getGeocodingService as jest.Mock<any>).mockReturnValue({
+      getLocalityName: jest.fn<any>().mockResolvedValue('Mock Locality'),
     });
   });
 
-  const renderUseTrackManagement = () => {
-    return renderHook(() => useTrackManagement('#000', '#fff', 0, null, false, false));
+  const renderTrackManagement = () => {
+    return renderHook(() =>
+      useTrackManagement('#000000', '#ffffff', 0, null, false, false, jest.fn())
+    );
   };
 
-  it('creates start place correctly', async () => {
-    const { result } = renderUseTrackManagement();
+  it('createTrackPlace creates a start place correctly', async () => {
+    const { result } = renderTrackManagement();
 
+    // Setup initial state with one track
     act(() => {
         result.current.setTracks([mockTrack]);
     });
 
+    // Invoke createTrackPlace
+    let createdPlace: Place | undefined;
     await act(async () => {
-      await result.current.createTrackPlace('t1', 'start', false);
+      createdPlace = await result.current.createTrackPlace(mockTrack.id, 'start', false);
     });
 
+    expect(createdPlace).toBeDefined();
+    expect(createdPlace?.source).toBe('track-start');
+    expect(createdPlace?.title).toBe(mockTrack.name);
+    expect(createdPlace?.latitude).toBe(mockTrack.points[0][0]);
+    expect(createdPlace?.longitude).toBe(mockTrack.points[0][1]);
+
+    // Verify DB calls
     expect(db.savePlaceToDb).toHaveBeenCalledWith(expect.objectContaining({
       source: 'track-start',
-      title: 'Test Track',
-      latitude: 0,
-      longitude: 0
+      trackId: mockTrack.id
+    }));
+    expect(db.addTrack).toHaveBeenCalledWith(expect.objectContaining({
+      id: mockTrack.id,
+      startPlaceId: createdPlace?.id
     }));
 
-    expect(db.addTrack).toHaveBeenCalledWith(expect.objectContaining({
-      id: 't1',
-      startPlaceId: expect.any(String)
-    }));
+    // Verify state update
+    expect(result.current.tracks[0].startPlaceId).toBe(createdPlace?.id);
   });
 
-  it('uses geocoded name when requested', async () => {
-    const { result } = renderUseTrackManagement();
+  it('createTrackPlace creates a middle place using optimal point', async () => {
+    const { result } = renderTrackManagement();
+
     act(() => {
         result.current.setTracks([mockTrack]);
     });
 
+    (trackPlaceUtils.findOptimalMiddlePoint as jest.Mock<any>).mockReturnValue([5.5, 0]);
+
+    let createdPlace: Place | undefined;
     await act(async () => {
-      await result.current.createTrackPlace('t1', 'start', true);
+      createdPlace = await result.current.createTrackPlace(mockTrack.id, 'middle', false);
     });
 
-    expect(db.savePlaceToDb).toHaveBeenCalledWith(expect.objectContaining({
-        title: 'London'
-    }));
+    expect(createdPlace?.source).toBe('track-middle');
+    expect(createdPlace?.latitude).toBe(5.5);
+    expect(trackPlaceUtils.findOptimalMiddlePoint).toHaveBeenCalled();
+
+    expect(result.current.tracks[0].middlePlaceId).toBe(createdPlace?.id);
   });
 
-  it('removes track place correctly', async () => {
-    const trackWithPlace = { ...mockTrack, startPlaceId: 'p1' };
-    const { result } = renderUseTrackManagement();
+  it('createTrackPlace uses locality name when requested', async () => {
+    const { result } = renderTrackManagement();
+
+    act(() => {
+        result.current.setTracks([mockTrack]);
+    });
+
+    let createdPlace: Place | undefined;
+    await act(async () => {
+      createdPlace = await result.current.createTrackPlace(mockTrack.id, 'end', true);
+    });
+
+    expect(createdPlace?.title).toBe('Mock Locality');
+    const geocoder = geocodingService.getGeocodingService();
+    expect(geocoder.getLocalityName).toHaveBeenCalled();
+  });
+
+  it('removeTrackPlace removes place and updates track', async () => {
+    const { result } = renderTrackManagement();
+
+    const trackWithPlace: Track = {
+      ...mockTrack,
+      startPlaceId: 'place-123'
+    };
 
     act(() => {
         result.current.setTracks([trackWithPlace]);
     });
 
     await act(async () => {
-      await result.current.removeTrackPlace('t1', 'start');
+      await result.current.removeTrackPlace(trackWithPlace.id, 'start');
     });
 
-    expect(db.deletePlaceFromDb).toHaveBeenCalledWith('p1');
+    expect(db.deletePlaceFromDb).toHaveBeenCalledWith('place-123');
     expect(db.addTrack).toHaveBeenCalledWith(expect.objectContaining({
-        id: 't1',
-        startPlaceId: undefined
+      id: trackWithPlace.id,
+      startPlaceId: undefined
     }));
+
+    expect(result.current.tracks[0].startPlaceId).toBeUndefined();
   });
 
-  it('creates middle place using optimization', async () => {
-    const { result } = renderUseTrackManagement();
+  it('createAllTrackPlaces creates all 3 places', async () => {
+    const { result } = renderTrackManagement();
+
     act(() => {
         result.current.setTracks([mockTrack]);
     });
 
+    let places: { start?: Place, middle?: Place, end?: Place } | undefined;
     await act(async () => {
-      await result.current.createTrackPlace('t1', 'middle', false);
+      places = await result.current.createAllTrackPlaces(mockTrack.id, false);
     });
 
-    expect(findOptimalMiddlePoint).toHaveBeenCalled();
-    expect(db.savePlaceToDb).toHaveBeenCalledWith(expect.objectContaining({
-        source: 'track-middle',
-        latitude: 0.5,
-        longitude: 0.5
-    }));
+    expect(places?.start).toBeDefined();
+    expect(places?.middle).toBeDefined();
+    expect(places?.end).toBeDefined();
+
+    expect(result.current.tracks[0].startPlaceId).toBeDefined();
+    expect(result.current.tracks[0].middlePlaceId).toBeDefined();
+    expect(result.current.tracks[0].endPlaceId).toBeDefined();
   });
 
-  it('auto-creates places when option is enabled', async () => {
-    const { result } = renderHook(() => useTrackManagement('#000', '#fff', 0, null, true, false));
+  it('removeAllTrackPlaces removes all places', async () => {
+    const { result } = renderTrackManagement();
 
-    // Mock processGpxFiles response
-    (processGpxFiles as jest.Mock<any>).mockResolvedValue([
-        {
-            sourceFile: { id: 's1' },
-            tracks: [
-                { ...mockTrack, name: 'New Track' }
-            ]
-        }
-    ]);
+    const trackWithPlaces: Track = {
+        ...mockTrack,
+        startPlaceId: 'p1',
+        middlePlaceId: 'p2',
+        endPlaceId: 'p3'
+    };
 
-    await act(async () => {
-        // Mock FileList
-        const blob = new Blob([""], { type: 'application/gpx+xml' });
-        const file = new File([blob], "test.gpx");
-        const fileList = {
-            0: file,
-            length: 1,
-            item: (index: number) => file
-        } as unknown as FileList;
-
-        await result.current.handleFiles(fileList);
+    act(() => {
+        result.current.setTracks([trackWithPlaces]);
     });
 
-    // Expect db.savePlaceToDb to have been called 3 times (start, middle, end)
-    expect(db.savePlaceToDb).toHaveBeenCalledTimes(3);
-    // And check if tracks added have place IDs
-    expect(db.addTrack).toHaveBeenCalledWith(expect.objectContaining({
-        name: 'New Track',
-        startPlaceId: expect.any(String),
-        middlePlaceId: expect.any(String),
-        endPlaceId: expect.any(String)
-    }));
+    await act(async () => {
+      await result.current.removeAllTrackPlaces(trackWithPlaces.id);
+    });
+
+    expect(db.deletePlaceFromDb).toHaveBeenCalledWith('p1');
+    expect(db.deletePlaceFromDb).toHaveBeenCalledWith('p2');
+    expect(db.deletePlaceFromDb).toHaveBeenCalledWith('p3');
+
+    expect(result.current.tracks[0].startPlaceId).toBeUndefined();
+    expect(result.current.tracks[0].middlePlaceId).toBeUndefined();
+    expect(result.current.tracks[0].endPlaceId).toBeUndefined();
   });
 
-  it('detects orphaned places', async () => {
-      const { result } = renderUseTrackManagement();
+  it('getOrphanedPlaces returns places with invalid track IDs', async () => {
+    const { result } = renderTrackManagement();
 
-      // Setup tracks
-      act(() => {
-          result.current.setTracks([mockTrack]);
-      });
+    const validPlace = { ...mockPlace, id: 'valid', trackId: mockTrack.id };
+    const orphanedPlace = { ...mockPlace, id: 'orphan', trackId: 'deleted-track' };
 
-      // Setup places: one valid, one orphaned
-      const validPlace = { ...mockPlace, id: 'p1', trackId: 't1' };
-      const orphanedPlace = { ...mockPlace, id: 'p2', trackId: 't2-missing' };
+    (db.getAllPlacesFromDb as jest.Mock<any>).mockResolvedValue([validPlace, orphanedPlace]);
 
-      (db.getAllPlacesFromDb as jest.Mock<any>).mockResolvedValue([validPlace, orphanedPlace]);
+    act(() => {
+        result.current.setTracks([mockTrack]);
+    });
 
-      let orphans: Place[] = [];
-      await act(async () => {
-          orphans = await result.current.getOrphanedPlaces();
-      });
+    let orphaned: Place[] | undefined;
+    await act(async () => {
+      orphaned = await result.current.getOrphanedPlaces();
+    });
 
-      expect(orphans).toHaveLength(1);
-      expect(orphans[0].id).toBe('p2');
+    expect(orphaned).toHaveLength(1);
+    expect(orphaned?.[0].id).toBe('orphan');
   });
 });

@@ -541,17 +541,96 @@ export const useTrackManagement = (
   }, [tracks, onPlacesChanged]);
 
   const createAllTrackPlaces = useCallback(async (trackId: string, useLocalityName: boolean = false) => {
-      const start = await createTrackPlace(trackId, 'start', useLocalityName);
-      const end = await createTrackPlace(trackId, 'end', useLocalityName);
-      const middle = await createTrackPlace(trackId, 'middle', useLocalityName);
-      return { start, middle, end };
-  }, [createTrackPlace]);
+    const track = tracks.find(t => t.id === trackId);
+    if (!track || track.points.length === 0) return { start: undefined, middle: undefined, end: undefined };
+
+    const newPlaces: { start?: Place, middle?: Place, end?: Place } = {};
+    const trackUpdates: Partial<Track> = {};
+
+    // Helper to create and save place
+    const generateAndSavePlace = async (point: [number, number], type: TrackPlaceType, source: 'track-start' | 'track-middle' | 'track-end') => {
+        let title = track.name;
+        if (useLocalityName) {
+            try {
+                const service = getGeocodingService();
+                const locality = await service.getLocalityName(point[0], point[1]);
+                if (locality) title = locality;
+            } catch (e) { console.warn('Geocoding failed', e); }
+        }
+        const placeId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        const place: Place = {
+            id: placeId,
+            latitude: point[0],
+            longitude: point[1],
+            title,
+            createdAt: Date.now(),
+            source,
+            trackId: trackId,
+            isVisible: true,
+            showIcon: true,
+            iconStyle: 'pin',
+            iconConfig: { style: 'pin', size: 30, color: '#ef4444' }
+        };
+        await db.savePlaceToDb(place);
+        return place;
+    };
+
+    // 1. Start Place
+    if (!track.startPlaceId) {
+      const place = await generateAndSavePlace(track.points[0], 'start', 'track-start');
+      newPlaces.start = place;
+      trackUpdates.startPlaceId = place.id;
+    }
+
+    // 2. End Place
+    if (!track.endPlaceId) {
+      const place = await generateAndSavePlace(track.points[track.points.length - 1], 'end', 'track-end');
+      newPlaces.end = place;
+      trackUpdates.endPlaceId = place.id;
+    }
+
+    // 3. Middle Place
+    if (!track.middlePlaceId) {
+      // Get existing places including the ones we just created
+      const existingPlaces = await db.getPlacesByTrackId(trackId);
+      if (newPlaces.start) existingPlaces.push(newPlaces.start);
+      if (newPlaces.end) existingPlaces.push(newPlaces.end);
+
+      const point = findOptimalMiddlePoint(track, existingPlaces);
+      const place = await generateAndSavePlace(point, 'middle', 'track-middle');
+      newPlaces.middle = place;
+      trackUpdates.middlePlaceId = place.id;
+    }
+
+    if (Object.keys(trackUpdates).length > 0) {
+        const updatedTrack = { ...track, ...trackUpdates };
+        await db.addTrack(updatedTrack);
+        setTracks(prev => prev.map(t => t.id === trackId ? updatedTrack : t));
+        if (onPlacesChanged) onPlacesChanged();
+    }
+
+    return newPlaces;
+  }, [tracks, onPlacesChanged]);
 
   const removeAllTrackPlaces = useCallback(async (trackId: string) => {
-      await removeTrackPlace(trackId, 'start');
-      await removeTrackPlace(trackId, 'middle');
-      await removeTrackPlace(trackId, 'end');
-  }, [removeTrackPlace]);
+      const track = tracks.find(t => t.id === trackId);
+      if (!track) return;
+
+      if (track.startPlaceId) await db.deletePlaceFromDb(track.startPlaceId);
+      if (track.middlePlaceId) await db.deletePlaceFromDb(track.middlePlaceId);
+      if (track.endPlaceId) await db.deletePlaceFromDb(track.endPlaceId);
+
+      const updatedTrack = {
+          ...track,
+          startPlaceId: undefined,
+          middlePlaceId: undefined,
+          endPlaceId: undefined
+      };
+
+      await db.addTrack(updatedTrack);
+      setTracks(prev => prev.map(t => t.id === trackId ? updatedTrack : t));
+      if (onPlacesChanged) onPlacesChanged();
+  }, [tracks, onPlacesChanged]);
 
   const getOrphanedPlaces = useCallback(async (): Promise<Place[]> => {
     try {

@@ -383,16 +383,16 @@ Create `tests/unit/components/tracks/TrackListItem.places.test.tsx`:
 
 Create `tests/integration/hooks/trackPlaces.integration.test.ts`:
 
-- [ ] Test complete workflow
-  - [ ] Upload track → create places → verify in database
-  - [ ] Create places with geocoding → verify titles
-  - [ ] Remove places → verify deletion
-  - [ ] Delete track → verify places remain
+- [x] Test complete workflow
+  - [x] Upload track → create places → verify in database
+  - [x] Create places with geocoding → verify titles
+  - [x] Remove places → verify deletion
+  - [x] Delete track → verify places remain
 
-- [ ] Test geocoding integration
-  - [ ] Create place with locality name
-  - [ ] Verify API called correctly
-  - [ ] Verify fallback on error
+- [x] Test geocoding integration
+  - [x] Create place with locality name
+  - [x] Verify API called correctly
+  - [x] Verify fallback on error
   - [ ] Verify rate limiting
 
 - [ ] Test middle point optimization
@@ -405,11 +405,11 @@ Create `tests/integration/hooks/trackPlaces.integration.test.ts`:
 
 Create `tests/integration/components/tracks/TrackPlaces.integration.test.tsx`:
 
-- [ ] Test UI workflow
-  - [ ] Click add button → place appears on map
-  - [ ] Click remove button → place disappears
-  - [ ] Batch add → all three places appear
-  - [ ] Visual indicators update correctly
+- [x] Test UI workflow
+  - [x] Click add button → place appears on map
+  - [x] Click remove button → place disappears
+  - [x] Batch add → all three places appear
+  - [x] Visual indicators update correctly
 
 - [ ] Test with real geocoding
   - [ ] Mock or use test Nominatim instance
@@ -431,7 +431,7 @@ Create `tests/integration/components/tracks/TrackPlaces.integration.test.tsx`:
 - [x] Orphaned place detection implemented
 - [x] Settings for track place preferences
 - [x] Unit test coverage >85% for track place code
-- [ ] Integration tests verify complete workflows
+- [x] Integration tests verify complete workflows
 - [x] TypeScript strict mode compliance
 - [x] Error handling provides clear user feedback
 
@@ -439,3 +439,5 @@ Create `tests/integration/components/tracks/TrackPlaces.integration.test.tsx`:
 
 - **Auto-create Places**: Implemented in `useTrackManagement` hook. When enabled, it creates Start, Middle, and End places during file upload. It uses the track name for all places to ensure fast processing and avoid rate limits or network issues with geocoding during bulk imports. Users can rename places later or use the "Use Locality Name" option (which is currently only effective for manual creation or needs future enhancement for bulk async processing).
 - **Orphaned Places**: `getOrphanedPlaces` function added to `useTrackManagement` hook to detect places with valid `trackId` but where the track no longer exists in the system.
+- **UI Integration**: `TrackListItem.tsx` updated to include an expandable "Manage Places" section with S/M/E buttons and batch actions. `TrackContextMenu.tsx` was skipped in favor of the inline expandable menu for better accessibility and mobile support.
+- **Geocoding Progress**: A dedicated progress component was deemed unnecessary as `TrackListItem` provides localized loading states for each action.

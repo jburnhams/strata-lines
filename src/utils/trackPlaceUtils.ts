@@ -12,6 +12,23 @@ export const interpolatePoint = (point1: Point, point2: Point, fraction: number)
 };
 
 /**
+ * Calculate distance along track to a specific point index in kilometers.
+ */
+export const calculateDistanceAlongTrack = (track: Track, pointIndex: number): number => {
+  if (!track.points || track.points.length === 0 || pointIndex <= 0) return 0;
+
+  let totalDist = 0;
+  const maxIndex = Math.min(pointIndex, track.points.length - 1);
+
+  for (let i = 0; i < maxIndex; i++) {
+    const p1 = L.latLng(track.points[i]);
+    const p2 = L.latLng(track.points[i + 1]);
+    totalDist += p1.distanceTo(p2);
+  }
+  return totalDist / 1000;
+};
+
+/**
  * Calculate total track distance in kilometers.
  */
 export const calculateTotalTrackDistance = (track: Track): number => {
