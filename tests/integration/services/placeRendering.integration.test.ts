@@ -14,6 +14,7 @@ describe('placeRendering integration', () => {
         title: 'Test Place',
         isVisible: true,
         showIcon: true,
+        iconStyle: 'pin',
         iconConfig: { style: 'pin', size: 20, color: 'red' },
         source: 'manual',
         createdAt: Date.now()
