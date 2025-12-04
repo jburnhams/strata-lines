@@ -146,7 +146,8 @@ export const renderPlacesOnCanvas = async (
   zoom: number,
   settings: ExportSettings,
   tileLayerUrl?: string,
-  cachedPositions?: Map<string, PlaceTitlePosition>
+  cachedPositions?: Map<string, PlaceTitlePosition>,
+  debug?: boolean
 ): Promise<void> => {
   if (!settings.includePlaces) return;
 
@@ -186,6 +187,34 @@ export const renderPlacesOnCanvas = async (
     const y = Math.round(point.y - nwPoint.y);
     const position = positions?.get(place.id) || 'right';
 
-    await renderPlace(ctx, place, x, y, settings, zoom, tileLayerUrl, position);
+    const result = await renderPlace(ctx, place, x, y, settings, zoom, tileLayerUrl, position);
+
+    if (debug) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
+      ctx.lineWidth = 1;
+
+      if (result.textBounds) {
+        ctx.strokeRect(result.textBounds.x, result.textBounds.y, result.textBounds.width, result.textBounds.height);
+      }
+
+      if (result.iconBounds) {
+        ctx.strokeStyle = 'rgba(0, 0, 255, 0.8)';
+        ctx.strokeRect(result.iconBounds.x, result.iconBounds.y, result.iconBounds.width, result.iconBounds.height);
+      }
+
+      // Draw connection line
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      if (result.textBounds) {
+        const cx = result.textBounds.x + result.textBounds.width / 2;
+        const cy = result.textBounds.y + result.textBounds.height / 2;
+        ctx.lineTo(cx, cy);
+      }
+      ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+      ctx.stroke();
+
+      ctx.restore();
+    }
   }
 };

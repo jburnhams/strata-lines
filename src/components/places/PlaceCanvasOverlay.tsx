@@ -33,6 +33,7 @@ export const PlaceCanvasOverlay: React.FC<{ places: Place[] }> = ({ places }) =>
   const [placePreferredTitleGap] = useLocalStorage<number>('placePreferredTitleGap', 20);
   const [placeAllowOverlap] = useLocalStorage<boolean>('placeAllowOverlap', true);
   const [placeOptimizePositions] = useLocalStorage<boolean>('placeOptimizePositions', true);
+  const [debugPositions] = useLocalStorage<boolean>('debugPlacePositions', false);
 
   const settings = useMemo<ExportSettings>(() => ({
     includePlaces,
@@ -88,9 +89,17 @@ export const PlaceCanvasOverlay: React.FC<{ places: Place[] }> = ({ places }) =>
 
     const ctx = canvas.getContext('2d');
     if (ctx) {
-        ctx.resetTransform();
+        // Handle resetTransform which might be missing in some environments (like JSDOM)
+        if (typeof ctx.resetTransform === 'function') {
+            ctx.resetTransform();
+        } else if (typeof ctx.setTransform === 'function') {
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+        }
+
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.scale(dpr, dpr);
+        if (typeof ctx.scale === 'function') {
+           ctx.scale(dpr, dpr);
+        }
 
         // Recalculate positions if needed
         if (
@@ -106,7 +115,7 @@ export const PlaceCanvasOverlay: React.FC<{ places: Place[] }> = ({ places }) =>
            lastCalcSettingsRef.current = settings;
         }
 
-        await renderPlacesOnCanvas(canvas, places, bounds, zoom, settings, undefined, positionsRef.current);
+        await renderPlacesOnCanvas(canvas, places, bounds, zoom, settings, undefined, positionsRef.current, debugPositions);
     }
   };
 
