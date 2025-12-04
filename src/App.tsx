@@ -48,13 +48,16 @@ const App: React.FC = () => {
 
   // Custom hooks
   const exportState = useExportState(previewZoom, zoom);
+  const placeManagement = usePlaceManagement();
   const trackManagement = useTrackManagement(
     lineColorStart,
     lineColorEnd,
     minLengthFilter,
-    previewBounds
+    previewBounds,
+    exportState.autoCreatePlaces,
+    exportState.defaultUseLocalityName,
+    placeManagement.refreshPlaces
   );
-  const placeManagement = usePlaceManagement();
 
   // Clamp labelDensity to max value and ensure it's an integer
   useEffect(() => {
@@ -319,6 +322,10 @@ const App: React.FC = () => {
         setPlaceTitleSize={setPlaceTitleSize}
         showIconsGlobally={showIconsGlobally}
         setShowIconsGlobally={setShowIconsGlobally}
+        autoCreatePlaces={exportState.autoCreatePlaces}
+        setAutoCreatePlaces={exportState.setAutoCreatePlaces}
+        defaultUseLocalityName={exportState.defaultUseLocalityName}
+        setDefaultUseLocalityName={exportState.setDefaultUseLocalityName}
         onZoomToPlace={(place) => {
              setMapCenter({ lat: place.latitude, lng: place.longitude } as LatLng);
              setZoom(16);

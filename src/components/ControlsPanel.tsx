@@ -77,6 +77,11 @@ interface ControlsPanelProps {
   removeTrackPlace: (id: string, type: TrackPlaceType) => Promise<void>;
   createAllTrackPlaces: (id: string, useLocality: boolean) => Promise<any>;
   removeAllTrackPlaces: (id: string) => Promise<void>;
+
+  autoCreatePlaces: boolean;
+  setAutoCreatePlaces: (val: boolean) => void;
+  defaultUseLocalityName: boolean;
+  setDefaultUseLocalityName: (val: boolean) => void;
 }
 
 // Common Subcomponents
@@ -177,6 +182,10 @@ const DesktopLayout: React.FC<LayoutProps> = (props) => {
                     onTitleSizeChange={props.setPlaceTitleSize}
                     showIconsGlobally={props.showIconsGlobally}
                     onToggleIconsGlobally={props.setShowIconsGlobally}
+                    autoCreatePlaces={props.autoCreatePlaces}
+                    onToggleAutoCreatePlaces={props.setAutoCreatePlaces}
+                    defaultUseLocalityName={props.defaultUseLocalityName}
+                    onToggleDefaultUseLocalityName={props.setDefaultUseLocalityName}
                 />
             )}
 
@@ -375,6 +384,10 @@ const MobileLayout: React.FC<LayoutProps> = (props) => {
                                     onTitleSizeChange={props.setPlaceTitleSize}
                                     showIconsGlobally={props.showIconsGlobally}
                                     onToggleIconsGlobally={props.setShowIconsGlobally}
+                                    autoCreatePlaces={props.autoCreatePlaces}
+                                    onToggleAutoCreatePlaces={props.setAutoCreatePlaces}
+                                    defaultUseLocalityName={props.defaultUseLocalityName}
+                                    onToggleDefaultUseLocalityName={props.setDefaultUseLocalityName}
                                 />
                             )}
 
@@ -452,7 +465,10 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = (props) => {
         type="file"
         accept=".gpx,.tcx,.fit,.gz"
         multiple
-        onChange={(e) => props.handleFiles(e.target.files)}
+        onChange={(e) => {
+            props.handleFiles(e.target.files);
+            e.target.value = '';
+        }}
         className="hidden"
         ref={fileInputRef}
         data-testid="hidden-file-input"

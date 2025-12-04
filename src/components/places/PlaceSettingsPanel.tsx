@@ -5,21 +5,30 @@ interface PlaceSettingsPanelProps {
   onTitleSizeChange: (size: number) => void;
   showIconsGlobally: boolean;
   onToggleIconsGlobally: (show: boolean) => void;
+  autoCreatePlaces: boolean;
+  onToggleAutoCreatePlaces: (val: boolean) => void;
+  defaultUseLocalityName: boolean;
+  onToggleDefaultUseLocalityName: (val: boolean) => void;
 }
 
 export const PlaceSettingsPanel: React.FC<PlaceSettingsPanelProps> = ({
   titleSize,
   onTitleSizeChange,
   showIconsGlobally,
-  onToggleIconsGlobally
+  onToggleIconsGlobally,
+  autoCreatePlaces,
+  onToggleAutoCreatePlaces,
+  defaultUseLocalityName,
+  onToggleDefaultUseLocalityName
 }) => {
   return (
     <div className="bg-white rounded-md border p-3 mt-4 space-y-4">
       <div>
         <h4 className="text-sm font-medium text-gray-700 mb-2">Place Settings</h4>
         <div className="flex items-center justify-between">
-            <label className="text-sm text-gray-600">Show Icons</label>
+            <label htmlFor="showIcons" className="text-sm text-gray-600">Show Icons</label>
             <input
+                id="showIcons"
                 type="checkbox"
                 checked={showIconsGlobally}
                 onChange={(e) => onToggleIconsGlobally(e.target.checked)}
@@ -29,11 +38,36 @@ export const PlaceSettingsPanel: React.FC<PlaceSettingsPanelProps> = ({
       </div>
 
       <div>
-        <label className="text-sm text-gray-600 flex justify-between mb-1">
+        <h4 className="text-sm font-medium text-gray-700 mb-2">Track Integration</h4>
+        <div className="flex items-center justify-between mb-2">
+            <label htmlFor="autoCreatePlaces" className="text-sm text-gray-600" title="Automatically create Start/Middle/End places when uploading tracks">Auto-create Places</label>
+            <input
+                id="autoCreatePlaces"
+                type="checkbox"
+                checked={autoCreatePlaces}
+                onChange={(e) => onToggleAutoCreatePlaces(e.target.checked)}
+                className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
+            />
+        </div>
+        <div className="flex items-center justify-between">
+            <label htmlFor="useLocalityNames" className="text-sm text-gray-600" title="Use geocoded locality name instead of track name for places">Use Locality Names</label>
+            <input
+                id="useLocalityNames"
+                type="checkbox"
+                checked={defaultUseLocalityName}
+                onChange={(e) => onToggleDefaultUseLocalityName(e.target.checked)}
+                className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
+            />
+        </div>
+      </div>
+
+      <div>
+        <label htmlFor="titleSize" className="text-sm text-gray-600 flex justify-between mb-1">
             <span>Title Size</span>
             <span className="text-xs text-gray-400">{titleSize}%</span>
         </label>
         <input
+          id="titleSize"
           type="range"
           min="1"
           max="100"
