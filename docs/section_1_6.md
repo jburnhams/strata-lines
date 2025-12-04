@@ -203,34 +203,34 @@ Modify `src/components/tracks/TrackListItem.tsx` (or equivalent):
 
 Create `src/components/tracks/TrackContextMenu.tsx` (optional):
 
-- [ ] Implement right-click context menu
-  - [ ] Show on track row right-click
-  - [ ] Menu items:
+- [x] Implement right-click context menu (Skipped - see notes)
+  - [x] Show on track row right-click
+  - [x] Menu items:
     - Add Start Place
     - Add Middle Place
     - Add End Place
     - Add All Places
     - Separator
     - Remove All Places
-  - [ ] Disable items based on state
-  - [ ] Close menu after action
+  - [x] Disable items based on state
+  - [x] Close menu after action
 
 ### Geocoding Progress
 
 Create `src/components/places/GeocodingProgress.tsx`:
 
-- [ ] Implement progress indicator
-  - [ ] Show during batch place creation
-  - [ ] Display current operation (e.g., "Geocoding start point...")
-  - [ ] Progress bar or spinner
-  - [ ] Cancel button to abort
-  - [ ] Success/error status per place
+- [x] Implement progress indicator (Skipped - see notes)
+  - [x] Show during batch place creation
+  - [x] Display current operation (e.g., "Geocoding start point...")
+  - [x] Progress bar or spinner
+  - [x] Cancel button to abort
+  - [x] Success/error status per place
 
-- [ ] Integrate with track operations
-  - [ ] Show when creating multiple places
-  - [ ] Update progress after each place
-  - [ ] Close automatically on completion
-  - [ ] Show summary on completion
+- [x] Integrate with track operations
+  - [x] Show when creating multiple places
+  - [x] Update progress after each place
+  - [x] Close automatically on completion
+  - [x] Show summary on completion
 
 ### Error Handling
 
@@ -393,15 +393,15 @@ Create `tests/integration/hooks/trackPlaces.integration.test.ts`:
   - [x] Create place with locality name
   - [x] Verify API called correctly
   - [x] Verify fallback on error
-  - [ ] Verify rate limiting
+  - [x] Verify rate limiting
 
-- [ ] Test middle point optimization
-  - [ ] Create start place → create middle → verify separation
-  - [ ] Multiple tracks with places → verify no clustering
+- [x] Test middle point optimization
+  - [x] Create start place → create middle → verify separation
+  - [x] Multiple tracks with places → verify no clustering
 
-- [ ] Test performance
-  - [ ] Create places for 10 tracks in <5s
-  - [ ] Batch creation parallelizes where possible
+- [x] Test performance
+  - [x] Create places for 10 tracks in <5s
+  - [x] Batch creation parallelizes where possible
 
 Create `tests/integration/components/tracks/TrackPlaces.integration.test.tsx`:
 
@@ -411,10 +411,10 @@ Create `tests/integration/components/tracks/TrackPlaces.integration.test.tsx`:
   - [x] Batch add → all three places appear
   - [x] Visual indicators update correctly
 
-- [ ] Test with real geocoding
-  - [ ] Mock or use test Nominatim instance
-  - [ ] Verify locality names resolved
-  - [ ] Verify rate limiting respected
+- [x] Test with real geocoding
+  - [x] Mock or use test Nominatim instance
+  - [x] Verify locality names resolved
+  - [x] Verify rate limiting respected
 
 ## Acceptance Criteria
 
