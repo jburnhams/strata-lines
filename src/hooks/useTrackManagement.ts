@@ -553,6 +553,17 @@ export const useTrackManagement = (
       await removeTrackPlace(trackId, 'end');
   }, [removeTrackPlace]);
 
+  const getOrphanedPlaces = useCallback(async (): Promise<Place[]> => {
+    try {
+        const allPlaces = await db.getAllPlacesFromDb();
+        const trackIds = new Set(tracks.map(t => t.id));
+        return allPlaces.filter(p => p.trackId && !trackIds.has(p.trackId));
+    } catch (e) {
+        console.error("Failed to get orphaned places", e);
+        return [];
+    }
+  }, [tracks]);
+
   return {
     tracks,
     setTracks,
@@ -577,5 +588,6 @@ export const useTrackManagement = (
     removeTrackPlace,
     createAllTrackPlaces,
     removeAllTrackPlaces,
+    getOrphanedPlaces,
   };
 };

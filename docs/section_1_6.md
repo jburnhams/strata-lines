@@ -358,6 +358,7 @@ Create `tests/unit/hooks/useTrackManagement.trackPlaces.test.ts`:
   - [x] getTrackPlaces returns correct places
   - [x] hasTrackPlace checks correctly
   - [x] Handles missing places
+  - [x] Detects orphaned places
 
 Create `tests/unit/components/tracks/TrackListItem.places.test.tsx`:
 
@@ -437,3 +438,4 @@ Create `tests/integration/components/tracks/TrackPlaces.integration.test.tsx`:
 ## Implementation Notes
 
 - **Auto-create Places**: Implemented in `useTrackManagement` hook. When enabled, it creates Start, Middle, and End places during file upload. It uses the track name for all places to ensure fast processing and avoid rate limits or network issues with geocoding during bulk imports. Users can rename places later or use the "Use Locality Name" option (which is currently only effective for manual creation or needs future enhancement for bulk async processing).
+- **Orphaned Places**: `getOrphanedPlaces` function added to `useTrackManagement` hook to detect places with valid `trackId` but where the track no longer exists in the system.

@@ -174,4 +174,27 @@ describe('useTrackManagement Track Places', () => {
         endPlaceId: expect.any(String)
     }));
   });
+
+  it('detects orphaned places', async () => {
+      const { result } = renderUseTrackManagement();
+
+      // Setup tracks
+      act(() => {
+          result.current.setTracks([mockTrack]);
+      });
+
+      // Setup places: one valid, one orphaned
+      const validPlace = { ...mockPlace, id: 'p1', trackId: 't1' };
+      const orphanedPlace = { ...mockPlace, id: 'p2', trackId: 't2-missing' };
+
+      (db.getAllPlacesFromDb as jest.Mock<any>).mockResolvedValue([validPlace, orphanedPlace]);
+
+      let orphans: Place[] = [];
+      await act(async () => {
+          orphans = await result.current.getOrphanedPlaces();
+      });
+
+      expect(orphans).toHaveLength(1);
+      expect(orphans[0].id).toBe('p2');
+  });
 });
