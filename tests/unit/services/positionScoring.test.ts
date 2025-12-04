@@ -1,5 +1,5 @@
-import { scorePosition, scoreBothPositions, selectBestPosition } from '@/services/positionScoring';
-import { PositioningConstraints, PlaceTitleBounds } from '@/types';
+import { scorePosition, scoreAllPositions, selectBestPosition } from '@/services/positionScoring';
+import { PositioningConstraints, PlaceTitleBounds, PlaceTitlePosition } from '@/types';
 
 describe('positionScoring', () => {
   const constraints: PositioningConstraints = {
@@ -55,41 +55,118 @@ describe('positionScoring', () => {
     });
   });
 
-  describe('scoreBothPositions', () => {
-    it('calculates scores for both sides', () => {
-      const result = scoreBothPositions(
+  describe('scoreAllPositions', () => {
+    it('calculates scores for all positions', () => {
+      const result = scoreAllPositions(
         'p1',
-        100, 100, // icon at 100,100
+        100, 100, // icon at 100,100 (bottom center)
         50, 20,   // text 50x20
         [],       // no existing
         constraints
       );
 
-      // Both should be valid and have high scores
-      expect(result.left).toBeGreaterThan(0);
-      expect(result.right).toBeGreaterThan(0);
+      // All should be valid
+      expect(result.left.score).toBeGreaterThan(0);
+      expect(result.right.score).toBeGreaterThan(0);
+      expect(result.top.score).toBeGreaterThan(0);
+      expect(result.bottom.score).toBeGreaterThan(0);
+
       // Bounds check
       // Right: x = 100 + 10 + 5 = 115.
-      expect(result.rightBounds.x).toBe(115);
+      expect(result.right.bounds.x).toBe(115);
       // Left: x = 100 - 10 - 5 - 50 = 35.
-      expect(result.leftBounds.x).toBe(35);
+      expect(result.left.bounds.x).toBe(35);
+
+      // Top: y = iconTop (100-20=80) - 5 - 20 = 55.
+      // x = 100 - 25 = 75.
+      expect(result.top.bounds.y).toBe(55);
+      expect(result.top.bounds.x).toBe(75);
+
+      // Bottom: y = 100 + 5 = 105.
+      expect(result.bottom.bounds.y).toBe(105);
+      expect(result.bottom.bounds.x).toBe(75);
     });
   });
 
   describe('selectBestPosition', () => {
+    const mockBounds = new DOMRect(0,0,0,0);
+
     it('selects higher score', () => {
-      expect(selectBestPosition(100, 50)).toBe('left');
-      expect(selectBestPosition(50, 100)).toBe('right');
+      const scores: Record<PlaceTitlePosition, { score: number, bounds: DOMRect }> = {
+        left: { score: 100, bounds: mockBounds },
+        right: { score: 50, bounds: mockBounds },
+        top: { score: 50, bounds: mockBounds },
+        bottom: { score: 50, bounds: mockBounds }
+      };
+      expect(selectBestPosition(scores)).toBe('left');
+
+      scores.left.score = 50;
+      scores.right.score = 100;
+      expect(selectBestPosition(scores)).toBe('right');
     });
 
     it('applies bias when scores are close', () => {
+      const scores: Record<PlaceTitlePosition, { score: number, bounds: DOMRect }> = {
+        left: { score: 1000, bounds: mockBounds },
+        right: { score: 950, bounds: mockBounds },
+        top: { score: 500, bounds: mockBounds },
+        bottom: { score: 500, bounds: mockBounds }
+      };
       // 1000 vs 950. Diff 50. Max 1000. 50/1000 = 0.05 < 0.1. Bias applies.
-      expect(selectBestPosition(1000, 950, 'right')).toBe('right');
+      expect(selectBestPosition(scores, 'right')).toBe('right');
     });
 
     it('ignores bias when scores are far', () => {
+      const scores: Record<PlaceTitlePosition, { score: number, bounds: DOMRect }> = {
+        left: { score: 1000, bounds: mockBounds },
+        right: { score: 800, bounds: mockBounds },
+        top: { score: 500, bounds: mockBounds },
+        bottom: { score: 500, bounds: mockBounds }
+      };
       // 1000 vs 800. Diff 200. Max 1000. 0.2 > 0.1.
-      expect(selectBestPosition(1000, 800, 'right')).toBe('left');
+      expect(selectBestPosition(scores, 'right')).toBe('left');
+    });
+  });
+
+  describe('complex scenarios', () => {
+    it('chooses top/bottom when sides are blocked (Sandwich)', () => {
+      // Target: 100, 100. Icon size 20. Text 50x20.
+      // Left pos: x=35, y=90, w=50, h=20
+      // Right pos: x=115, y=90, w=50, h=20
+
+      const existing: PlaceTitleBounds[] = [
+        {
+          placeId: 'blocker-left',
+          position: 'left',
+          bounds: new DOMRect(35, 80, 50, 20), // Blocks left (y=80..100) matches target (y=80..100)
+          geoBounds: {} as any
+        },
+        {
+          placeId: 'blocker-right',
+          position: 'right',
+          bounds: new DOMRect(115, 80, 50, 20), // Blocks right
+          geoBounds: {} as any
+        }
+      ];
+
+      const scores = scoreAllPositions(
+        'target',
+        100, 100,
+        50, 20,
+        existing,
+        constraints
+      );
+
+      // Left and Right should have terrible scores due to overlap
+      expect(scores.left.score).toBeLessThan(0);
+      expect(scores.right.score).toBeLessThan(0);
+
+      // Top and Bottom should be positive
+      expect(scores.top.score).toBeGreaterThan(0);
+      expect(scores.bottom.score).toBeGreaterThan(0);
+
+      const best = selectBestPosition(scores);
+      expect(['top', 'bottom']).toContain(best);
     });
   });
 });
