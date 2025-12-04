@@ -42,6 +42,11 @@ export const useExportState = (
   const [placeAllowOverlap, setPlaceAllowOverlap] = useLocalStorage<boolean>('placeAllowOverlap', true);
   const [placeOptimizePositions, setPlaceOptimizePositions] = useLocalStorage<boolean>('placeOptimizePositions', true);
 
+  // Track Place Integration Settings
+  const [defaultUseLocalityName, setDefaultUseLocalityName] = useLocalStorage<boolean>('defaultUseLocalityName', false);
+  const [autoCreatePlaces, setAutoCreatePlaces] = useLocalStorage<boolean>('autoCreatePlaces', false);
+  const [middlePointSearchRadius, setMiddlePointSearchRadius] = useLocalStorage<number>('middlePointSearchRadius', 0.33);
+
   const [exportDimensions, setExportDimensions] = useState<{
     width: number | null;
     height: number | null;
@@ -227,5 +232,12 @@ export const useExportState = (
     setPlaceAllowOverlap,
     placeOptimizePositions,
     setPlaceOptimizePositions,
+    // Track Place Settings
+    defaultUseLocalityName,
+    setDefaultUseLocalityName,
+    autoCreatePlaces,
+    setAutoCreatePlaces,
+    middlePointSearchRadius,
+    setMiddlePointSearchRadius,
   };
 };

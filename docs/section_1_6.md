@@ -31,7 +31,7 @@ Each track can have up to three associated places:
 
 Extend `src/types.ts`:
 
-- [ ] Add track place association fields
+- [x] Add track place association fields
   ```typescript
   interface Track {
     // ... existing fields
@@ -41,7 +41,7 @@ Extend `src/types.ts`:
   }
   ```
 
-- [ ] Add helper types
+- [x] Add helper types
   ```typescript
   type TrackPlaceType = 'start' | 'middle' | 'end';
 
@@ -56,15 +56,15 @@ Extend `src/types.ts`:
 
 Create `src/utils/trackPlaceUtils.ts`:
 
-- [ ] Implement middle point calculation
-  - [ ] `findTrackMiddlePoint(track: Track): Point`
+- [x] Implement middle point calculation
+  - [x] `findTrackMiddlePoint(track: Track): Point`
     - Calculate cumulative distance along track
     - Find point at 50% total distance
     - If exact point not found, interpolate between adjacent points
     - Return [latitude, longitude] tuple
 
-- [ ] Implement optimized middle point
-  - [ ] `findOptimalMiddlePoint(track: Track, existingPlaces: Place[]): Point`
+- [x] Implement optimized middle point
+  - [x] `findOptimalMiddlePoint(track: Track, existingPlaces: Place[]): Point`
     - Calculate middle third of track (33% to 66% distance)
     - Sample N candidate points (e.g., 10 points)
     - For each candidate, calculate distance to nearest existing place
@@ -72,18 +72,18 @@ Create `src/utils/trackPlaceUtils.ts`:
     - Return optimal point coordinates
     - If no existing places, return exact middle point
 
-- [ ] Implement distance calculations
-  - [ ] `calculateDistanceAlongTrack(track: Track, pointIndex: number): number`
+- [x] Implement distance calculations
+  - [x] `calculateDistanceAlongTrack(track: Track, pointIndex: number): number`
     - Sum distances from start to given point index
     - Use Leaflet's geodesic distance
     - Return distance in kilometers
 
-  - [ ] `calculateTotalTrackDistance(track: Track): number`
+  - [x] `calculateTotalTrackDistance(track: Track): number`
     - Return track.length (already calculated)
     - Or recalculate if not present
 
-- [ ] Implement interpolation
-  - [ ] `interpolatePoint(point1: Point, point2: Point, fraction: number): Point`
+- [x] Implement interpolation
+  - [x] `interpolatePoint(point1: Point, point2: Point, fraction: number): Point`
     - Linear interpolation between two points
     - fraction: 0 = point1, 1 = point2, 0.5 = midpoint
     - Handle latitude/longitude correctly (no wrap-around for now)
@@ -93,8 +93,8 @@ Create `src/utils/trackPlaceUtils.ts`:
 
 Extend `src/hooks/useTrackManagement.ts`:
 
-- [ ] Add track place creation functions
-  - [ ] `createTrackStartPlace(trackId: string, useLocalityName: boolean = false): Promise<Place>`
+- [x] Add track place creation functions
+  - [x] `createTrackStartPlace(trackId: string, useLocalityName: boolean = false): Promise<Place>`
     - Get track by id
     - Extract first point
     - Determine title:
@@ -106,7 +106,7 @@ Extend `src/hooks/useTrackManagement.ts`:
     - Update track.startPlaceId
     - Return created place
 
-  - [ ] `createTrackMiddlePlace(trackId: string, useLocalityName: boolean = false): Promise<Place>`
+  - [x] `createTrackMiddlePlace(trackId: string, useLocalityName: boolean = false): Promise<Place>`
     - Get track by id
     - Get all existing places
     - Calculate optimal middle point
@@ -117,7 +117,7 @@ Extend `src/hooks/useTrackManagement.ts`:
     - Update track.middlePlaceId
     - Return created place
 
-  - [ ] `createTrackEndPlace(trackId: string, useLocalityName: boolean = false): Promise<Place>`
+  - [x] `createTrackEndPlace(trackId: string, useLocalityName: boolean = false): Promise<Place>`
     - Get track by id
     - Extract last point
     - Determine title (geocoded or track name)
@@ -127,7 +127,7 @@ Extend `src/hooks/useTrackManagement.ts`:
     - Update track.endPlaceId
     - Return created place
 
-  - [ ] `removeTrackPlace(trackId: string, type: TrackPlaceType): Promise<void>`
+  - [x] `removeTrackPlace(trackId: string, type: TrackPlaceType): Promise<void>`
     - Get track by id
     - Get place id from track (startPlaceId, middlePlaceId, or endPlaceId)
     - Delete place from database
@@ -135,26 +135,26 @@ Extend `src/hooks/useTrackManagement.ts`:
     - Update track in database
     - Update local state
 
-- [ ] Add batch track place operations
-  - [ ] `createAllTrackPlaces(trackId: string, useLocalityName: boolean = false): Promise<{ start: Place, middle: Place, end: Place }>`
+- [x] Add batch track place operations
+  - [x] `createAllTrackPlaces(trackId: string, useLocalityName: boolean = false): Promise<{ start: Place, middle: Place, end: Place }>`
     - Create all three places for track
     - Execute in sequence (start → middle → end)
     - Middle calculation considers start place
     - Return all created places
 
-  - [ ] `removeAllTrackPlaces(trackId: string): Promise<void>`
+  - [x] `removeAllTrackPlaces(trackId: string): Promise<void>`
     - Remove start, middle, and end places
     - Execute in parallel
     - Clear all track references
     - Update track in database
 
-- [ ] Add helper functions
-  - [ ] `getTrackPlaces(trackId: string): Promise<Place[]>`
+- [x] Add helper functions
+  - [x] `getTrackPlaces(trackId: string): Promise<Place[]>`
     - Query places with matching trackId
     - Return array of associated places
     - Sort by source (start, middle, end)
 
-  - [ ] `hasTrackPlace(trackId: string, type: TrackPlaceType): boolean`
+  - [x] `hasTrackPlace(trackId: string, type: TrackPlaceType): boolean`
     - Check if track has place of given type
     - Use track.startPlaceId, middlePlaceId, or endPlaceId
     - Return boolean
@@ -163,41 +163,41 @@ Extend `src/hooks/useTrackManagement.ts`:
 
 Modify `src/components/tracks/TrackListItem.tsx` (or equivalent):
 
-- [ ] Add place action buttons
-  - [ ] Group place buttons in expandable section
-  - [ ] Show on hover or when expanded
-  - [ ] Three button groups: Start, Middle, End
-  - [ ] Each group has Add/Remove toggle
-  - [ ] Icon indicates current state (filled/empty pin)
+- [x] Add place action buttons
+  - [x] Group place buttons in expandable section
+  - [x] Show on hover or when expanded
+  - [x] Three button groups: Start, Middle, End
+  - [x] Each group has Add/Remove toggle
+  - [x] Icon indicates current state (filled/empty pin)
 
-- [ ] Implement Add Place button
-  - [ ] Click calls createTrackPlace function
-  - [ ] Show loading indicator during creation
-  - [ ] Show success notification
-  - [ ] Update button to Remove state
-  - [ ] Handle errors with user message
-  - [ ] Tooltip: "Add start/middle/end place"
+- [x] Implement Add Place button
+  - [x] Click calls createTrackPlace function
+  - [x] Show loading indicator during creation
+  - [x] Show success notification
+  - [x] Update button to Remove state
+  - [x] Handle errors with user message
+  - [x] Tooltip: "Add start/middle/end place"
 
-- [ ] Implement Remove Place button
-  - [ ] Click calls removeTrackPlace function
-  - [ ] Show confirmation dialog (optional)
-  - [ ] Show loading indicator during deletion
-  - [ ] Update button to Add state
-  - [ ] Handle errors with user message
-  - [ ] Tooltip: "Remove start/middle/end place"
+- [x] Implement Remove Place button
+  - [x] Click calls removeTrackPlace function
+  - [x] Show confirmation dialog (optional)
+  - [x] Show loading indicator during deletion
+  - [x] Update button to Add state
+  - [x] Handle errors with user message
+  - [x] Tooltip: "Remove start/middle/end place"
 
-- [ ] Implement Batch Add All button
-  - [ ] Button above individual buttons
-  - [ ] Click calls createAllTrackPlaces
-  - [ ] Show progress (1/3, 2/3, 3/3)
-  - [ ] Disable during creation
-  - [ ] Show success notification with count
-  - [ ] Tooltip: "Add all track places"
+- [x] Implement Batch Add All button
+  - [x] Button above individual buttons
+  - [x] Click calls createAllTrackPlaces
+  - [x] Show progress (1/3, 2/3, 3/3)
+  - [x] Disable during creation
+  - [x] Show success notification with count
+  - [x] Tooltip: "Add all track places"
 
-- [ ] Add visual indicators
-  - [ ] Badge showing place count (0-3)
-  - [ ] Highlight track when places visible
-  - [ ] Show geocoding status (loading, success, error)
+- [x] Add visual indicators
+  - [x] Badge showing place count (0-3)
+  - [x] Highlight track when places visible
+  - [x] Show geocoding status (loading, success, error)
 
 ### Context Menu Integration
 
@@ -236,55 +236,55 @@ Create `src/components/places/GeocodingProgress.tsx`:
 
 Extend error handling in place creation:
 
-- [ ] Handle geocoding failures
-  - [ ] Network timeout
-  - [ ] Rate limit exceeded (queue and retry)
-  - [ ] No results found (fallback to track name)
-  - [ ] User-friendly error messages
+- [x] Handle geocoding failures
+  - [x] Network timeout
+  - [x] Rate limit exceeded (queue and retry)
+  - [x] No results found (fallback to track name)
+  - [x] User-friendly error messages
 
-- [ ] Handle track not found
-  - [ ] Check track exists before creating place
-  - [ ] Handle track deleted during operation
-  - [ ] Clean error message
+- [x] Handle track not found
+  - [x] Check track exists before creating place
+  - [x] Handle track deleted during operation
+  - [x] Clean error message
 
-- [ ] Handle database errors
-  - [ ] Save failure rollback (remove partially created places)
-  - [ ] Update failure (track reference inconsistency)
-  - [ ] Retry logic for transient errors
+- [x] Handle database errors
+  - [x] Save failure rollback (remove partially created places)
+  - [x] Update failure (track reference inconsistency)
+  - [x] Retry logic for transient errors
 
 ### Track Deletion Handling
 
 Modify track deletion logic in `src/hooks/useTrackManagement.ts`:
 
-- [ ] Update deleteTrack function
-  - [ ] Places are NOT deleted when track deleted
-  - [ ] Places remain visible with null trackId
-  - [ ] Place title unchanged
-  - [ ] Place source remains track-start/middle/end
-  - [ ] User can manually delete orphaned places
-  - [ ] Optional: Show "Track deleted" indicator on place
+- [x] Update deleteTrack function
+  - [x] Places are NOT deleted when track deleted
+  - [x] Places remain visible with null trackId
+  - [x] Place title unchanged
+  - [x] Place source remains track-start/middle/end
+  - [x] User can manually delete orphaned places
+  - [x] Optional: Show "Track deleted" indicator on place
 
-- [ ] Add orphaned place detection
-  - [ ] `getOrphanedPlaces(): Place[]`
+- [x] Add orphaned place detection
+  - [x] `getOrphanedPlaces(): Place[]`
     - Find places with trackId that doesn't exist
     - Return array of orphaned places
-  - [ ] Show warning in UI (optional)
-  - [ ] Bulk delete option for orphaned places
+  - [x] Show warning in UI (optional)
+  - [x] Bulk delete option for orphaned places
 
 ### Settings Integration
 
 Add to `src/hooks/useExportState.ts` or create place settings:
 
-- [ ] Add track place preferences
-  - [ ] defaultUseLocalityName: boolean (default false)
-  - [ ] autoCreatePlaces: boolean (default false - auto-create on track upload)
-  - [ ] middlePointSearchRadius: number (default 33-66% range)
-  - [ ] Persist to localStorage
+- [x] Add track place preferences
+  - [x] defaultUseLocalityName: boolean (default false)
+  - [x] autoCreatePlaces: boolean (default false - auto-create on track upload)
+  - [x] middlePointSearchRadius: number (default 33-66% range)
+  - [x] Persist to localStorage
 
-- [ ] Implement settings UI
-  - [ ] Toggle for locality name vs track name
-  - [ ] Toggle for auto-creation on upload
-  - [ ] Slider for middle point search range
+- [x] Implement settings UI
+  - [x] Toggle for locality name vs track name
+  - [x] Toggle for auto-creation on upload
+  - [x] Slider for middle point search range
 
 ## Testing
 
@@ -292,91 +292,91 @@ Add to `src/hooks/useExportState.ts` or create place settings:
 
 Create `tests/unit/utils/trackPlaceUtils.test.ts`:
 
-- [ ] Test middle point calculation
-  - [ ] Returns exact middle for simple track
-  - [ ] Interpolates for middle not on point
-  - [ ] Handles track with 2 points
-  - [ ] Handles track with many points
-  - [ ] Handles track with equal-distance points
+- [x] Test middle point calculation
+  - [x] Returns exact middle for simple track
+  - [x] Interpolates for middle not on point
+  - [x] Handles track with 2 points
+  - [x] Handles track with many points
+  - [x] Handles track with equal-distance points
 
-- [ ] Test optimized middle point
-  - [ ] Returns middle when no existing places
-  - [ ] Moves away from existing places
-  - [ ] Stays within middle third
-  - [ ] Handles multiple existing places
-  - [ ] Handles places on track line
+- [x] Test optimized middle point
+  - [x] Returns middle when no existing places
+  - [x] Moves away from existing places
+  - [x] Stays within middle third
+  - [x] Handles multiple existing places
+  - [x] Handles places on track line
 
-- [ ] Test distance calculations
-  - [ ] Calculates distance along track correctly
-  - [ ] Handles first point (distance 0)
-  - [ ] Handles last point (total distance)
-  - [ ] Uses geodesic distance
+- [x] Test distance calculations
+  - [x] Calculates distance along track correctly
+  - [x] Handles first point (distance 0)
+  - [x] Handles last point (total distance)
+  - [x] Uses geodesic distance
 
-- [ ] Test interpolation
-  - [ ] Midpoint between two points correct
-  - [ ] Fractional points correct
-  - [ ] Handles 0 and 1 fractions
-  - [ ] Handles points at same location
+- [x] Test interpolation
+  - [x] Midpoint between two points correct
+  - [x] Fractional points correct
+  - [x] Handles 0 and 1 fractions
+  - [x] Handles points at same location
 
 Create `tests/unit/hooks/useTrackManagement.trackPlaces.test.ts`:
 
-- [ ] Test createTrackStartPlace
-  - [ ] Creates place at first point
-  - [ ] Uses track name as title
-  - [ ] Uses locality name if requested
-  - [ ] Sets trackId reference
-  - [ ] Updates track.startPlaceId
-  - [ ] Handles invalid track id
+- [x] Test createTrackStartPlace
+  - [x] Creates place at first point
+  - [x] Uses track name as title
+  - [x] Uses locality name if requested
+  - [x] Sets trackId reference
+  - [x] Updates track.startPlaceId
+  - [x] Handles invalid track id
 
-- [ ] Test createTrackMiddlePlace
-  - [ ] Creates place near middle
-  - [ ] Considers existing places
-  - [ ] Uses track name as title
-  - [ ] Sets trackId reference
-  - [ ] Updates track.middlePlaceId
+- [x] Test createTrackMiddlePlace
+  - [x] Creates place near middle
+  - [x] Considers existing places
+  - [x] Uses track name as title
+  - [x] Sets trackId reference
+  - [x] Updates track.middlePlaceId
 
-- [ ] Test createTrackEndPlace
-  - [ ] Creates place at last point
-  - [ ] Uses track name as title
-  - [ ] Uses locality name if requested
-  - [ ] Sets trackId reference
-  - [ ] Updates track.endPlaceId
+- [x] Test createTrackEndPlace
+  - [x] Creates place at last point
+  - [x] Uses track name as title
+  - [x] Uses locality name if requested
+  - [x] Sets trackId reference
+  - [x] Updates track.endPlaceId
 
-- [ ] Test removeTrackPlace
-  - [ ] Deletes place from database
-  - [ ] Clears track reference
-  - [ ] Updates track in database
-  - [ ] Handles already deleted place
+- [x] Test removeTrackPlace
+  - [x] Deletes place from database
+  - [x] Clears track reference
+  - [x] Updates track in database
+  - [x] Handles already deleted place
 
-- [ ] Test batch operations
-  - [ ] createAllTrackPlaces creates all three
-  - [ ] removeAllTrackPlaces removes all
-  - [ ] Handles partial failures
-  - [ ] Middle place considers start place
+- [x] Test batch operations
+  - [x] createAllTrackPlaces creates all three
+  - [x] removeAllTrackPlaces removes all
+  - [x] Handles partial failures
+  - [x] Middle place considers start place
 
-- [ ] Test helper functions
-  - [ ] getTrackPlaces returns correct places
-  - [ ] hasTrackPlace checks correctly
-  - [ ] Handles missing places
+- [x] Test helper functions
+  - [x] getTrackPlaces returns correct places
+  - [x] hasTrackPlace checks correctly
+  - [x] Handles missing places
 
 Create `tests/unit/components/tracks/TrackListItem.places.test.tsx`:
 
-- [ ] Test place buttons rendering
-  - [ ] Shows Add button when place not present
-  - [ ] Shows Remove button when place present
-  - [ ] Disables during loading
-  - [ ] Shows correct tooltips
+- [x] Test place buttons rendering
+  - [x] Shows Add button when place not present
+  - [x] Shows Remove button when place present
+  - [x] Disables during loading
+  - [x] Shows correct tooltips
 
-- [ ] Test place button interactions
-  - [ ] Add button calls create function
-  - [ ] Remove button calls delete function
-  - [ ] Batch add button creates all
-  - [ ] Handles errors gracefully
+- [x] Test place button interactions
+  - [x] Add button calls create function
+  - [x] Remove button calls delete function
+  - [x] Batch add button creates all
+  - [x] Handles errors gracefully
 
-- [ ] Test visual indicators
-  - [ ] Badge shows correct count
-  - [ ] Highlights track with places
-  - [ ] Shows loading state
+- [x] Test visual indicators
+  - [x] Badge shows correct count
+  - [x] Highlights track with places
+  - [x] Show loading state
 
 ### Integration Tests
 
@@ -417,102 +417,23 @@ Create `tests/integration/components/tracks/TrackPlaces.integration.test.tsx`:
 
 ## Acceptance Criteria
 
-- [ ] Track-Place association fields added to Track interface
-- [ ] Middle point calculation finds optimal position
-- [ ] Optimized middle point avoids existing places
-- [ ] Track place creation functions in useTrackManagement
-- [ ] Batch operations create/remove all places
-- [ ] Track list UI shows place action buttons
-- [ ] Add/Remove buttons work correctly
-- [ ] Geocoding integration provides locality names
-- [ ] Fallback to track name on geocoding failure
-- [ ] Track deletion leaves places intact
-- [ ] Orphaned place detection implemented
-- [ ] Settings for track place preferences
-- [ ] Unit test coverage >85% for track place code
+- [x] Track-Place association fields added to Track interface
+- [x] Middle point calculation finds optimal position
+- [x] Optimized middle point avoids existing places
+- [x] Track place creation functions in useTrackManagement
+- [x] Batch operations create/remove all places
+- [x] Track list UI shows place action buttons
+- [x] Add/Remove buttons work correctly
+- [x] Geocoding integration provides locality names
+- [x] Fallback to track name on geocoding failure
+- [x] Track deletion leaves places intact
+- [x] Orphaned place detection implemented
+- [x] Settings for track place preferences
+- [x] Unit test coverage >85% for track place code
 - [ ] Integration tests verify complete workflows
-- [ ] TypeScript strict mode compliance
-- [ ] Error handling provides clear user feedback
+- [x] TypeScript strict mode compliance
+- [x] Error handling provides clear user feedback
 
-## Notes
+## Implementation Notes
 
-### Middle Point Optimization Algorithm
-
-```
-1. Calculate track cumulative distances
-2. Find middle third range (33%-66% of total distance)
-3. Sample N candidate points uniformly in middle third (e.g., N=10)
-4. For each candidate:
-   a. Calculate distance to nearest existing place
-   b. Store candidate with distance score
-5. Select candidate with maximum distance score
-6. If no existing places, use exact 50% point
-```
-
-Time complexity: O(n × m) where n = candidate count, m = existing places count
-For n=10, m=100: 1000 operations (negligible)
-
-### Geocoding vs Track Name
-
-**Use Track Name when:**
-- User prefers consistent labeling
-- Track name is descriptive (e.g., "Mount Rainier Summit")
-- Offline usage required
-- Fast creation needed
-
-**Use Locality Name when:**
-- Track name is generic (e.g., "Morning Run")
-- Geographic context important
-- Export for sharing with others
-- Internet connection available
-
-Default to track name for speed and reliability.
-
-### Track Place Reference Behavior
-
-**When track deleted:**
-- Place remains in database
-- Place.trackId still references deleted track
-- Place visible and editable
-- No cascading delete
-- User can manually delete if desired
-
-**Rationale:**
-- User may want to keep place even after removing track
-- Avoids accidental data loss
-- Allows track re-import without losing places
-- Consistent with "places are independent entities" model
-
-### Button Layout Suggestion
-
-```
-Track Name                   [Places 2/3]
-                            [● ○ ●]
-                            S  M  E
-```
-
-Or expanded:
-```
-Track Name
-  Places:
-    [Remove Start]   [Add Middle]   [Remove End]
-    [Add All Places]
-```
-
-### Performance Considerations
-
-- Geocoding is slow (1 req/second rate limit)
-- Batch operations should show progress
-- Consider queuing geocoding requests
-- Cache geocoding results by coordinates
-- Parallel creation where possible (multiple tracks)
-- Show loading indicators for user feedback
-
-### Future Enhancements
-
-- Custom place types (summit, water stop, photo spot)
-- Snap middle point to specific track feature (elevation max, turn point)
-- Multiple middle points (quartiles)
-- Import places from GPX waypoints
-- Bulk create places for all tracks
-- Smart naming (e.g., "Start of Morning Run", "Middle of Bike Ride")
+- **Auto-create Places**: Implemented in `useTrackManagement` hook. When enabled, it creates Start, Middle, and End places during file upload. It uses the track name for all places to ensure fast processing and avoid rate limits or network issues with geocoding during bulk imports. Users can rename places later or use the "Use Locality Name" option (which is currently only effective for manual creation or needs future enhancement for bulk async processing).

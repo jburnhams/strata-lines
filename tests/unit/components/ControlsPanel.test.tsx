@@ -78,6 +78,10 @@ const defaultProps = {
   removeTrackPlace: jest.fn(),
   createAllTrackPlaces: jest.fn(),
   removeAllTrackPlaces: jest.fn(),
+  autoCreatePlaces: false,
+  setAutoCreatePlaces: jest.fn(),
+  defaultUseLocalityName: false,
+  setDefaultUseLocalityName: jest.fn(),
 };
 
 describe('ControlsPanel', () => {

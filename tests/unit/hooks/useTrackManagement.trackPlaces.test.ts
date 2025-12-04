@@ -1,8 +1,9 @@
 import { renderHook, act } from '@testing-library/react';
 import { useTrackManagement } from '@/hooks/useTrackManagement';
 import * as db from '@/services/db';
-import { findOptimalMiddlePoint } from '@/utils/trackPlaceUtils';
+import { findOptimalMiddlePoint, findTrackMiddlePoint } from '@/utils/trackPlaceUtils';
 import { getGeocodingService } from '@/services/geocodingService';
+import { processGpxFiles } from '@/services/gpxProcessor';
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import type { Track, Place } from '@/types';
 
@@ -50,6 +51,7 @@ describe('useTrackManagement Track Places', () => {
     (db.deletePlaceFromDb as jest.Mock<any>).mockResolvedValue(undefined);
     (db.getPlacesByTrackId as jest.Mock<any>).mockResolvedValue([]);
     (findOptimalMiddlePoint as jest.Mock<any>).mockReturnValue([0.5, 0.5]);
+    (findTrackMiddlePoint as jest.Mock<any>).mockReturnValue([0.5, 0.5]);
 
     (getGeocodingService as jest.Mock<any>).mockReturnValue({
       getLocalityName: jest.fn<any>().mockResolvedValue('London')
@@ -57,7 +59,7 @@ describe('useTrackManagement Track Places', () => {
   });
 
   const renderUseTrackManagement = () => {
-    return renderHook(() => useTrackManagement('#000', '#fff', 0, null));
+    return renderHook(() => useTrackManagement('#000', '#fff', 0, null, false, false));
   };
 
   it('creates start place correctly', async () => {
@@ -133,6 +135,43 @@ describe('useTrackManagement Track Places', () => {
         source: 'track-middle',
         latitude: 0.5,
         longitude: 0.5
+    }));
+  });
+
+  it('auto-creates places when option is enabled', async () => {
+    const { result } = renderHook(() => useTrackManagement('#000', '#fff', 0, null, true, false));
+
+    // Mock processGpxFiles response
+    (processGpxFiles as jest.Mock<any>).mockResolvedValue([
+        {
+            sourceFile: { id: 's1' },
+            tracks: [
+                { ...mockTrack, name: 'New Track' }
+            ]
+        }
+    ]);
+
+    await act(async () => {
+        // Mock FileList
+        const blob = new Blob([""], { type: 'application/gpx+xml' });
+        const file = new File([blob], "test.gpx");
+        const fileList = {
+            0: file,
+            length: 1,
+            item: (index: number) => file
+        } as unknown as FileList;
+
+        await result.current.handleFiles(fileList);
+    });
+
+    // Expect db.savePlaceToDb to have been called 3 times (start, middle, end)
+    expect(db.savePlaceToDb).toHaveBeenCalledTimes(3);
+    // And check if tracks added have place IDs
+    expect(db.addTrack).toHaveBeenCalledWith(expect.objectContaining({
+        name: 'New Track',
+        startPlaceId: expect.any(String),
+        middlePlaceId: expect.any(String),
+        endPlaceId: expect.any(String)
     }));
   });
 });

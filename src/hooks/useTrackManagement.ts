@@ -22,7 +22,10 @@ export const useTrackManagement = (
   lineColorStart: string,
   lineColorEnd: string,
   minLengthFilter: number,
-  previewBounds: LatLngBounds | null
+  previewBounds: LatLngBounds | null,
+  autoCreatePlaces: boolean = false,
+  defaultUseLocalityName: boolean = false,
+  onPlacesChanged?: () => void
 ) => {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -90,7 +93,8 @@ export const useTrackManagement = (
             // Maybe we should warn, but we can still proceed with tracks.
           }
 
-          processedFile.tracks.forEach((track, index) => {
+          for (let index = 0; index < processedFile.tracks.length; index++) {
+             const track = processedFile.tracks[index];
              // Create unique ID for track
              const trackId = `${track.name}-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 5)}`;
 
@@ -117,8 +121,77 @@ export const useTrackManagement = (
                 return;
              }
 
+             if (autoCreatePlaces) {
+               try {
+                 // Start Place
+                 if (newTrack.points.length > 0) {
+                   const startPoint = newTrack.points[0];
+                   const startPlaceId = Math.random().toString(36).substring(2, 15);
+                   const startPlace: Place = {
+                     id: startPlaceId,
+                     latitude: startPoint[0],
+                     longitude: startPoint[1],
+                     title: newTrack.name, // Use track name for performance during upload
+                     createdAt: Date.now(),
+                     source: 'track-start',
+                     trackId: newTrack.id,
+                     isVisible: true,
+                     showIcon: true,
+                     iconStyle: 'pin',
+                     iconConfig: { style: 'pin', size: 30, color: '#ef4444' }
+                   };
+                   await db.savePlaceToDb(startPlace);
+                   newTrack.startPlaceId = startPlaceId;
+                 }
+
+                 // End Place
+                 if (newTrack.points.length > 1) {
+                   const endPoint = newTrack.points[newTrack.points.length - 1];
+                   const endPlaceId = Math.random().toString(36).substring(2, 15);
+                   const endPlace: Place = {
+                     id: endPlaceId,
+                     latitude: endPoint[0],
+                     longitude: endPoint[1],
+                     title: newTrack.name,
+                     createdAt: Date.now(),
+                     source: 'track-end',
+                     trackId: newTrack.id,
+                     isVisible: true,
+                     showIcon: true,
+                     iconStyle: 'pin',
+                     iconConfig: { style: 'pin', size: 30, color: '#ef4444' }
+                   };
+                   await db.savePlaceToDb(endPlace);
+                   newTrack.endPlaceId = endPlaceId;
+                 }
+
+                 // Middle Place
+                 if (newTrack.points.length > 1) {
+                    const middlePoint = findTrackMiddlePoint(newTrack);
+                    const middlePlaceId = Math.random().toString(36).substring(2, 15);
+                    const middlePlace: Place = {
+                     id: middlePlaceId,
+                     latitude: middlePoint[0],
+                     longitude: middlePoint[1],
+                     title: newTrack.name,
+                     createdAt: Date.now(),
+                     source: 'track-middle',
+                     trackId: newTrack.id,
+                     isVisible: true,
+                     showIcon: true,
+                     iconStyle: 'pin',
+                     iconConfig: { style: 'pin', size: 30, color: '#ef4444' }
+                   };
+                   await db.savePlaceToDb(middlePlace);
+                   newTrack.middlePlaceId = middlePlaceId;
+                 }
+               } catch (e) {
+                 console.error('Failed to auto-create places', e);
+               }
+             }
+
              tracksToAdd.push(newTrack);
-          });
+          }
         }
 
         if (tracksToAdd.length > 0) {
@@ -139,6 +212,10 @@ export const useTrackManagement = (
             !previewBounds.contains(allTracksBounds)
           ) {
             setBoundsToFit(allTracksBounds);
+          }
+
+          if (autoCreatePlaces && onPlacesChanged) {
+            onPlacesChanged();
           }
         }
 
@@ -171,7 +248,7 @@ export const useTrackManagement = (
         setIsLoading(false);
       }
     },
-    [tracks, minLengthFilter, previewBounds]
+    [tracks, minLengthFilter, previewBounds, autoCreatePlaces]
   );
 
   const removeTrack = useCallback(async (trackId: string) => {
@@ -428,8 +505,12 @@ export const useTrackManagement = (
     // Update local state
     setTracks(prev => prev.map(t => t.id === trackId ? updatedTrack : t));
 
+    if (onPlacesChanged) {
+      onPlacesChanged();
+    }
+
     return place;
-  }, [tracks]);
+  }, [tracks, onPlacesChanged]);
 
   const removeTrackPlace = useCallback(async (trackId: string, type: TrackPlaceType) => {
     const track = tracks.find(t => t.id === trackId);
@@ -453,7 +534,11 @@ export const useTrackManagement = (
     await db.addTrack(updatedTrack);
 
     setTracks(prev => prev.map(t => t.id === trackId ? updatedTrack : t));
-  }, [tracks]);
+
+    if (onPlacesChanged) {
+      onPlacesChanged();
+    }
+  }, [tracks, onPlacesChanged]);
 
   const createAllTrackPlaces = useCallback(async (trackId: string, useLocalityName: boolean = false) => {
       const start = await createTrackPlace(trackId, 'start', useLocalityName);

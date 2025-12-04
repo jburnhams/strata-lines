@@ -15,6 +15,7 @@ export interface UsePlaceManagementReturn {
   getVisiblePlaces: () => Place[];
   notification: Notification | null;
   setNotification: (n: Notification | null) => void;
+  refreshPlaces: () => Promise<void>;
 }
 
 export const usePlaceManagement = (): UsePlaceManagementReturn => {
@@ -22,21 +23,22 @@ export const usePlaceManagement = (): UsePlaceManagementReturn => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [notification, setNotification] = useState<Notification | null>(null);
 
-  useEffect(() => {
-    const loadPlaces = async () => {
-      setIsLoading(true);
-      try {
-        const loadedPlaces = await db.getAllPlacesFromDb();
-        setPlaces(loadedPlaces);
-      } catch (error) {
-        console.error('Failed to load places:', error);
-        setNotification({ type: 'error', message: 'Failed to load places.' });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadPlaces();
+  const loadPlaces = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const loadedPlaces = await db.getAllPlacesFromDb();
+      setPlaces(loadedPlaces);
+    } catch (error) {
+      console.error('Failed to load places:', error);
+      setNotification({ type: 'error', message: 'Failed to load places.' });
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadPlaces();
+  }, [loadPlaces]);
 
   const addPlace = useCallback(async (newPlace: Place) => {
     try {
@@ -145,6 +147,7 @@ export const usePlaceManagement = (): UsePlaceManagementReturn => {
     getPlaceById,
     getVisiblePlaces,
     notification,
-    setNotification
+    setNotification,
+    refreshPlaces: loadPlaces
   };
 };
