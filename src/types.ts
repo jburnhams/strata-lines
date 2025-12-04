@@ -1,4 +1,6 @@
 
+import type { LatLngBounds } from 'leaflet';
+
 export type Point = [number, number]; // [latitude, longitude]
 
 export interface TrackBounds {
@@ -92,6 +94,9 @@ export interface ExportSettings {
   placeTitleSize: number;           // 1-100 scale
   placeShowIconsGlobally: boolean;  // Global icon visibility
   placeTextStyle: PlaceTextStyle;   // Global text styling
+  placePreferredTitleGap?: number;
+  placeAllowOverlap?: boolean;
+  placeOptimizePositions?: boolean;
 }
 
 export interface PlaceBounds {
@@ -105,4 +110,20 @@ export interface PlaceWithMetadata extends Place {
   distanceToNearestPlace?: number;  // Calculated during positioning
   titleLines?: string[];            // Wrapped title lines
   titlePosition?: 'left' | 'right'; // Calculated position
+}
+
+export type PlaceTitlePosition = 'left' | 'right';
+
+export interface PlaceTitleBounds {
+  placeId: string;
+  position: PlaceTitlePosition;
+  bounds: DOMRect;              // Screen coordinates
+  geoBounds: LatLngBounds;      // Geographic coordinates
+}
+
+export interface PositioningConstraints {
+  exportBounds?: LatLngBounds;  // Preferred boundary (can exceed)
+  containerBounds?: DOMRect;    // Pixel boundary for exportBounds
+  minDistance: number;          // Minimum pixels between titles
+  preferredGap: number;         // Preferred pixels between titles
 }

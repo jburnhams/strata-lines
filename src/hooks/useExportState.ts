@@ -37,6 +37,11 @@ export const useExportState = (
     glowBlur: 0
   });
 
+  // Place positioning settings
+  const [placePreferredTitleGap, setPlacePreferredTitleGap] = useLocalStorage<number>('placePreferredTitleGap', 20);
+  const [placeAllowOverlap, setPlaceAllowOverlap] = useLocalStorage<boolean>('placeAllowOverlap', true);
+  const [placeOptimizePositions, setPlaceOptimizePositions] = useLocalStorage<boolean>('placeOptimizePositions', true);
+
   const [exportDimensions, setExportDimensions] = useState<{
     width: number | null;
     height: number | null;
@@ -216,5 +221,11 @@ export const useExportState = (
     setPlaceShowIconsGlobally,
     placeTextStyle,
     setPlaceTextStyle,
+    placePreferredTitleGap,
+    setPlacePreferredTitleGap,
+    placeAllowOverlap,
+    setPlaceAllowOverlap,
+    placeOptimizePositions,
+    setPlaceOptimizePositions,
   };
 };

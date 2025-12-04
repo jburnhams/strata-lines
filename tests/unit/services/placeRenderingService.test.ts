@@ -5,6 +5,9 @@ import L from 'leaflet';
 
 jest.mock('@/utils/placeIconRenderer');
 jest.mock('@/utils/placeTextRenderer');
+jest.mock('@/services/titlePositioningService', () => ({
+  calculateOptimalPositions: jest.fn(() => new Map()),
+}));
 
 describe('placeRenderingService', () => {
   let mockCtx: any;
