@@ -1,110 +1,166 @@
-import { findTrackMiddlePoint, findOptimalMiddlePoint, calculateTotalTrackDistance, findPointAtDistance, interpolatePoint } from '@/utils/trackPlaceUtils';
-import type { Track, Place } from '@/types';
-import { jest, describe, it, expect } from '@jest/globals';
+import { describe, it, expect, jest } from '@jest/globals';
+import L from 'leaflet';
+import {
+  interpolatePoint,
+  calculateTotalTrackDistance,
+  calculateDistanceAlongTrack,
+  findTrackMiddlePoint,
+  findOptimalMiddlePoint
+} from '@/utils/trackPlaceUtils';
+import type { Track, Place, Point } from '@/types';
 
-// Mock Leaflet
-jest.mock('leaflet', () => {
-    return {
-        latLng: (a: any, b?: any) => {
-             let lat: number, lng: number;
-             if (Array.isArray(a)) {
-                 lat = a[0];
-                 lng = a[1];
-             } else if (typeof a === 'object' && 'lat' in a) {
-                 lat = a.lat;
-                 lng = a.lng;
-             } else {
-                 lat = a;
-                 lng = b;
-             }
-             return {
-                 lat,
-                 lng,
-                 distanceTo: function(this: any, other: any) {
-                     // Simple euclidean distance for testing (approx 1 degree = 111km)
-                     const dx = (other.lat - this.lat) * 111000;
-                     const dy = (other.lng - this.lng) * 111000;
-                     return Math.sqrt(dx * dx + dy * dy);
-                 }
-             };
-        }
-    };
-});
+// Helper to create a simple straight track (Northwards)
+// 1 degree lat is approx 111km
+const createStraightTrack = (pointsCount: number): Track => {
+  const points: Point[] = [];
+  for (let i = 0; i < pointsCount; i++) {
+    points.push([i, 0]);
+  }
+  return {
+    id: 'test-track',
+    name: 'Test Track',
+    points,
+    length: 0, // Should be calculated
+    isVisible: true,
+    activityType: 'run'
+  };
+};
 
 describe('trackPlaceUtils', () => {
-    const mockTrack: Track = {
-        id: 't1',
-        name: 'Test',
-        points: [[0, 0], [0, 1]], // 1 degree longitude distance
-        length: 111, // km
+  describe('interpolatePoint', () => {
+    it('interpolates midpoint correctly', () => {
+      const p1: Point = [0, 0];
+      const p2: Point = [10, 10];
+      const result = interpolatePoint(p1, p2, 0.5);
+      expect(result).toEqual([5, 5]);
+    });
+
+    it('interpolates start point (fraction 0)', () => {
+      const p1: Point = [0, 0];
+      const p2: Point = [10, 10];
+      const result = interpolatePoint(p1, p2, 0);
+      expect(result).toEqual([0, 0]);
+    });
+
+    it('interpolates end point (fraction 1)', () => {
+      const p1: Point = [0, 0];
+      const p2: Point = [10, 10];
+      const result = interpolatePoint(p1, p2, 1);
+      expect(result).toEqual([10, 10]);
+    });
+  });
+
+  describe('calculateTotalTrackDistance', () => {
+    it('returns 0 for empty track', () => {
+      const track: Track = { ...createStraightTrack(0), points: [] };
+      expect(calculateTotalTrackDistance(track)).toBe(0);
+    });
+
+    it('returns pre-calculated length if > 0', () => {
+      const track: Track = { ...createStraightTrack(2), length: 123 };
+      expect(calculateTotalTrackDistance(track)).toBe(123);
+    });
+
+    it('calculates distance if length is 0', () => {
+      const track = createStraightTrack(2); // [0,0] to [1,0]
+      track.length = 0;
+      const dist = calculateTotalTrackDistance(track);
+      // 1 degree lat is approx 111 km
+      expect(dist).toBeGreaterThan(110);
+      expect(dist).toBeLessThan(112);
+    });
+  });
+
+  describe('calculateDistanceAlongTrack', () => {
+    it('returns 0 for first point', () => {
+      const track = createStraightTrack(3);
+      expect(calculateDistanceAlongTrack(track, 0)).toBe(0);
+    });
+
+    it('calculates distance to second point', () => {
+      const track = createStraightTrack(3);
+      const dist = calculateDistanceAlongTrack(track, 1);
+      expect(dist).toBeGreaterThan(110); // 1 degree
+    });
+
+    it('calculates distance to last point', () => {
+      const track = createStraightTrack(3);
+      const dist = calculateDistanceAlongTrack(track, 2);
+      expect(dist).toBeGreaterThan(220); // 2 degrees
+    });
+
+    it('handles index out of bounds (clamps to max)', () => {
+      const track = createStraightTrack(3);
+      const dist = calculateDistanceAlongTrack(track, 100);
+      expect(dist).toBeGreaterThan(220);
+    });
+  });
+
+  describe('findTrackMiddlePoint', () => {
+    it('finds middle point of 2-point track', () => {
+      const track = createStraightTrack(2); // [0,0] to [1,0]
+      track.length = 0; // force recalc
+      const mid = findTrackMiddlePoint(track);
+      expect(mid[0]).toBeCloseTo(0.5, 3);
+      expect(mid[1]).toBeCloseTo(0, 3);
+    });
+
+    it('finds middle point of 3-point track (exact middle point)', () => {
+      const track = createStraightTrack(3); // [0,0], [1,0], [2,0]
+      track.length = 0;
+      const mid = findTrackMiddlePoint(track);
+      expect(mid[0]).toBeCloseTo(1.0, 3);
+    });
+
+    it('interpolates middle point in segment', () => {
+      // 0,0 -> 10,0. Middle is 5,0.
+      const track = createStraightTrack(2);
+      track.points = [[0,0], [10,0]];
+      track.length = 0;
+      const mid = findTrackMiddlePoint(track);
+      expect(mid[0]).toBeCloseTo(5.0, 3);
+    });
+  });
+
+  describe('findOptimalMiddlePoint', () => {
+    it('returns simple middle if no existing places', () => {
+      const track = createStraightTrack(3);
+      track.length = 0;
+      const mid = findTrackMiddlePoint(track);
+      const optimal = findOptimalMiddlePoint(track, []);
+      expect(optimal).toEqual(mid);
+    });
+
+    it('avoids existing place at middle', () => {
+      // Track: [0,0] -> [10,0]. Middle is [5,0].
+      // Place at [5,0].
+      const track = createStraightTrack(2);
+      track.points = [[0,0], [10,0]];
+      track.length = 0;
+
+      const existingPlace: Place = {
+        id: 'p1',
+        latitude: 5.0,
+        longitude: 0.0,
+        title: 'Collision',
+        createdAt: 0,
+        source: 'manual',
         isVisible: true,
-        activityType: 'run'
-    };
+        showIcon: true,
+        iconStyle: 'pin'
+      };
 
-    it('interpolates points correctly', () => {
-        const p1: [number, number] = [0, 0];
-        const p2: [number, number] = [0, 10];
-        expect(interpolatePoint(p1, p2, 0.5)).toEqual([0, 5]);
-        expect(interpolatePoint(p1, p2, 0.1)).toEqual([0, 1]);
+      const optimal = findOptimalMiddlePoint(track, [existingPlace]);
+
+      // Should pick something away from 5.0
+      // Search range is 3.3 to 6.6
+      // Since 5.0 is taken, it should find something else within that range
+      // that is furthest from 5.0.
+      // Likely 3.3 or 6.6
+
+      expect(optimal[0]).not.toBeCloseTo(5.0, 1);
+      expect(optimal[0]).toBeGreaterThanOrEqual(3.3);
+      expect(optimal[0]).toBeLessThanOrEqual(6.7);
     });
-
-    it('calculates total distance correctly', () => {
-        // If track.length is present, it returns it
-        expect(calculateTotalTrackDistance(mockTrack)).toBe(111);
-
-        // Recalculate if length is 0? The function says: if (track.length > 0) return track.length
-        const t2 = { ...mockTrack, length: 0 };
-        // distance between (0,0) and (0,1) is approx 111km
-        const dist = calculateTotalTrackDistance(t2);
-        expect(dist).toBeCloseTo(111, 0);
-    });
-
-    it('finds point at distance', () => {
-        // Track: (0,0) -> (0,1) (111km)
-        // Find point at 55.5km (middle)
-        const t2 = { ...mockTrack, length: 0 }; // force recalc or use geometry
-        const mid = findPointAtDistance(t2, 55.5);
-        expect(mid).not.toBeNull();
-        if (mid) {
-            expect(mid[0]).toBeCloseTo(0);
-            expect(mid[1]).toBeCloseTo(0.5);
-        }
-    });
-
-    it('finds middle point', () => {
-         const t2 = { ...mockTrack, length: 0 };
-         const mid = findTrackMiddlePoint(t2);
-         expect(mid[0]).toBeCloseTo(0);
-         expect(mid[1]).toBeCloseTo(0.5);
-    });
-
-    it('finds optimal middle point avoiding places', () => {
-        // Track: (0,0) to (0,1). Middle is (0, 0.5)
-        const t2 = { ...mockTrack, length: 0 };
-
-        // Existing place at exact middle
-        const place: Place = {
-            id: 'p1',
-            latitude: 0,
-            longitude: 0.5,
-            title: 'Existing',
-            createdAt: 0,
-            source: 'manual',
-            isVisible: true,
-            showIcon: true,
-            iconStyle: 'pin'
-        };
-
-        const optimal = findOptimalMiddlePoint(t2, [place]);
-
-        // Should move away from 0.5
-        // Search range is 0.33 to 0.66
-        // Candidates will be tested.
-        // 0.33 is far from 0.5 (dist 0.17)
-        // 0.66 is far from 0.5 (dist 0.16)
-
-        expect(optimal[1]).not.toBeCloseTo(0.5);
-        expect(optimal[1]).toBeGreaterThanOrEqual(0.33);
-        expect(optimal[1]).toBeLessThanOrEqual(0.66);
-    });
+  });
 });
