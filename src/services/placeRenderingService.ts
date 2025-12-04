@@ -73,26 +73,44 @@ export const renderPlace = async (
     const gap = 5 * titleSizeScale;
     const iconHalfSize = showIcon ? iconConfig.size / 2 : 0;
 
-    // Vertical center of icon
-    const textY = showIcon ? y - iconConfig.size * 0.5 : y;
-
-    let textX = x;
-    if (position === 'left') {
-      textX = x - iconHalfSize - gap;
-      ctx.textAlign = 'right';
-    } else {
-      textX = x + iconHalfSize + gap;
-      ctx.textAlign = 'left';
-    }
+    // Center of icon vertically (assuming icon is drawn bottom-anchored at y, so center is y - size/2)
+    // Actually renderIcon usually draws bottom-center at x,y.
+    const iconCenterY = showIcon ? y - iconConfig.size * 0.5 : y;
 
     const maxTextWidth = 200 * titleSizeScale;
     const lines = wrapText(place.title, maxTextWidth, ctx);
-
     const bounds = measureTextBounds(lines, fontSize, textStyle.fontFamily, ctx);
-
-    // Center text vertically relative to textY
     const totalHeight = bounds.height;
-    const topY = textY - totalHeight / 2 + fontSize; // approximate top baseline
+
+    let textX = x;
+    let topY = 0;
+
+    if (position === 'left') {
+      textX = x - iconHalfSize - gap;
+      ctx.textAlign = 'right';
+      // Vertically centered relative to icon center
+      topY = iconCenterY - totalHeight / 2 + fontSize;
+    } else if (position === 'top') {
+      textX = x;
+      ctx.textAlign = 'center';
+      // Bottom of text block at (y - iconConfig.size - gap)
+      // Note: y is bottom of icon.
+      const iconTopY = showIcon ? y - iconConfig.size : y;
+      const textBottomY = iconTopY - gap;
+      topY = textBottomY - totalHeight + fontSize;
+    } else if (position === 'bottom') {
+      textX = x;
+      ctx.textAlign = 'center';
+      // Top of text block at (y + gap) (if y is bottom of icon)
+      const textTopY = y + gap;
+      topY = textTopY + fontSize;
+    } else {
+      // right
+      textX = x + iconHalfSize + gap;
+      ctx.textAlign = 'left';
+      // Vertically centered relative to icon center
+      topY = iconCenterY - totalHeight / 2 + fontSize;
+    }
 
     const effectiveStyle = { ...textStyle, fontSize };
 
@@ -102,13 +120,17 @@ export const renderPlace = async (
 
     // Calculate bounds for result based on alignment
     let boundsX = textX;
+    let boundsY = topY - fontSize;
+
     if (position === 'left') {
       boundsX = textX - bounds.width;
+    } else if (position === 'top' || position === 'bottom') {
+      boundsX = textX - bounds.width / 2;
     }
 
     result.textBounds = {
       x: boundsX,
-      y: topY - fontSize,
+      y: boundsY,
       width: bounds.width,
       height: bounds.height
     };

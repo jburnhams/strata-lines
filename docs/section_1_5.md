@@ -141,7 +141,7 @@ Create `src/services/titlePositioningService.ts`:
     - For each place:
       - Calculate icon position in pixels
       - Calculate title dimensions (with wrapping)
-      - Score both left and right positions
+      - Score all positions (left, right, top, bottom)
       - Select best position
       - Add positioned bounds to array
       - Store position in result map
@@ -365,3 +365,12 @@ Create `tests/integration/components/places/PlacePositioning.integration.test.ts
 
 ## Notes
 ...
+
+## Implementation Notes
+
+- Implemented `refinePositions` in `src/services/titlePositioningService.ts` to iteratively improve title placement by flipping positions when overlaps are detected.
+- Verified `refinePositions` with unit tests covering conflict resolution scenarios.
+- `resolveConflicts` is implemented as a pass-through as vertical shifting is not yet supported by the rendering engine.
+- Verified that `PlaceCanvasOverlay` uses the positioning service correctly.
+- Implemented full 4-way positioning (Top/Bottom/Left/Right) in `src/services/positionScoring.ts`.
+- Verified 4-way positioning with "sandwich" tests where side blockers force top/bottom placement.

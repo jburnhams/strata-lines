@@ -159,11 +159,7 @@ export const renderTextWithEffects = (
   const lineHeight = style.fontSize * 1.2;
 
   ctx.font = `${style.fontWeight} ${style.fontSize}px ${style.fontFamily}`;
-  ctx.textAlign = 'center'; // Assuming center alignment for now, or based on position logic
-  // The plan said "Determine text position (left or right of icon)".
-  // The renderer here just draws at x,y. The caller controls x,y and alignment.
-  // But wrapText/measureText assumes alignment might matter? No.
-  // Let's assume x,y is the anchor point for the text block.
+  // ctx.textAlign is assumed to be set by the caller (left, right, center)
 
   // Apply text effects
   const applyEffects = (renderFn: () => void) => {
@@ -250,15 +246,27 @@ export const calculateTitleBounds = (
   );
 
   let x = 0;
-  const y = iconY - textHeight / 2; // Vertically centered
+  let y = 0;
 
   if (position === 'left') {
     // right edge at iconX - iconSize/2 - gap
     const rightEdge = iconX - iconSize / 2 - gap;
     x = rightEdge - textWidth;
+    y = iconY - textHeight / 2;
+  } else if (position === 'top') {
+    // centered horizontally, above icon
+    x = iconX - textWidth / 2;
+    const bottomEdge = iconY - iconSize / 2 - gap;
+    y = bottomEdge - textHeight;
+  } else if (position === 'bottom') {
+    // centered horizontally, below icon
+    x = iconX - textWidth / 2;
+    y = iconY + iconSize / 2 + gap;
   } else {
+    // right
     // left edge at iconX + iconSize/2 + gap
     x = iconX + iconSize / 2 + gap;
+    y = iconY - textHeight / 2;
   }
 
   return new DOMRect(
