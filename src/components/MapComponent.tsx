@@ -6,11 +6,16 @@ import type { Track, TileLayerDefinition, Place } from '@/types';
 import { LABEL_TILE_URL_RETINA } from '@/labelTiles';
 import { DraggableBoundsBox } from './DraggableBoundsBox';
 import { PlaceCanvasOverlay } from './places/PlaceCanvasOverlay';
+import { PlaceEditOverlay } from './places/PlaceEditOverlay';
 import type { ProgressInfo } from '@/utils/progressTracker';
+import type { PlaceTextStyle } from '@/types';
 
 interface MapComponentProps {
   tracks: Track[];
   places?: Place[];
+  onPlaceUpdate?: (id: string, updates: Partial<Place>) => void;
+  onPlaceDelete?: (id: string) => void;
+  placeTextStyle?: PlaceTextStyle;
   onUserMove: (data: { center: LatLng, zoom: number, bounds: LatLngBounds, size: LeafletPoint }) => void;
   center: LatLng;
   zoom: number;
@@ -121,15 +126,32 @@ const MapSizeManager: React.FC = () => {
   return null;
 };
 
-export const MapComponent: React.FC<MapComponentProps> = ({ tracks, places, onUserMove, center, zoom, lineThickness, exportBounds, onExportBoundsChange, boundsToFit, onBoundsFitted, tileLayer, labelDensity, highlightedTrackId, exportSubdivisions, currentExportSubdivisionIndex, completedSubdivisions, subdivisionProgress }) => {
+export const MapComponent: React.FC<MapComponentProps> = ({ tracks, places, onPlaceUpdate, onPlaceDelete, placeTextStyle, onUserMove, center, zoom, lineThickness, exportBounds, onExportBoundsChange, boundsToFit, onBoundsFitted, tileLayer, labelDensity, highlightedTrackId, exportSubdivisions, currentExportSubdivisionIndex, completedSubdivisions, subdivisionProgress }) => {
   
   const highlightedTrack = useMemo(() => 
     highlightedTrackId ? tracks.find(t => t.id === highlightedTrackId) : null,
     [tracks, highlightedTrackId]
   );
 
+  const [selectedPlaceId, setSelectedPlaceId] = React.useState<string | null>(null);
+  const [editOverlayPosition, setEditOverlayPosition] = React.useState<{ x: number, y: number }>({ x: 0, y: 0 });
+
+  const handlePlaceClick = useCallback((placeId: string | null, position: { x: number, y: number }) => {
+    if (placeId) {
+        setSelectedPlaceId(placeId);
+        // Position to the right and down from click, but keep on screen
+        const overlayX = Math.min(position.x + 20, window.innerWidth - 340);
+        const overlayY = Math.min(position.y + 20, window.innerHeight - 500);
+        setEditOverlayPosition({ x: overlayX, y: overlayY });
+    } else {
+        setSelectedPlaceId(null);
+    }
+  }, []);
+
+  const selectedPlace = useMemo(() => places?.find(p => p.id === selectedPlaceId), [places, selectedPlaceId]);
 
   return (
+    <div className="relative h-full w-full">
     <MapContainer center={center} zoom={zoom} scrollWheelZoom={true} className="h-full w-full" zoomSnap={1} zoomDelta={1}>
       {tileLayer.layers.map((layer, i) => (
         <TileLayer
@@ -157,7 +179,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({ tracks, places, onUs
         />
       ))}
 
-      {places && <PlaceCanvasOverlay places={places} />}
+      {places && <PlaceCanvasOverlay places={places} onPlaceClick={handlePlaceClick} />}
 
       {highlightedTrack && highlightedTrack.isVisible && (
         <>
@@ -234,5 +256,26 @@ export const MapComponent: React.FC<MapComponentProps> = ({ tracks, places, onUs
       <MapSizeManager />
       <FitBoundsManager bounds={boundsToFit} onFitted={onBoundsFitted} />
     </MapContainer>
+
+    {selectedPlace && onPlaceUpdate && onPlaceDelete && (
+        <PlaceEditOverlay
+            place={selectedPlace}
+            isOpen={!!selectedPlace}
+            position={editOverlayPosition}
+            onClose={() => setSelectedPlaceId(null)}
+            onUpdate={(updates) => onPlaceUpdate(selectedPlace.id, updates)}
+            onDelete={() => {
+                onPlaceDelete(selectedPlace.id);
+                setSelectedPlaceId(null);
+            }}
+            textStyleOptions={placeTextStyle || {
+                fontSize: 12,
+                fontFamily: 'Noto Sans',
+                fontWeight: 'bold',
+                color: 'auto'
+            }}
+        />
+    )}
+    </div>
   );
 };

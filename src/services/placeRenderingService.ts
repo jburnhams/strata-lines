@@ -149,11 +149,13 @@ export const renderPlacesOnCanvas = async (
   tileLayerUrl?: string,
   cachedPositions?: Map<string, PlaceTitlePosition>,
   debug?: boolean
-): Promise<void> => {
-  if (!settings.includePlaces) return;
+): Promise<Map<string, PlaceRenderResult>> => {
+  const results = new Map<string, PlaceRenderResult>();
+
+  if (!settings.includePlaces) return results;
 
   const ctx = canvas.getContext('2d');
-  if (!ctx) return;
+  if (!ctx) return results;
 
   const visiblePlaces = getVisiblePlaces(places, bounds);
 
@@ -191,6 +193,7 @@ export const renderPlacesOnCanvas = async (
     const position = positions?.get(place.id) || 'right';
 
     const result = await renderPlace(ctx, place, x, y, settings, zoom, tileLayerUrl, position);
+    results.set(place.id, result);
 
     if (debug) {
       ctx.save();
@@ -236,4 +239,6 @@ export const renderPlacesOnCanvas = async (
       ctx.restore();
     }
   }
+
+  return results;
 };

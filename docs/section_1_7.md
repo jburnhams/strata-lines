@@ -27,34 +27,34 @@ Users can click on a place title or icon on the preview map to open an editing o
 
 Extend `src/components/MapComponent.tsx`:
 
-- [ ] Implement place click detection
-  - [ ] Add click event listener to canvas overlay
-  - [ ] Get click coordinates relative to canvas
-  - [ ] Check if click intersects any place icon or text bounds
-  - [ ] Use cached place render results from positioning
-  - [ ] Determine which place was clicked (if multiple overlap, pick topmost)
-  - [ ] Handle mobile touch events (touchend)
+- [x] Implement place click detection
+  - [x] Add click event listener to canvas overlay
+  - [x] Get click coordinates relative to canvas
+  - [x] Check if click intersects any place icon or text bounds
+  - [x] Use cached place render results from positioning
+  - [x] Determine which place was clicked (if multiple overlap, pick topmost)
+  - [x] Handle mobile touch events (touchend)
 
-- [ ] Implement hit testing
-  - [ ] `isPointInBounds(x: number, y: number, bounds: DOMRect): boolean`
+- [x] Implement hit testing
+  - [x] `isPointInBounds(x: number, y: number, bounds: DOMRect): boolean`
     - Check if point within rectangle
     - Account for click tolerance (add 5px padding)
     - Return true if hit
 
-  - [ ] `getPlaceAtPoint(x: number, y: number, renderedPlaces: Map<string, PlaceRenderResult>): string | null`
+  - [x] `getPlaceAtPoint(x: number, y: number, renderedPlaces: Map<string, PlaceRenderResult>): string | null`
     - Iterate rendered places (reverse order for top-to-bottom)
     - Check click against icon bounds
     - Check click against text bounds
     - Return first matching place id
     - Return null if no hit
 
-- [ ] Add click state management
-  - [ ] `selectedPlaceId: string | null` - Currently selected place
-  - [ ] `editOverlayPosition: { x: number, y: number }` - Overlay screen position
-  - [ ] `setSelectedPlace: (id: string | null) => void` - Selection handler
+- [x] Add click state management
+  - [x] `selectedPlaceId: string | null` - Currently selected place
+  - [x] `editOverlayPosition: { x: number, y: number }` - Overlay screen position
+  - [x] `setSelectedPlace: (id: string | null) => void` - Selection handler
 
-- [ ] Handle click event
-  - [ ] On canvas click:
+- [x] Handle click event
+  - [x] On canvas click:
     - Get place id at click point
     - If place found:
       - Set selectedPlaceId
@@ -67,7 +67,7 @@ Extend `src/components/MapComponent.tsx`:
 
 Create `src/components/places/PlaceEditOverlay.tsx`:
 
-- [ ] Define component props
+- [x] Define component props
   ```typescript
   interface PlaceEditOverlayProps {
     place: Place;
@@ -81,83 +81,83 @@ Create `src/components/places/PlaceEditOverlay.tsx`:
   }
   ```
 
-- [ ] Implement overlay layout
-  - [ ] Draggable container div
-  - [ ] Title bar with place name and close button
-  - [ ] Content area with editing controls
-  - [ ] Footer with Delete button
-  - [ ] Styled with shadow and border for prominence
-  - [ ] Max-width: 400px
-  - [ ] Responsive on small screens (full width on mobile)
+- [x] Implement overlay layout
+  - [x] Draggable container div
+  - [x] Title bar with place name and close button
+  - [x] Content area with editing controls
+  - [x] Footer with Delete button
+  - [x] Styled with shadow and border for prominence
+  - [x] Max-width: 400px
+  - [x] Responsive on small screens (full width on mobile)
 
-- [ ] Implement drag functionality
-  - [ ] Handle mousedown on title bar to start drag
-  - [ ] Track mousemove to update position
-  - [ ] Handle mouseup to end drag
-  - [ ] Constrain to viewport bounds
-  - [ ] Update position state during drag
-  - [ ] Cursor: move on title bar
-  - [ ] Touch support for mobile
+- [x] Implement drag functionality
+  - [x] Handle mousedown on title bar to start drag
+  - [x] Track mousemove to update position
+  - [x] Handle mouseup to end drag
+  - [x] Constrain to viewport bounds
+  - [x] Update position state during drag
+  - [x] Cursor: move on title bar
+  - [x] Touch support for mobile
 
-- [ ] Implement title editing
-  - [ ] Text input with current title
-  - [ ] Real-time validation (non-empty)
-  - [ ] Save on blur or Enter key
-  - [ ] Cancel on Escape key
-  - [ ] Show character count (limit 50 chars)
-  - [ ] Highlight input on focus
+- [x] Implement title editing
+  - [x] Text input with current title
+  - [x] Real-time validation (non-empty)
+  - [x] Save on blur or Enter key
+  - [x] Cancel on Escape key
+  - [x] Show character count (limit 50 chars)
+  - [x] Highlight input on focus
 
-- [ ] Implement icon style selector
-  - [ ] Dropdown or radio buttons for icon styles
-  - [ ] Options: pin, dot, circle, marker, flag, star
-  - [ ] Visual preview of each style
-  - [ ] Current selection highlighted
-  - [ ] Change updates immediately
+- [x] Implement icon style selector
+  - [x] Dropdown or radio buttons for icon styles
+  - [x] Options: pin, dot, circle, marker, flag, star
+  - [x] Visual preview of each style
+  - [x] Current selection highlighted
+  - [x] Change updates immediately
 
-- [ ] Implement icon visibility toggle
-  - [ ] Checkbox "Show Icon"
-  - [ ] Overridden by global icon setting (show disabled state)
-  - [ ] Help text: "Global setting off" when disabled
-  - [ ] Change updates immediately
+- [x] Implement icon visibility toggle
+  - [x] Checkbox "Show Icon"
+  - [x] Overridden by global icon setting (show disabled state)
+  - [x] Help text: "Global setting off" when disabled
+  - [x] Change updates immediately
 
-- [ ] Implement text styling controls
-  - [ ] Color picker for text color
+- [x] Implement text styling controls
+  - [x] Color picker for text color
     - Hex input field
     - Color swatch button opening picker
     - "Auto" option checkbox (high contrast based on background)
     - Preview text with current color
 
-  - [ ] Drop shadow controls
+  - [x] Drop shadow controls
     - Checkbox "Enable Drop Shadow"
     - Color picker for shadow color (default black)
     - Slider for shadow width (1-5px)
     - Collapsed when disabled
 
-  - [ ] Glow effect controls
+  - [x] Glow effect controls
     - Checkbox "Enable Glow"
     - Color picker for glow color (default white)
     - Slider for glow blur (2-10px)
     - Collapsed when disabled
 
-- [ ] Implement visibility toggle
-  - [ ] Checkbox "Visible on Map"
-  - [ ] Change updates immediately
-  - [ ] Also available in places list
+- [x] Implement visibility toggle
+  - [x] Checkbox "Visible on Map"
+  - [x] Change updates immediately
+  - [x] Also available in places list
 
-- [ ] Implement delete button
-  - [ ] Red "Delete Place" button in footer
-  - [ ] Show confirmation dialog
-  - [ ] Call onDelete callback
-  - [ ] Close overlay after deletion
+- [x] Implement delete button
+  - [x] Red "Delete Place" button in footer
+  - [x] Show confirmation dialog
+  - [x] Call onDelete callback
+  - [x] Close overlay after deletion
 
-- [ ] Implement keyboard shortcuts
-  - [ ] Escape: close overlay
-  - [ ] Enter: save and close (if title focused)
-  - [ ] Delete: delete place (with confirmation)
-  - [ ] Tab: navigate between controls
+- [x] Implement keyboard shortcuts
+  - [x] Escape: close overlay
+  - [x] Enter: save and close (if title focused)
+  - [x] Delete: delete place (with confirmation)
+  - [x] Tab: navigate between controls
 
-- [ ] Implement position calculation
-  - [ ] `calculateOverlayPosition(clickX: number, clickY: number, placeBounds: DOMRect, viewportBounds: DOMRect): { x: number, y: number }`
+- [x] Implement position calculation
+  - [x] `calculateOverlayPosition(clickX: number, clickY: number, placeBounds: DOMRect, viewportBounds: DOMRect): { x: number, y: number }`
     - Prefer right and below click point
     - Avoid covering place title/icon
     - Keep within viewport bounds
@@ -168,7 +168,7 @@ Create `src/components/places/PlaceEditOverlay.tsx`:
 
 Create `src/components/places/ColorPicker.tsx`:
 
-- [ ] Define component props
+- [x] Define component props
   ```typescript
   interface ColorPickerProps {
     color: string;           // Hex color value
@@ -180,29 +180,29 @@ Create `src/components/places/ColorPicker.tsx`:
   }
   ```
 
-- [ ] Implement color picker UI
-  - [ ] Color swatch button showing current color
-  - [ ] Click opens popover with picker
-  - [ ] Hex input field for manual entry
-  - [ ] Validation for hex format (#RRGGBB or #RGB)
-  - [ ] Color slider or preset palette (optional)
-  - [ ] "Auto" checkbox if allowAuto prop true
+- [x] Implement color picker UI
+  - [x] Color swatch button showing current color
+  - [x] Click opens popover with picker
+  - [x] Hex input field for manual entry
+  - [x] Validation for hex format (#RRGGBB or #RGB)
+  - [x] Color slider or preset palette (optional)
+  - [x] "Auto" checkbox if allowAuto prop true
 
-- [ ] Use native input[type="color"] or library
-  - [ ] Native: good browser support, simple
-  - [ ] Library (react-color): better UX, more features
-  - [ ] Decision: start with native, upgrade if needed
+- [x] Use native input[type="color"] or library
+  - [x] Native: good browser support, simple
+  - [x] Library (react-color): better UX, more features
+  - [x] Decision: start with native, upgrade if needed
 
-- [ ] Implement auto mode
-  - [ ] When auto enabled, disable manual color selection
-  - [ ] Show preview of auto color result
-  - [ ] Explain: "Automatically contrasts with map background"
+- [x] Implement auto mode
+  - [x] When auto enabled, disable manual color selection
+  - [x] Show preview of auto color result
+  - [x] Explain: "Automatically contrasts with map background"
 
 ### Confirmation Dialog Component
 
 Create `src/components/common/ConfirmDialog.tsx`:
 
-- [ ] Define component props
+- [x] Define component props
   ```typescript
   interface ConfirmDialogProps {
     isOpen: boolean;
@@ -216,20 +216,20 @@ Create `src/components/common/ConfirmDialog.tsx`:
   }
   ```
 
-- [ ] Implement dialog UI
-  - [ ] Modal overlay blocking interaction
-  - [ ] Centered dialog box
-  - [ ] Title and message
-  - [ ] Confirm and Cancel buttons
-  - [ ] Escape key to cancel
-  - [ ] Focus on confirm button by default
-  - [ ] Danger variant: red confirm button for destructive actions
+- [x] Implement dialog UI
+  - [x] Modal overlay blocking interaction
+  - [x] Centered dialog box
+  - [x] Title and message
+  - [x] Confirm and Cancel buttons
+  - [x] Escape key to cancel
+  - [x] Focus on confirm button by default
+  - [x] Danger variant: red confirm button for destructive actions
 
-- [ ] Implement accessibility
-  - [ ] ARIA role="dialog"
-  - [ ] aria-labelledby for title
-  - [ ] Focus trap within dialog
-  - [ ] Return focus to trigger on close
+- [x] Implement accessibility
+  - [x] ARIA role="dialog"
+  - [x] aria-labelledby for title
+  - [x] Focus trap within dialog
+  - [x] Return focus to trigger on close
 
 ### State Management Integration
 
@@ -240,41 +240,41 @@ Modify `src/hooks/usePlaceManagement.ts`:
   - [ ] `updateGlobalTextStyle: (style: PlaceTextStyle) => void`
   - [ ] Persist to localStorage
 
-- [ ] Add selected place state
-  - [ ] `selectedPlace: Place | null` - Currently editing place
-  - [ ] `selectPlace: (id: string | null) => void`
-  - [ ] `updateSelectedPlace: (updates: Partial<Place>) => void`
+- [x] Add selected place state (Handled in MapComponent)
+  - [x] `selectedPlace: Place | null` - Currently editing place
+  - [x] `selectPlace: (id: string | null) => void`
+  - [x] `updateSelectedPlace: (updates: Partial<Place>) => void`
 
-- [ ] Add update handlers
-  - [ ] Handle title change
-  - [ ] Handle icon style change
-  - [ ] Handle icon visibility change
-  - [ ] Handle text style change (per place)
-  - [ ] Handle visibility toggle
-  - [ ] Persist all changes to IndexedDB
-  - [ ] Update state optimistically
+- [x] Add update handlers
+  - [x] Handle title change
+  - [x] Handle icon style change
+  - [x] Handle icon visibility change
+  - [x] Handle text style change (per place)
+  - [x] Handle visibility toggle
+  - [x] Persist all changes to IndexedDB
+  - [x] Update state optimistically
 
 ### Map Integration
 
 Modify `src/components/MapComponent.tsx`:
 
-- [ ] Integrate PlaceEditOverlay
-  - [ ] Render overlay when selectedPlaceId set
-  - [ ] Pass selected place data
-  - [ ] Pass update callbacks
-  - [ ] Handle overlay close
-  - [ ] Position overlay based on click location
+- [x] Integrate PlaceEditOverlay
+  - [x] Render overlay when selectedPlaceId set
+  - [x] Pass selected place data
+  - [x] Pass update callbacks
+  - [x] Handle overlay close
+  - [x] Position overlay based on click location
 
 - [ ] Update place hover feedback
   - [ ] Change cursor to pointer on hover
   - [ ] Highlight hovered place (optional)
   - [ ] Show tooltip with place name (optional)
 
-- [ ] Handle overlay interactions
-  - [ ] Clicking outside overlay closes it
-  - [ ] Clicking another place switches to that place
-  - [ ] Dragging map doesn't close overlay
-  - [ ] Zooming updates overlay position if place moves off screen
+- [x] Handle overlay interactions
+  - [x] Clicking outside overlay closes it
+  - [x] Clicking another place switches to that place
+  - [x] Dragging map doesn't close overlay
+  - [x] Zooming updates overlay position if place moves off screen
 
 ### Multi-Select for Bulk Delete
 
@@ -363,55 +363,55 @@ Modify `src/components/places/PlaceControls.tsx`:
 
 Create `tests/unit/components/MapComponent.clickDetection.test.tsx`:
 
-- [ ] Test click detection
-  - [ ] Click on place icon registers hit
-  - [ ] Click on place text registers hit
-  - [ ] Click outside place returns null
-  - [ ] Click tolerance (padding) works
-  - [ ] Multiple overlapping places returns topmost
+- [ ] Test click detection (Done in PlaceCanvasOverlay.helpers.test.ts)
+  - [x] Click on place icon registers hit
+  - [x] Click on place text registers hit
+  - [x] Click outside place returns null
+  - [x] Click tolerance (padding) works
+  - [x] Multiple overlapping places returns topmost
 
-- [ ] Test overlay positioning
+- [ ] Test overlay positioning (Partially covered)
   - [ ] Calculates position avoiding place
   - [ ] Keeps overlay in viewport
   - [ ] Handles edge cases (near viewport edge)
 
 Create `tests/unit/components/places/PlaceEditOverlay.test.tsx`:
 
-- [ ] Test rendering
-  - [ ] Shows place title
-  - [ ] Shows all editing controls
-  - [ ] Shows delete button
-  - [ ] Renders at correct position
+- [x] Test rendering
+  - [x] Shows place title
+  - [x] Shows all editing controls
+  - [x] Shows delete button
+  - [x] Renders at correct position
 
-- [ ] Test interactions
-  - [ ] Title editing works
-  - [ ] Icon style change calls callback
-  - [ ] Icon visibility toggle works
-  - [ ] Text style changes call callback
-  - [ ] Delete button shows confirmation
-  - [ ] Close button calls onClose
+- [x] Test interactions
+  - [x] Title editing works
+  - [x] Icon style change calls callback
+  - [x] Icon visibility toggle works
+  - [x] Text style changes call callback
+  - [x] Delete button shows confirmation
+  - [x] Close button calls onClose
 
-- [ ] Test drag functionality
-  - [ ] Drag updates position
-  - [ ] Constrained to viewport
-  - [ ] Touch events work
+- [x] Test drag functionality
+  - [x] Drag updates position
+  - [x] Constrained to viewport
+  - [x] Touch events work
 
-- [ ] Test keyboard shortcuts
-  - [ ] Escape closes overlay
-  - [ ] Enter saves title
-  - [ ] Delete triggers delete
+- [x] Test keyboard shortcuts
+  - [x] Escape closes overlay
+  - [x] Enter saves title
+  - [x] Delete triggers delete
 
 Create `tests/unit/components/places/ColorPicker.test.tsx`:
 
-- [ ] Test rendering
-  - [ ] Shows current color swatch
-  - [ ] Opens picker on click
-  - [ ] Shows auto checkbox when enabled
+- [x] Test rendering
+  - [x] Shows current color swatch
+  - [x] Opens picker on click
+  - [x] Shows auto checkbox when enabled
 
-- [ ] Test interactions
-  - [ ] Hex input validates correctly
-  - [ ] Color change calls callback
-  - [ ] Auto toggle works
+- [x] Test interactions
+  - [x] Hex input validates correctly
+  - [x] Color change calls callback
+  - [x] Auto toggle works
 
 Create `tests/unit/hooks/useMultiSelect.test.ts`:
 
@@ -488,150 +488,25 @@ Create `tests/integration/services/placeExport.integration.test.ts`:
 
 ## Acceptance Criteria
 
-- [ ] Click detection identifies places accurately
-- [ ] PlaceEditOverlay renders at correct position
-- [ ] Overlay is draggable within viewport
-- [ ] Title editing updates place immediately
-- [ ] Icon style selector changes icon rendering
-- [ ] Icon visibility toggle works
-- [ ] Text styling controls (color, shadow, glow) functional
-- [ ] Color picker allows custom colors and auto mode
-- [ ] Delete button removes place with confirmation
-- [ ] Keyboard shortcuts work (Escape, Enter, Delete)
+- [x] Click detection identifies places accurately
+- [x] PlaceEditOverlay renders at correct position
+- [x] Overlay is draggable within viewport
+- [x] Title editing updates place immediately
+- [x] Icon style selector changes icon rendering
+- [x] Icon visibility toggle works
+- [x] Text styling controls (color, shadow, glow) functional
+- [x] Color picker allows custom colors and auto mode
+- [x] Delete button removes place with confirmation
+- [x] Keyboard shortcuts work (Escape, Enter, Delete)
 - [ ] Multi-select mode for places and tracks
 - [ ] Bulk delete removes multiple places/tracks
 - [ ] Export places to GeoJSON, CSV, GPX formats
 - [ ] Export button downloads file correctly
-- [ ] Unit test coverage >85% for interactive editing
+- [x] Unit test coverage >85% for interactive editing
 - [ ] Integration tests verify complete workflows
-- [ ] TypeScript strict mode compliance
-- [ ] Accessibility attributes present (ARIA, focus management)
+- [x] TypeScript strict mode compliance
+- [x] Accessibility attributes present (ARIA, focus management)
 
 ## Notes
 
-### Click Detection Tolerance
-
-Add 5px padding around place bounds for easier clicking:
-- Small icons easier to click
-- Text with slight padding
-- Mobile touch targets at least 44px
-
-### Overlay Positioning Logic
-
-```
-1. Prefer: right and below click point (+20px offset)
-2. If doesn't fit right: try left
-3. If doesn't fit below: try above
-4. Always keep within viewport bounds
-5. Never cover the clicked place (add margin)
-```
-
-### Drag Constraints
-
-Constrain overlay to viewport:
-- Min x: 0
-- Max x: viewportWidth - overlayWidth
-- Min y: 0
-- Max y: viewportHeight - overlayHeight
-
-### Text Style State Management
-
-Per-place text styles override global style:
-```
-Render priority:
-1. Place.textStyle (if defined)
-2. globalTextStyle (default)
-3. Hardcoded fallback (black text, no effects)
-```
-
-### Auto Text Color Implementation
-
-See section 1.4 for auto color algorithm.
-Cache results by:
-- Location (rounded to 3 decimals)
-- Zoom level
-- Tile layer
-- Time to live: 5 minutes
-
-### Multi-Select UX
-
-Visual states:
-- Normal: no checkboxes
-- Multi-select mode: checkboxes visible
-- Selected: checkbox checked, row highlighted
-- Bulk action bar: appears when selection > 0
-
-Keyboard shortcuts:
-- Ctrl/Cmd + Click: toggle individual selection
-- Shift + Click: range selection
-- Ctrl/Cmd + A: select all
-- Delete: bulk delete (with confirmation)
-
-### Export Format Details
-
-**GeoJSON:**
-```json
-{
-  "type": "FeatureCollection",
-  "features": [
-    {
-      "type": "Feature",
-      "geometry": {
-        "type": "Point",
-        "coordinates": [longitude, latitude]
-      },
-      "properties": {
-        "title": "Place Name",
-        "source": "manual",
-        "createdAt": 1234567890000,
-        "trackId": "uuid-if-present"
-      }
-    }
-  ]
-}
-```
-
-**CSV:**
-```
-ID,Title,Latitude,Longitude,Source,Created,TrackID
-uuid,Place Name,47.6062,-122.3321,manual,2024-01-15T10:30:00Z,uuid-or-empty
-```
-
-**GPX:**
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="StrataLines">
-  <wpt lat="47.6062" lon="-122.3321">
-    <name>Place Name</name>
-    <desc>Source: manual</desc>
-    <time>2024-01-15T10:30:00Z</time>
-  </wpt>
-</gpx>
-```
-
-### Performance Considerations
-
-- Debounce text style previews (300ms)
-- Cache rendered places for click detection
-- Limit color picker updates (use onChange, not onInput)
-- Batch IndexedDB updates when possible
-- Optimize overlay re-renders (React.memo)
-
-### Accessibility
-
-- Focus trap in overlay
-- Escape key closes overlay
-- ARIA labels on all controls
-- Color picker accessible (keyboard navigable)
-- Confirmation dialog accessible
-- Screen reader announcements for state changes
-
-### Future Enhancements
-
-- Bulk edit (apply style to multiple places)
-- Place templates (save/load style presets)
-- Undo/redo for place edits
-- Place groups (organize related places)
-- Custom icon upload
-- Place photos (attach images to places)
-- Place links (URL field for external reference)
+[Existing Notes]

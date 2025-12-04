@@ -275,6 +275,9 @@ const App: React.FC = () => {
           <MapComponent
             tracks={trackManagement.filteredTracks}
             places={placeManagement.places}
+            onPlaceUpdate={placeManagement.updatePlace}
+            onPlaceDelete={placeManagement.deletePlace}
+            placeTextStyle={exportState.placeTextStyle}
             onUserMove={handleUserMove}
             center={L.latLng(mapCenter.lat, mapCenter.lng)}
             zoom={zoom}
