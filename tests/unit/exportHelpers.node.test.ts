@@ -34,12 +34,28 @@ jest.mock('@napi-rs/canvas', () => ({
             getContext: jest.fn(() => ({
                 drawImage: jest.fn(),
                 clearRect: jest.fn(),
+                scale: jest.fn(),
+                putImageData: jest.fn(),
             })),
-            tagName: 'CANVAS'
+            tagName: 'CANVAS',
+            constructor: { name: 'CanvasElement' }
         };
     }),
     loadImage: jest.fn(() => Promise.resolve({ width: 256, height: 256 })),
 }), { virtual: true });
+
+// Mock createCompatibleCanvas to return a mock that accepts our custom mock canvas
+jest.mock('@/utils/canvasUtils', () => ({
+    createCompatibleCanvas: jest.fn((w: number, h: number) => ({
+        width: w,
+        height: h,
+        getContext: jest.fn(() => ({
+            drawImage: jest.fn(),
+            clearRect: jest.fn(),
+            scale: jest.fn(),
+        }))
+    }))
+}));
 
 describe('exportHelpers (Node Environment)', () => {
     beforeEach(() => {
