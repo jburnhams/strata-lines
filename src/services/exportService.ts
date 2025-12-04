@@ -1,5 +1,5 @@
 import type { LatLngBounds } from 'leaflet';
-import type { Track } from '@/types';
+import type { Track, Place, ExportSettings } from '@/types';
 import {
   renderCanvasForBounds,
   resizeCanvas,
@@ -25,10 +25,13 @@ export interface ExportConfig {
   exportQuality: number;
   outputFormat: 'png' | 'jpeg';
   jpegQuality: number;
+  visiblePlaces?: Place[];
+  placeSettings?: ExportSettings;
   includedLayers?: {
     base: boolean;
     lines: boolean;
     labels: boolean;
+    places?: boolean;
   };
 }
 
@@ -59,7 +62,7 @@ const createSubdivisionFactory = (
     originalIndex: number,
     visibleTracks: Track[],
     config: ExportConfig,
-    type: 'combined' | 'base' | 'lines' | 'labels',
+    type: 'combined' | 'base' | 'lines' | 'labels' | 'places',
     callbacks: ExportCallbacks
 ): ImageSource => {
     const {
@@ -71,7 +74,8 @@ const createSubdivisionFactory = (
         lineThickness,
         exportQuality,
         includedLayers,
-        outputFormat
+        outputFormat,
+        visiblePlaces = []
     } = config;
 
     // Calculate dimensions upfront
@@ -130,24 +134,29 @@ const createSubdivisionFactory = (
 
         // --- Render Phase ---
         if (type === 'combined') {
-            const { base = true, lines = true, labels = true } = includedLayers || {};
+            const { base = true, lines = true, labels = true, places = true } = includedLayers || {};
+            const totalStages = (base ? 1 : 0) + (lines ? 1 : 0) + (labels ? 1 : 0) + (places ? 1 : 0);
+            let currentStage = 1;
 
             // 1. Base
             if (base) {
-                reportProgress('base', 0, 100, 'base 1/3');
+                const label = `base ${currentStage}/${totalStages}`;
+                reportProgress('base', 0, 100, label);
                 const baseCanvas = await renderCanvasForBounds({
                     bounds: bounds,
                     layerType: 'base',
                     zoomForRender: derivedExportZoom,
                     tileLayerKey,
-                    onTileProgress: (loaded, total) => reportProgress('base', loaded, total, 'base 1/3')
+                    onTileProgress: (loaded, total) => reportProgress('base', loaded, total, label)
                 });
                 if (baseCanvas) canvases.push(baseCanvas);
+                currentStage++;
             }
 
             // 2. Lines
             if (lines) {
-                reportProgress('lines', 0, 100, 'lines 2/3');
+                const label = `lines ${currentStage}/${totalStages}`;
+                reportProgress('lines', 0, 100, label);
                 const linesCanvas = filteredVisibleTracks.length > 0 ? await renderCanvasForBounds({
                     bounds: bounds,
                     layerType: 'lines',
@@ -155,21 +164,39 @@ const createSubdivisionFactory = (
                     visibleTracks: filteredVisibleTracks,
                     lineThickness,
                     exportQuality,
-                    onLineProgress: (checks, max) => reportProgress('lines', checks, max, 'lines 2/3')
+                    onLineProgress: (checks, max) => reportProgress('lines', checks, max, label)
                 }) : null;
                 if (linesCanvas) canvases.push(linesCanvas);
+                currentStage++;
             }
 
-            // 3. Labels
+            // 3. Places
+            if (places && config.placeSettings && config.placeSettings.includePlaces) {
+                const label = `places ${currentStage}/${totalStages}`;
+                reportProgress('places' as any, 0, 100, label);
+                const placesCanvas = await renderCanvasForBounds({
+                    bounds: bounds,
+                    layerType: 'places',
+                    zoomForRender: derivedExportZoom,
+                    visiblePlaces: visiblePlaces,
+                    placeSettings: config.placeSettings,
+                    tileLayerKey
+                });
+                if (placesCanvas) canvases.push(placesCanvas);
+                currentStage++;
+            }
+
+            // 4. Labels
             if (labels && tileLayerKey === 'esriImagery' && labelDensity >= 0) {
-                 reportProgress('tiles', 0, 100, 'labels 3/3');
+                 const label = `labels ${currentStage}/${totalStages}`;
+                 reportProgress('tiles', 0, 100, label);
                  const labelZoom = (previewZoom || zoom) + labelDensity;
                  let labelsCanvas = await renderCanvasForBounds({
                     bounds: bounds,
                     layerType: 'labels-only',
                     zoomForRender: labelZoom,
                     renderScale: 2,
-                    onTileProgress: (loaded, total) => reportProgress('tiles', loaded, total, 'labels 3/3')
+                    onTileProgress: (loaded, total) => reportProgress('tiles', loaded, total, label)
                  });
 
                  // Resize if needed
@@ -181,14 +208,16 @@ const createSubdivisionFactory = (
                      }
                  }
                  if (labelsCanvas) canvases.push(labelsCanvas);
+                 currentStage++;
             }
         } else {
             // Single layer type
-            let layerType: 'base' | 'lines' | 'labels-only';
+            let layerType: 'base' | 'lines' | 'labels-only' | 'places';
             let renderZoom = derivedExportZoom;
 
             if (type === 'base') layerType = 'base';
             else if (type === 'lines') layerType = 'lines';
+            else if (type === 'places') layerType = 'places';
             else {
                 layerType = 'labels-only';
                 renderZoom = (previewZoom || zoom) + labelDensity;
@@ -196,13 +225,15 @@ const createSubdivisionFactory = (
 
             const stageLabel = type;
 
-            reportProgress(layerType === 'lines' ? 'lines' : layerType === 'base' ? 'base' : 'tiles', 0, 100, stageLabel);
+            reportProgress(layerType as any, 0, 100, stageLabel);
 
             const canvas = await renderCanvasForBounds({
                 bounds: bounds,
                 layerType,
                 zoomForRender: renderZoom,
                 visibleTracks: filteredVisibleTracks,
+                visiblePlaces: visiblePlaces,
+                placeSettings: config.placeSettings,
                 tileLayerKey,
                 lineThickness,
                 exportQuality,
@@ -315,7 +346,7 @@ async function canvasToBlobOrBuffer(
  * Performs a PNG export for a specific layer type
  */
 export const performPngExport = async (
-  type: 'combined' | 'base' | 'lines' | 'labels',
+  type: 'combined' | 'base' | 'lines' | 'labels' | 'places',
   visibleTracks: Track[],
   config: ExportConfig,
   callbacks: ExportCallbacks

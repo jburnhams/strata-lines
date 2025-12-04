@@ -29,7 +29,7 @@ interface ControlsPanelProps {
   removeTrack: (trackId: string) => void;
   removeAllTracks: () => void;
   toggleTrackVisibility: (trackId: string) => void;
-  handleExport: (type: 'combined' | 'base' | 'lines' | 'labels', includedLayers?: ExportSelection) => void;
+  handleExport: (type: 'combined' | 'base' | 'lines' | 'labels' | 'places', includedLayers?: ExportSelection) => void;
   handleExportBase: () => void;
   handleExportLines: () => void;
   handleExportLabels: () => void;
@@ -114,7 +114,7 @@ interface LayoutProps extends ControlsPanelProps {
 
 const DesktopLayout: React.FC<LayoutProps> = (props) => {
     const [isAdvancedMode, setIsAdvancedMode] = useState(false);
-    const [exportSelection, setExportSelection] = useState<ExportSelection>({ base: true, lines: true, labels: true });
+    const [exportSelection, setExportSelection] = useState<ExportSelection>({ base: true, lines: true, labels: true, places: true });
 
     const handleMainExport = () => {
         props.handleExport('combined', exportSelection);
@@ -226,7 +226,7 @@ const MobileLayout: React.FC<LayoutProps> = (props) => {
     const isLandscape = useIsLandscape();
     const [activeDrawer, setActiveDrawer] = useState<'files' | 'settings' | null>(null);
     const [isAdvancedMode, setIsAdvancedMode] = useState(false);
-    const [exportSelection, setExportSelection] = useState<ExportSelection>({ base: true, lines: true, labels: true });
+    const [exportSelection, setExportSelection] = useState<ExportSelection>({ base: true, lines: true, labels: true, places: true });
 
     const handleMainExport = () => {
         props.handleExport('combined', exportSelection);

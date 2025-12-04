@@ -140,15 +140,11 @@ const App: React.FC = () => {
   }, []);
 
   // Export handlers
-  const handleExport = useCallback(async (type: 'combined' | 'base' | 'lines' | 'labels', includedLayers?: { base: boolean; lines: boolean; labels: boolean; }) => {
+  const handleExport = useCallback(async (type: 'combined' | 'base' | 'lines' | 'labels' | 'places', includedLayers?: { base: boolean; lines: boolean; labels: boolean; places: boolean; }) => {
     const visibleTracks = trackManagement.filteredTracks.filter(t => t.isVisible);
+    const visiblePlaces = placeManagement.places.filter(p => p.isVisible);
 
     // Validation
-    // Allow empty export if base or labels are included, even if lines are checked
-    if (type === 'combined' && includedLayers?.lines && visibleTracks.length === 0 && !includedLayers?.base && !includedLayers?.labels) {
-        trackManagement.setNotification({ type: 'error', message: "Cannot export with lines without a visible track."});
-        return;
-    }
     if (type === 'lines' && visibleTracks.length === 0) {
       trackManagement.setNotification({ type: 'error', message: "Cannot export with lines without a visible track."});
       return;
@@ -178,13 +174,16 @@ const App: React.FC = () => {
     });
 
     trackManagement.setNotification(null);
-    const setters = {
+    const setters: Record<string, (v: boolean) => void> = {
       'combined': setIsExporting,
       'base': setIsExportingBase,
       'lines': setIsExportingLines,
-      'labels': setIsExportingLabels
+      'labels': setIsExportingLabels,
+      'places': setIsExporting
     };
-    setters[type](true);
+
+    const setFlag = setters[type] || setIsExporting;
+    setFlag(true);
 
     try {
       await performPngExport(
@@ -203,6 +202,13 @@ const App: React.FC = () => {
           outputFormat: exportState.outputFormat,
           jpegQuality: exportState.jpegQuality,
           includedLayers,
+          visiblePlaces,
+          placeSettings: {
+             includePlaces: exportState.includePlaces,
+             placeTitleSize: exportState.placeTitleSize,
+             placeShowIconsGlobally: exportState.placeShowIconsGlobally,
+             placeTextStyle: exportState.placeTextStyle,
+          }
         },
         {
           onSubdivisionsCalculated: exportState.setExportSubdivisions,
@@ -240,7 +246,8 @@ const App: React.FC = () => {
         }
       );
     } finally {
-      setters[type](false);
+      const setFlag = setters[type] || setIsExporting;
+      setFlag(false);
     }
   }, [
     trackManagement,

@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import L from 'leaflet';
 import { useLocalStorage } from './useLocalStorage';
-import type { AspectRatio } from '@/types';
+import type { AspectRatio, PlaceTextStyle } from '@/types';
 import { calculatePixelDimensions, calculateBoundsDimensions } from '@/utils/mapCalculations';
 import type { ProgressInfo } from '@/utils/progressTracker';
 
@@ -20,6 +20,21 @@ export const useExportState = (
   const [aspectRatio, setAspectRatioState] = useLocalStorage<AspectRatio>('exportAspectRatio', {
     width: 16,
     height: 9,
+  });
+
+  // Place rendering settings
+  const [includePlaces, setIncludePlaces] = useLocalStorage<boolean>('exportIncludePlaces', true);
+  const [placeTitleSize, setPlaceTitleSize] = useLocalStorage<number>('exportPlaceTitleSize', 50); // 1-100 scale
+  const [placeShowIconsGlobally, setPlaceShowIconsGlobally] = useLocalStorage<boolean>('exportPlaceShowIcons', true);
+  const [placeTextStyle, setPlaceTextStyle] = useLocalStorage<PlaceTextStyle>('exportPlaceTextStyle', {
+    fontSize: 12,
+    fontFamily: 'Noto Sans',
+    fontWeight: 'bold',
+    color: 'auto',
+    strokeColor: '#ffffff',
+    strokeWidth: 2,
+    glowColor: '#000000',
+    glowBlur: 0
   });
 
   const [exportDimensions, setExportDimensions] = useState<{
@@ -192,5 +207,14 @@ export const useExportState = (
     setCompletedSubdivisions,
     subdivisionProgress,
     setSubdivisionProgress,
+    // Place settings
+    includePlaces,
+    setIncludePlaces,
+    placeTitleSize,
+    setPlaceTitleSize,
+    placeShowIconsGlobally,
+    setPlaceShowIconsGlobally,
+    placeTextStyle,
+    setPlaceTextStyle,
   };
 };

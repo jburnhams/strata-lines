@@ -1,37 +1,13 @@
 import L from 'leaflet';
 import html2canvas from 'html2canvas';
-import type { Track } from '@/types';
+import type { Track, Place, ExportSettings } from '@/types';
+import { renderPlacesOnCanvas } from '@/services/placeRenderingService';
 import { TILE_LAYERS } from '@/constants';
 import { LABEL_TILE_URL_RETINA } from '@/labelTiles';
 import { calculatePixelDimensions } from './mapCalculations';
+import { createCompatibleCanvas } from './canvasUtils';
 
-/**
- * Creates a canvas, preferring @napi-rs/canvas in integration test environments for consistency
- * Unit tests use mocks, so we skip @napi-rs/canvas there
- */
-export const createCompatibleCanvas = (width: number, height: number): HTMLCanvasElement => {
-  if (typeof require !== 'undefined') {
-    try {
-      // Check if we're in integration test environment (has real canvas API)
-      const testCanvas = document.createElement('canvas');
-      const testCtx = testCanvas.getContext('2d');
-      const hasRealCanvas = testCtx && typeof testCtx.getImageData === 'function';
-
-      if (hasRealCanvas) {
-        const canvasPkg = '@napi-rs/canvas';
-        const { createCanvas } = require(canvasPkg);
-        return createCanvas(width, height) as unknown as HTMLCanvasElement;
-      }
-    } catch {
-      // @napi-rs/canvas not available or detection failed
-    }
-  }
-
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  return canvas;
-};
+export { createCompatibleCanvas };
 
 /**
  * Creates a Leaflet map configured for export/printing
@@ -607,9 +583,11 @@ export const calculateGridLayout = (
 
 export interface RenderOptions {
   bounds: L.LatLngBounds;
-  layerType: 'base' | 'lines' | 'labels-only';
+  layerType: 'base' | 'lines' | 'labels-only' | 'places';
   zoomForRender: number;
   visibleTracks?: Track[];
+  visiblePlaces?: Place[];
+  placeSettings?: ExportSettings;
   tileLayerKey?: string;
   lineThickness?: number;
   exportQuality?: number;
@@ -631,6 +609,8 @@ export const renderCanvasForBounds = async (
     layerType,
     zoomForRender,
     visibleTracks = [],
+    visiblePlaces = [],
+    placeSettings,
     tileLayerKey = 'esriImagery',
     lineThickness = 3,
     exportQuality = 2,
@@ -638,6 +618,26 @@ export const renderCanvasForBounds = async (
     onTileProgress,
     onLineProgress,
   } = options;
+
+  if (layerType === 'places') {
+    // Direct canvas rendering for places
+    const { width, height } = calculatePixelDimensions(bounds, zoomForRender);
+    const scaledWidth = width * renderScale;
+    const scaledHeight = height * renderScale;
+    const canvas = createCompatibleCanvas(scaledWidth, scaledHeight);
+
+    if (renderScale > 1) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.scale(renderScale, renderScale);
+    }
+
+    if (placeSettings) {
+        const selectedTileLayer = TILE_LAYERS.find((l) => l.key === tileLayerKey) || TILE_LAYERS[0];
+        const tileLayerUrl = selectedTileLayer.layers[0].url;
+        await renderPlacesOnCanvas(canvas, visiblePlaces, bounds, zoomForRender, placeSettings, tileLayerUrl);
+    }
+    return canvas;
+  }
 
   const isTransparent = layerType === 'lines' || layerType === 'labels-only';
 
