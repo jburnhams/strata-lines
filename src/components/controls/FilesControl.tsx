@@ -1,7 +1,7 @@
 import React from 'react';
-import type { Track } from '@/types';
-import { EyeIcon, EyeOffIcon } from '@/components/Icons';
+import type { Track, TrackPlaceType } from '@/types';
 import { ActivityTypeFilter } from './ActivityTypeFilter';
+import { TrackListItem } from '@/components/tracks/TrackListItem';
 
 interface FilesControlProps {
   tracks: Track[];
@@ -20,6 +20,10 @@ interface FilesControlProps {
   activityCounts: Record<string, number>;
   hiddenActivityTypes: Set<string>;
   toggleActivityFilter: (type: string) => void;
+  createTrackPlace: (id: string, type: TrackPlaceType, useLocality: boolean) => Promise<any>;
+  removeTrackPlace: (id: string, type: TrackPlaceType) => Promise<void>;
+  createAllTrackPlaces: (id: string, useLocality: boolean) => Promise<any>;
+  removeAllTrackPlaces: (id: string) => Promise<void>;
 }
 
 export const FilesControl: React.FC<FilesControlProps> = ({
@@ -39,6 +43,10 @@ export const FilesControl: React.FC<FilesControlProps> = ({
   activityCounts,
   hiddenActivityTypes,
   toggleActivityFilter,
+  createTrackPlace,
+  removeTrackPlace,
+  createAllTrackPlaces,
+  removeAllTrackPlaces
 }) => {
   return (
     <section>
@@ -86,27 +94,20 @@ export const FilesControl: React.FC<FilesControlProps> = ({
                     />
                 )}
 
-                <div className="bg-gray-900/50 rounded-md p-2 max-h-48 overflow-y-auto border border-gray-700">
-                    <ul className="divide-y divide-gray-700">
+                <div className="bg-gray-900/50 rounded-md max-h-48 overflow-y-auto border border-gray-700">
+                    <ul className="">
                         {tracks.map((track) => (
-                            <li
-                              key={track.id}
-                              className="flex items-center text-sm text-gray-300 py-2 transition-colors duration-150 hover:bg-gray-700/50"
-                              onMouseEnter={() => onTrackHover(track.id)}
-                              onMouseLeave={() => onTrackHover(null)}
-                            >
-                                <span className="flex-1 truncate pr-2 cursor-default" title={track.name}>{track.name}</span>
-                                <span className="text-gray-400 font-mono text-right flex-shrink-0 pr-3">{track.length.toFixed(1)} km</span>
-                                <button
-                                    onClick={() => toggleTrackVisibility(track.id)}
-                                    className={`p-1 rounded-full ${track.isVisible ? 'text-gray-400 hover:text-white hover:bg-gray-600' : 'text-gray-600 hover:text-gray-400 hover:bg-gray-600'}`}
-                                    title={track.isVisible ? 'Hide track' : 'Show track'}
-                                >
-                                    {track.isVisible ? <EyeIcon /> : <EyeOffIcon />}
-                                </button>
-                                <button onClick={() => removeTrack(track.id)} className="text-red-500 hover:text-red-400 font-bold text-xl leading-none flex-shrink-0 w-8 text-center" title="Remove track">
-                                    &times;
-                                </button>
+                            <li key={track.id}>
+                                <TrackListItem
+                                    track={track}
+                                    onHover={onTrackHover}
+                                    onToggleVisibility={toggleTrackVisibility}
+                                    onRemove={removeTrack}
+                                    createTrackPlace={createTrackPlace}
+                                    removeTrackPlace={removeTrackPlace}
+                                    createAllTrackPlaces={createAllTrackPlaces}
+                                    removeAllTrackPlaces={removeAllTrackPlaces}
+                                />
                             </li>
                         ))}
                     </ul>

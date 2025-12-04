@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import type { AspectRatio, Track, Notification } from '@/types';
+import type { AspectRatio, Track, Notification, TrackPlaceType } from '@/types';
 import { FilesControl } from '@/components/controls/FilesControl';
 import { MapStyleControl } from '@/components/controls/MapStyleControl';
 import { ExportConfigControl } from '@/components/controls/ExportConfigControl';
@@ -72,6 +72,11 @@ interface ControlsPanelProps {
   activityCounts: Record<string, number>;
   hiddenActivityTypes: Set<string>;
   toggleActivityFilter: (type: string) => void;
+
+  createTrackPlace: (id: string, type: TrackPlaceType, useLocality: boolean) => Promise<any>;
+  removeTrackPlace: (id: string, type: TrackPlaceType) => Promise<void>;
+  createAllTrackPlaces: (id: string, useLocality: boolean) => Promise<any>;
+  removeAllTrackPlaces: (id: string) => Promise<void>;
 }
 
 // Common Subcomponents
@@ -150,6 +155,10 @@ const DesktopLayout: React.FC<LayoutProps> = (props) => {
                 activityCounts={props.activityCounts}
                 hiddenActivityTypes={props.hiddenActivityTypes}
                 toggleActivityFilter={props.toggleActivityFilter}
+                createTrackPlace={props.createTrackPlace}
+                removeTrackPlace={props.removeTrackPlace}
+                createAllTrackPlaces={props.createAllTrackPlaces}
+                removeAllTrackPlaces={props.removeAllTrackPlaces}
             />
 
             <PlacesSection
@@ -343,6 +352,10 @@ const MobileLayout: React.FC<LayoutProps> = (props) => {
                                 activityCounts={props.activityCounts}
                                 hiddenActivityTypes={props.hiddenActivityTypes}
                                 toggleActivityFilter={props.toggleActivityFilter}
+                                createTrackPlace={props.createTrackPlace}
+                                removeTrackPlace={props.removeTrackPlace}
+                                createAllTrackPlaces={props.createAllTrackPlaces}
+                                removeAllTrackPlaces={props.removeAllTrackPlaces}
                             />
                             <PlacesSection
                                 places={props.places}

@@ -377,6 +377,10 @@ const App: React.FC = () => {
         activityCounts={trackManagement.activityCounts}
         hiddenActivityTypes={trackManagement.hiddenActivityTypes}
         toggleActivityFilter={trackManagement.toggleActivityFilter}
+        createTrackPlace={trackManagement.createTrackPlace}
+        removeTrackPlace={trackManagement.removeTrackPlace}
+        createAllTrackPlaces={trackManagement.createAllTrackPlaces}
+        removeAllTrackPlaces={trackManagement.removeAllTrackPlaces}
       />
     </div>
   );
