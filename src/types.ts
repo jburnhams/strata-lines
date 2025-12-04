@@ -112,7 +112,7 @@ export interface PlaceWithMetadata extends Place {
   titlePosition?: 'left' | 'right'; // Calculated position
 }
 
-export type PlaceTitlePosition = 'left' | 'right';
+export type PlaceTitlePosition = 'left' | 'right' | 'top' | 'bottom';
 
 export interface PlaceTitleBounds {
   placeId: string;

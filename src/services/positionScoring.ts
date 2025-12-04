@@ -61,53 +61,84 @@ export const scorePosition = (
   score -= overlapCount * 1000;
   score -= totalOverlapArea * 10;
 
+  // Prefer Right/Left over Top/Bottom slightly?
+  // Maybe not, unless specified.
+
   return score;
 };
 
-export const scoreBothPositions = (
+export const scoreAllPositions = (
   placeId: string,
   iconX: number,
-  iconY: number,
+  iconY: number, // Assumed to be bottom-center of icon
   titleWidth: number,
   titleHeight: number,
   existingBounds: PlaceTitleBounds[],
   constraints: PositioningConstraints
-): { left: number, right: number, leftBounds: DOMRect, rightBounds: DOMRect } => {
-  const y = iconY - titleHeight / 2;
+): Record<PlaceTitlePosition, { score: number, bounds: DOMRect }> => {
+  // Center of icon for Left/Right alignment
+  const iconCenterY = iconY - ICON_SIZE / 2;
+  const iconTopY = iconY - ICON_SIZE;
+  const iconBottomY = iconY; // Point is usually bottom
 
-  // Left Position
-  const leftX = iconX - ICON_SIZE / 2 - ICON_GAP - titleWidth;
-  const leftBounds = new DOMRect(leftX, y, titleWidth, titleHeight);
-  const leftScore = scorePosition(leftBounds, 'left', existingBounds, constraints);
+  const positions: PlaceTitlePosition[] = ['left', 'right', 'top', 'bottom'];
+  const result: Partial<Record<PlaceTitlePosition, { score: number, bounds: DOMRect }>> = {};
 
-  // Right Position
-  const rightX = iconX + ICON_SIZE / 2 + ICON_GAP;
-  const rightBounds = new DOMRect(rightX, y, titleWidth, titleHeight);
-  const rightScore = scorePosition(rightBounds, 'right', existingBounds, constraints);
+  positions.forEach(pos => {
+      let x = 0;
+      let y = 0;
 
-  return {
-    left: leftScore,
-    right: rightScore,
-    leftBounds,
-    rightBounds
-  };
+      if (pos === 'left') {
+          // Centered vertically relative to icon center
+          y = iconCenterY - titleHeight / 2;
+          x = iconX - ICON_SIZE / 2 - ICON_GAP - titleWidth;
+      } else if (pos === 'right') {
+          // Centered vertically relative to icon center
+          y = iconCenterY - titleHeight / 2;
+          x = iconX + ICON_SIZE / 2 + ICON_GAP;
+      } else if (pos === 'top') {
+          // Centered horizontally
+          x = iconX - titleWidth / 2;
+          // Bottom of text at iconTop - Gap
+          y = iconTopY - ICON_GAP - titleHeight;
+      } else if (pos === 'bottom') {
+          // Centered horizontally
+          x = iconX - titleWidth / 2;
+          // Top of text at iconBottom + Gap
+          y = iconBottomY + ICON_GAP;
+      }
+
+      const bounds = new DOMRect(x, y, titleWidth, titleHeight);
+      const score = scorePosition(bounds, pos, existingBounds, constraints);
+      result[pos] = { score, bounds };
+  });
+
+  return result as Record<PlaceTitlePosition, { score: number, bounds: DOMRect }>;
 };
 
 export const selectBestPosition = (
-  leftScore: number,
-  rightScore: number,
+  scores: Record<PlaceTitlePosition, { score: number, bounds: DOMRect }>,
   bias?: PlaceTitlePosition
 ): PlaceTitlePosition => {
-  if (leftScore === rightScore) {
-    return bias || 'right';
+  const positions = Object.keys(scores) as PlaceTitlePosition[];
+
+  // Sort by score descending
+  positions.sort((a, b) => scores[b].score - scores[a].score);
+
+  const best = positions[0];
+  const bestScore = scores[best].score;
+
+  // If bias is provided and is within margin of best, prefer bias
+  if (bias) {
+      const biasScore = scores[bias].score;
+      const diff = Math.abs(bestScore - biasScore);
+      // If bestScore is 0 (unlikely with penalties), handle gracefully
+      const denominator = Math.max(Math.abs(bestScore), 1);
+
+      if (diff / denominator < 0.1) {
+          return bias;
+      }
   }
 
-  const diff = Math.abs(leftScore - rightScore);
-  const maxScore = Math.max(Math.abs(leftScore), Math.abs(rightScore));
-
-  if (maxScore > 0 && diff / maxScore < 0.1) {
-    if (bias) return bias;
-  }
-
-  return leftScore > rightScore ? 'left' : 'right';
+  return best;
 };
