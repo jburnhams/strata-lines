@@ -88,8 +88,7 @@ export const refinePositions = (
             const currentPos = currentPositions.get(info.place.id)!;
             const currentB = currentBounds.find(b => b.placeId === info.place.id)!.bounds;
 
-            const otherBounds = currentBounds.filter(b => b.placeId !== info.place.id);
-            const currentScore = scorePosition(currentB, currentPos, otherBounds, activeConstraints);
+            const currentScore = scorePosition(currentB, currentPos, currentBounds, activeConstraints, info.place.id);
 
             let bestPos = currentPos;
             let bestScore = currentScore;
@@ -100,7 +99,7 @@ export const refinePositions = (
                 if (pos === currentPos) continue;
 
                 const b = calculateTitleBounds(info.place, info.titleLines, info.fontSize, info.x, info.y, pos, 0, info.iconSize, 5);
-                const score = scorePosition(b, pos, otherBounds, activeConstraints);
+                const score = scorePosition(b, pos, currentBounds, activeConstraints, info.place.id);
 
                 if (score > bestScore) {
                     bestScore = score;

@@ -53,6 +53,24 @@ describe('positionScoring', () => {
       // Total: 1100.
       expect(score).toBe(1100);
     });
+
+    it('ignores overlap with ignoredId', () => {
+      const bounds = new DOMRect(100, 100, 50, 20);
+      const existing: PlaceTitleBounds[] = [{
+        placeId: 'p1',
+        position: 'left',
+        bounds: new DOMRect(100, 100, 50, 20), // Exact overlap
+        geoBounds: {} as any
+      }];
+
+      // Without ignoreId, score is -9800 (from previous test)
+      const scoreNormal = scorePosition(bounds, 'right', existing, constraints);
+      expect(scoreNormal).toBeLessThan(0);
+
+      // With ignoreId, it should be treated as empty existing
+      const scoreIgnored = scorePosition(bounds, 'right', existing, constraints, 'p1');
+      expect(scoreIgnored).toBe(1200); // Same as "gives bonus for being within bounds" test
+    });
   });
 
   describe('scoreAllPositions', () => {
