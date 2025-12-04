@@ -22,7 +22,8 @@ export const scorePosition = (
   titleBounds: DOMRect,
   position: PlaceTitlePosition,
   existingBounds: PlaceTitleBounds[],
-  constraints: PositioningConstraints
+  constraints: PositioningConstraints,
+  ignoreId?: string
 ): number => {
   let score = 0;
 
@@ -39,6 +40,8 @@ export const scorePosition = (
   let totalOverlapArea = 0;
 
   for (const existing of existingBounds) {
+    if (ignoreId && existing.placeId === ignoreId) continue;
+
     if (hasOverlap(titleBounds, existing.bounds, 0)) {
       overlapCount++;
       totalOverlapArea += getOverlapArea(titleBounds, existing.bounds);

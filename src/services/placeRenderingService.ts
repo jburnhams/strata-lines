@@ -3,6 +3,7 @@ import type { Place, ExportSettings, PlaceTitlePosition } from '@/types';
 import { renderIcon } from '@/utils/placeIconRenderer';
 import { wrapText, measureTextBounds, renderTextWithEffects, getAutoTextColor } from '@/utils/placeTextRenderer';
 import { calculateOptimalPositions } from '@/services/titlePositioningService';
+import { hasOverlap } from '@/utils/positioningUtils';
 
 export interface Rect {
   x: number;
@@ -180,6 +181,8 @@ export const renderPlacesOnCanvas = async (
   // Sort descending latitude (North first) so South overlaps North
   visiblePlaces.sort((a, b) => b.latitude - a.latitude);
 
+  const renderedTextBounds: DOMRect[] = [];
+
   for (const place of visiblePlaces) {
     const point = L.CRS.EPSG3857.latLngToPoint(L.latLng(place.latitude, place.longitude), zoom);
 
@@ -191,10 +194,26 @@ export const renderPlacesOnCanvas = async (
 
     if (debug) {
       ctx.save();
-      ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
       ctx.lineWidth = 1;
 
       if (result.textBounds) {
+        const currentBounds = new DOMRect(
+            result.textBounds.x,
+            result.textBounds.y,
+            result.textBounds.width,
+            result.textBounds.height
+        );
+
+        let isOverlapping = false;
+        for (const rb of renderedTextBounds) {
+            if (hasOverlap(currentBounds, rb)) {
+                isOverlapping = true;
+                break;
+            }
+        }
+        renderedTextBounds.push(currentBounds);
+
+        ctx.strokeStyle = isOverlapping ? 'rgba(255, 0, 0, 0.8)' : 'rgba(0, 255, 0, 0.8)';
         ctx.strokeRect(result.textBounds.x, result.textBounds.y, result.textBounds.width, result.textBounds.height);
       }
 
