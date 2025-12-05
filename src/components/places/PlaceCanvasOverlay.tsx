@@ -1,16 +1,43 @@
 import React, { useEffect, useRef, useMemo } from 'react';
-import { useMap } from 'react-leaflet';
+import { useMap, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
 import type { Place, ExportSettings, PlaceTextStyle } from '@/types';
-import { renderPlacesOnCanvas } from '@/services/placeRenderingService';
+import { renderPlacesOnCanvas, type PlaceRenderResult, type Rect } from '@/services/placeRenderingService';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { calculateOptimalPositions } from '@/services/titlePositioningService';
 import type { PlaceTitlePosition } from '@/types';
 
-export const PlaceCanvasOverlay: React.FC<{ places: Place[] }> = ({ places }) => {
+export const isPointInBounds = (x: number, y: number, bounds: Rect): boolean => {
+  const padding = 5;
+  return x >= bounds.x - padding &&
+         x <= bounds.x + bounds.width + padding &&
+         y >= bounds.y - padding &&
+         y <= bounds.y + bounds.height + padding;
+};
+
+export const getPlaceAtPoint = (x: number, y: number, renderResults: Map<string, PlaceRenderResult>): string | null => {
+  // Iterate in reverse insertion order (top-most first)
+  const ids = Array.from(renderResults.keys());
+  for (let i = ids.length - 1; i >= 0; i--) {
+      const id = ids[i];
+      const result = renderResults.get(id);
+      if (!result) continue;
+
+      if (result.iconBounds && isPointInBounds(x, y, result.iconBounds)) return id;
+      if (result.textBounds && isPointInBounds(x, y, result.textBounds)) return id;
+  }
+  return null;
+};
+
+export const PlaceCanvasOverlay: React.FC<{
+  places: Place[];
+  onPlaceClick?: (placeId: string | null, position: { x: number, y: number }) => void;
+}> = ({ places, onPlaceClick }) => {
   const map = useMap();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const positionsRef = useRef<Map<string, PlaceTitlePosition> | undefined>(undefined);
+  const renderResultsRef = useRef<Map<string, PlaceRenderResult>>(new Map());
   const lastCalcZoomRef = useRef<number>(-1);
   const lastCalcPlacesRef = useRef<Place[]>(places);
   const lastCalcSettingsRef = useRef<ExportSettings | null>(null);
@@ -115,9 +142,26 @@ export const PlaceCanvasOverlay: React.FC<{ places: Place[] }> = ({ places }) =>
            lastCalcSettingsRef.current = settings;
         }
 
-        await renderPlacesOnCanvas(canvas, places, bounds, zoom, settings, undefined, positionsRef.current, debugPositions);
+        const results = await renderPlacesOnCanvas(canvas, places, bounds, zoom, settings, undefined, positionsRef.current, debugPositions);
+        renderResultsRef.current = results;
     }
   };
+
+  useMapEvents({
+    click: (e) => {
+        if (!onPlaceClick) return;
+        const point = map.latLngToContainerPoint(e.latlng);
+
+        const hitPlaceId = getPlaceAtPoint(point.x, point.y, renderResultsRef.current);
+
+        if (hitPlaceId) {
+            L.DomEvent.stopPropagation(e.originalEvent);
+            onPlaceClick(hitPlaceId, { x: point.x, y: point.y });
+        } else {
+            onPlaceClick(null, { x: point.x, y: point.y });
+        }
+    }
+  });
 
   useEffect(() => {
     let animationFrameId: number;
