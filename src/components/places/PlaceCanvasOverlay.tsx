@@ -160,6 +160,17 @@ export const PlaceCanvasOverlay: React.FC<{
         } else {
             onPlaceClick(null, { x: point.x, y: point.y });
         }
+    },
+    mousemove: (e) => {
+        const point = map.latLngToContainerPoint(e.latlng);
+        const hitPlaceId = getPlaceAtPoint(point.x, point.y, renderResultsRef.current);
+        const container = map.getContainer();
+
+        if (hitPlaceId) {
+            container.style.cursor = 'pointer';
+        } else {
+            container.style.cursor = '';
+        }
     }
   });
 
