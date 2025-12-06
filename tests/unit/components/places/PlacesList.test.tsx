@@ -86,8 +86,8 @@ describe('PlacesList', () => {
       />
     );
 
-    // Click on the container div of header
-    fireEvent.click(screen.getByText('Places').closest('div')!.parentElement!);
+    // Click on the "Places" text container
+    fireEvent.click(screen.getByText('Places'));
     expect(mockToggleCollapse).toHaveBeenCalled();
   });
 
