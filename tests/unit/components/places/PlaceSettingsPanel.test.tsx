@@ -7,6 +7,7 @@ describe('PlaceSettingsPanel', () => {
   const mockToggleIcons = jest.fn();
   const mockToggleAutoCreate = jest.fn();
   const mockToggleLocality = jest.fn();
+  const mockTextStyleChange = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -21,6 +22,13 @@ describe('PlaceSettingsPanel', () => {
     onToggleAutoCreatePlaces: mockToggleAutoCreate,
     defaultUseLocalityName: false,
     onToggleDefaultUseLocalityName: mockToggleLocality,
+    textStyle: {
+      fontSize: 12,
+      fontFamily: 'Noto Sans',
+      fontWeight: 'bold',
+      color: 'auto',
+    },
+    onTextStyleChange: mockTextStyleChange,
   };
 
   it('renders settings', () => {

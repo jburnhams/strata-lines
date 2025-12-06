@@ -82,6 +82,10 @@ interface ControlsPanelProps {
   setAutoCreatePlaces: (val: boolean) => void;
   defaultUseLocalityName: boolean;
   setDefaultUseLocalityName: (val: boolean) => void;
+
+  // New props for Global Text Style
+  placeTextStyle: import('@/types').PlaceTextStyle;
+  setPlaceTextStyle: (style: import('@/types').PlaceTextStyle) => void;
 }
 
 // Common Subcomponents
@@ -186,6 +190,8 @@ const DesktopLayout: React.FC<LayoutProps> = (props) => {
                     onToggleAutoCreatePlaces={props.setAutoCreatePlaces}
                     defaultUseLocalityName={props.defaultUseLocalityName}
                     onToggleDefaultUseLocalityName={props.setDefaultUseLocalityName}
+                    textStyle={props.placeTextStyle}
+                    onTextStyleChange={props.setPlaceTextStyle}
                 />
             )}
 
@@ -388,6 +394,8 @@ const MobileLayout: React.FC<LayoutProps> = (props) => {
                                     onToggleAutoCreatePlaces={props.setAutoCreatePlaces}
                                     defaultUseLocalityName={props.defaultUseLocalityName}
                                     onToggleDefaultUseLocalityName={props.setDefaultUseLocalityName}
+                                    textStyle={props.placeTextStyle}
+                                    onTextStyleChange={props.setPlaceTextStyle}
                                 />
                             )}
 

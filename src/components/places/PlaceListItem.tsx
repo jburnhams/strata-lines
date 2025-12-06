@@ -8,7 +8,10 @@ interface PlaceListItemProps {
   onEdit: (place: Place) => void;
   onDelete: (id: string) => void;
   onZoomTo: (place: Place) => void;
+  // Selection props
+  isSelectMode?: boolean;
   isSelected?: boolean;
+  onSelect?: (id: string) => void;
 }
 
 export const PlaceListItem: React.FC<PlaceListItemProps> = ({
@@ -17,7 +20,9 @@ export const PlaceListItem: React.FC<PlaceListItemProps> = ({
   onEdit,
   onDelete,
   onZoomTo,
-  isSelected = false
+  isSelectMode = false,
+  isSelected = false,
+  onSelect
 }) => {
   const getSourceLabel = (source: string) => {
     switch (source) {
@@ -46,13 +51,24 @@ export const PlaceListItem: React.FC<PlaceListItemProps> = ({
       role="listitem"
     >
       <div className="flex items-center space-x-3 flex-grow min-w-0">
-        <button
-          onClick={(e) => { e.stopPropagation(); onToggleVisibility(place.id); }}
-          className="text-gray-500 hover:text-gray-700 focus:outline-none"
-          title={place.isVisible ? "Hide place" : "Show place"}
-        >
-          {place.isVisible ? <EyeIcon className="h-4 w-4" /> : <EyeOffIcon className="h-4 w-4 text-gray-400" />}
-        </button>
+
+        {isSelectMode && onSelect ? (
+            <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={() => onSelect(place.id)}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                onClick={(e) => e.stopPropagation()}
+            />
+        ) : (
+            <button
+            onClick={(e) => { e.stopPropagation(); onToggleVisibility(place.id); }}
+            className="text-gray-500 hover:text-gray-700 focus:outline-none"
+            title={place.isVisible ? "Hide place" : "Show place"}
+            >
+            {place.isVisible ? <EyeIcon className="h-4 w-4" /> : <EyeOffIcon className="h-4 w-4 text-gray-400" />}
+            </button>
+        )}
 
         <span
           className={`text-xs font-medium px-1.5 py-0.5 rounded ${getSourceColor(place.source)}`}
@@ -73,22 +89,24 @@ export const PlaceListItem: React.FC<PlaceListItemProps> = ({
         </div>
       </div>
 
-      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          onClick={(e) => { e.stopPropagation(); onEdit(place); }}
-          className="p-1 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-50"
-          title="Edit place"
-        >
-          <EditIcon className="h-4 w-4" />
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(place.id); }}
-          className="p-1 text-gray-400 hover:text-red-600 rounded hover:bg-red-50"
-          title="Delete place"
-        >
-          <TrashIcon className="h-4 w-4" />
-        </button>
-      </div>
+      {!isSelectMode && (
+          <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+            onClick={(e) => { e.stopPropagation(); onEdit(place); }}
+            className="p-1 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-50"
+            title="Edit place"
+            >
+            <EditIcon className="h-4 w-4" />
+            </button>
+            <button
+            onClick={(e) => { e.stopPropagation(); onDelete(place.id); }}
+            className="p-1 text-gray-400 hover:text-red-600 rounded hover:bg-red-50"
+            title="Delete place"
+            >
+            <TrashIcon className="h-4 w-4" />
+            </button>
+        </div>
+      )}
     </div>
   );
 };

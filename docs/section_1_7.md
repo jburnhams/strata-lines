@@ -508,5 +508,5 @@ Create `tests/integration/services/placeExport.integration.test.ts`:
 - [x] Accessibility attributes present (ARIA, focus management)
 
 ## Notes
-
-[Existing Notes]
+- Completed Click Detection, Edit Overlay, and partial Map Integration.
+- Need to implement Global Text Style UI, Place Hover Feedback, Multi-Select, and Place Export.

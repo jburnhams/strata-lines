@@ -82,6 +82,13 @@ const defaultProps = {
   setAutoCreatePlaces: jest.fn(),
   defaultUseLocalityName: false,
   setDefaultUseLocalityName: jest.fn(),
+  placeTextStyle: {
+    fontSize: 12,
+    fontFamily: 'Noto Sans',
+    fontWeight: 'bold',
+    color: 'auto',
+  },
+  setPlaceTextStyle: jest.fn(),
 };
 
 describe('ControlsPanel', () => {
