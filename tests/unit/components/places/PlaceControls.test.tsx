@@ -7,7 +7,9 @@ jest.mock('@/components/Icons', () => ({
   PlusIcon: () => <div data-testid="plus-icon" />,
   EyeIcon: () => <div data-testid="eye-icon" />,
   EyeOffIcon: () => <div data-testid="eye-off-icon" />,
-  TrashIcon: () => <div data-testid="trash-icon" />
+  TrashIcon: () => <div data-testid="trash-icon" />,
+  DownloadIcon: () => <div data-testid="download-icon" />,
+  ChevronDownIcon: () => <div data-testid="chevron-down-icon" />
 }));
 
 jest.mock('@/components/places/GeocodingSearchDialog', () => ({
@@ -51,8 +53,8 @@ describe('PlaceControls', () => {
     );
 
     expect(screen.getByText('Add Place')).toBeInTheDocument();
-    expect(screen.getByText('Hide All')).toBeInTheDocument();
-    expect(screen.getByText('Clear All')).toBeInTheDocument();
+    expect(screen.getByText('Hide')).toBeInTheDocument();
+    expect(screen.getByText('Clear')).toBeInTheDocument();
   });
 
   it('opens dialog on Add Place click and calls onAddPlace when location selected', () => {
@@ -86,7 +88,7 @@ describe('PlaceControls', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('Hide All').closest('button')!);
+    fireEvent.click(screen.getByText('Hide').closest('button')!);
     expect(mockToggleAll).toHaveBeenCalledWith(false);
   });
 
@@ -101,10 +103,10 @@ describe('PlaceControls', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('Clear All').closest('button')!);
+    fireEvent.click(screen.getByText('Clear').closest('button')!);
 
     // Confirmation should appear
-    expect(screen.getByText('Are you sure you want to delete all places?')).toBeInTheDocument();
+    expect(screen.getByText('Delete all places?')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Delete All'));
     expect(mockDeleteAll).toHaveBeenCalled();
@@ -121,7 +123,7 @@ describe('PlaceControls', () => {
       />
     );
 
-    const clearButton = screen.getByText('Clear All').closest('button');
+    const clearButton = screen.getByText('Clear').closest('button');
     expect(clearButton).toBeDisabled();
   });
 });
