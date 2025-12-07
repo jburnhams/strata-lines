@@ -11,17 +11,19 @@ describe('placeExportService', () => {
       source: 'manual',
       createdAt: 1610000000000, // 2021-01-07T06:13:20.000Z
       iconStyle: 'pin',
-      visible: true
+      isVisible: true,
+      showIcon: true
     },
     {
       id: 'p2',
       title: 'Place & 2',
       latitude: -30.5,
       longitude: -40.5,
-      source: 'geocoding',
+      source: 'manual',
       createdAt: 1620000000000, // 2021-05-03T00:00:00.000Z
       iconStyle: 'dot',
-      visible: false
+      isVisible: false,
+      showIcon: true
     }
   ];
 
