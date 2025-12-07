@@ -55,6 +55,7 @@ export const PlaceListItem: React.FC<PlaceListItemProps> = ({
         {isSelectMode && onSelect ? (
             <input
                 type="checkbox"
+                data-testid={`checkbox-${place.id}`}
                 checked={isSelected}
                 onChange={() => onSelect(place.id)}
                 className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
