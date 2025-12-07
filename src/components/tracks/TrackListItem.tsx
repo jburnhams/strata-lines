@@ -11,6 +11,9 @@ interface TrackListItemProps {
   removeTrackPlace: (id: string, type: TrackPlaceType) => Promise<void>;
   createAllTrackPlaces: (id: string, useLocality: boolean) => Promise<any>;
   removeAllTrackPlaces: (id: string) => Promise<void>;
+  isSelectMode?: boolean;
+  isSelected?: boolean;
+  onSelect?: (id: string) => void;
 }
 
 export const TrackListItem: React.FC<TrackListItemProps> = ({
@@ -21,7 +24,10 @@ export const TrackListItem: React.FC<TrackListItemProps> = ({
   createTrackPlace,
   removeTrackPlace,
   createAllTrackPlaces,
-  removeAllTrackPlaces
+  removeAllTrackPlaces,
+  isSelectMode = false,
+  isSelected = false,
+  onSelect
 }) => {
   const [showPlaces, setShowPlaces] = useState(false);
   const [loading, setLoading] = useState<Record<string, boolean>>({});
@@ -52,32 +58,46 @@ export const TrackListItem: React.FC<TrackListItemProps> = ({
   return (
     <div className="border-b border-gray-700 last:border-b-0">
         <div
-            className="flex items-center text-sm text-gray-300 py-2 transition-colors duration-150 hover:bg-gray-700/50 px-2"
+            className={`flex items-center text-sm text-gray-300 py-2 transition-colors duration-150 hover:bg-gray-700/50 px-2 ${isSelected ? 'bg-blue-900/30' : ''}`}
             onMouseEnter={() => onHover(track.id)}
             onMouseLeave={() => onHover(null)}
         >
+            {isSelectMode && onSelect ? (
+                <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => onSelect(track.id)}
+                    className="mr-2 h-4 w-4 rounded border-gray-500 bg-gray-700 text-orange-600 focus:ring-orange-500"
+                    onClick={(e) => e.stopPropagation()}
+                />
+            ) : null}
+
             <span className="flex-1 truncate pr-2 cursor-default" title={track.name}>{track.name}</span>
             <span className="text-gray-400 font-mono text-right flex-shrink-0 pr-2">{track.length.toFixed(1)} km</span>
 
-            <button
-                onClick={() => setShowPlaces(!showPlaces)}
-                className={`p-1 mr-1 rounded-full ${showPlaces || placeCount > 0 ? 'text-orange-400 hover:text-orange-300' : 'text-gray-600 hover:text-gray-400'}`}
-                title="Manage Places"
-            >
-                <PinIcon className="h-4 w-4" />
-                {placeCount > 0 && <span className="sr-only">({placeCount})</span>}
-            </button>
+            {!isSelectMode && (
+                <>
+                    <button
+                        onClick={() => setShowPlaces(!showPlaces)}
+                        className={`p-1 mr-1 rounded-full ${showPlaces || placeCount > 0 ? 'text-orange-400 hover:text-orange-300' : 'text-gray-600 hover:text-gray-400'}`}
+                        title="Manage Places"
+                    >
+                        <PinIcon className="h-4 w-4" />
+                        {placeCount > 0 && <span className="sr-only">({placeCount})</span>}
+                    </button>
 
-            <button
-                onClick={() => onToggleVisibility(track.id)}
-                className={`p-1 rounded-full ${track.isVisible ? 'text-gray-400 hover:text-white hover:bg-gray-600' : 'text-gray-600 hover:text-gray-400 hover:bg-gray-600'}`}
-                title={track.isVisible ? 'Hide track' : 'Show track'}
-            >
-                {track.isVisible ? <EyeIcon /> : <EyeOffIcon />}
-            </button>
-            <button onClick={() => onRemove(track.id)} className="text-red-500 hover:text-red-400 font-bold text-xl leading-none flex-shrink-0 w-8 text-center" title="Remove track">
-                &times;
-            </button>
+                    <button
+                        onClick={() => onToggleVisibility(track.id)}
+                        className={`p-1 rounded-full ${track.isVisible ? 'text-gray-400 hover:text-white hover:bg-gray-600' : 'text-gray-600 hover:text-gray-400 hover:bg-gray-600'}`}
+                        title={track.isVisible ? 'Hide track' : 'Show track'}
+                    >
+                        {track.isVisible ? <EyeIcon /> : <EyeOffIcon />}
+                    </button>
+                    <button onClick={() => onRemove(track.id)} className="text-red-500 hover:text-red-400 font-bold text-xl leading-none flex-shrink-0 w-8 text-center" title="Remove track">
+                        &times;
+                    </button>
+                </>
+            )}
         </div>
 
         {showPlaces && (

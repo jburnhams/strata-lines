@@ -6,9 +6,11 @@ export interface UseMultiSelectReturn {
   selectAll: (ids: string[]) => void;
   clearSelection: () => void;
   isSelected: (id: string) => boolean;
-  toggleSelectMode: () => void;
-  isSelectMode: boolean;
+  hasSelection: boolean;
   selectionCount: number;
+  isSelectMode: boolean;
+  toggleSelectMode: () => void;
+  setSelectMode: (enabled: boolean) => void;
 }
 
 export const useMultiSelect = (): UseMultiSelectReturn => {
@@ -17,18 +19,18 @@ export const useMultiSelect = (): UseMultiSelectReturn => {
 
   const toggleSelection = useCallback((id: string) => {
     setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
       } else {
-        next.add(id);
+        newSet.add(id);
       }
-      return next;
+      return newSet;
     });
   }, []);
 
   const selectAll = useCallback((ids: string[]) => {
-    setSelectedIds(new Set(ids));
+      setSelectedIds(new Set(ids));
   }, []);
 
   const clearSelection = useCallback(() => {
@@ -40,13 +42,17 @@ export const useMultiSelect = (): UseMultiSelectReturn => {
   }, [selectedIds]);
 
   const toggleSelectMode = useCallback(() => {
-    setIsSelectMode(prev => {
-      const next = !prev;
-      if (!next) {
-        setSelectedIds(new Set()); // Clear selection when exiting select mode
-      }
-      return next;
-    });
+    setIsSelectMode(prev => !prev);
+    if (isSelectMode) {
+        // If turning off, clear selection? Or keep it?
+        // Usually turning off select mode clears selection.
+        // But doing it in effect in component is safer.
+        // Let's just toggle here.
+    }
+  }, [isSelectMode]);
+
+  const setSelectMode = useCallback((enabled: boolean) => {
+      setIsSelectMode(enabled);
   }, []);
 
   return {
@@ -55,8 +61,10 @@ export const useMultiSelect = (): UseMultiSelectReturn => {
     selectAll,
     clearSelection,
     isSelected,
-    toggleSelectMode,
+    hasSelection: selectedIds.size > 0,
+    selectionCount: selectedIds.size,
     isSelectMode,
-    selectionCount: selectedIds.size
+    toggleSelectMode,
+    setSelectMode
   };
 };

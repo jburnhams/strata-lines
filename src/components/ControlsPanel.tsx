@@ -178,6 +178,7 @@ const DesktopLayout: React.FC<LayoutProps> = (props) => {
                 togglePlaceVisibility={props.togglePlaceVisibility}
                 toggleAllPlacesVisibility={props.toggleAllPlacesVisibility}
                 onZoomToPlace={props.onZoomToPlace}
+                onExportSuccess={(msg) => props.setNotification({ type: 'info', message: msg })}
             />
 
             {isAdvancedMode && (
@@ -380,6 +381,7 @@ const MobileLayout: React.FC<LayoutProps> = (props) => {
                                 togglePlaceVisibility={props.togglePlaceVisibility}
                                 toggleAllPlacesVisibility={props.toggleAllPlacesVisibility}
                                 onZoomToPlace={props.onZoomToPlace}
+                                onExportSuccess={(msg) => props.setNotification({ type: 'info', message: msg })}
                             />
                         </>
                     ) : (

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import * as db from '@/services/db';
-import type { Place, Notification } from '@/types';
+import type { Place, Notification, PlaceTextStyle } from '@/types';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 import L from 'leaflet';
 
 export interface UsePlaceManagementReturn {
@@ -16,12 +17,26 @@ export interface UsePlaceManagementReturn {
   notification: Notification | null;
   setNotification: (n: Notification | null) => void;
   refreshPlaces: () => Promise<void>;
+  placeTextStyle: PlaceTextStyle;
+  setPlaceTextStyle: (style: PlaceTextStyle) => void;
 }
+
+const defaultTextStyle: PlaceTextStyle = {
+    fontSize: 12,
+    fontFamily: 'Noto Sans',
+    fontWeight: 'bold',
+    color: 'auto',
+    strokeColor: '#000000',
+    strokeWidth: 0,
+    glowColor: '#ffffff',
+    glowBlur: 0
+};
 
 export const usePlaceManagement = (): UsePlaceManagementReturn => {
   const [places, setPlaces] = useState<Place[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [notification, setNotification] = useState<Notification | null>(null);
+  const [placeTextStyle, setPlaceTextStyle] = useLocalStorage<PlaceTextStyle>('placeTextStyle', defaultTextStyle);
 
   const loadPlaces = useCallback(async () => {
     setIsLoading(true);
@@ -148,6 +163,8 @@ export const usePlaceManagement = (): UsePlaceManagementReturn => {
     getVisiblePlaces,
     notification,
     setNotification,
-    refreshPlaces: loadPlaces
+    refreshPlaces: loadPlaces,
+    placeTextStyle,
+    setPlaceTextStyle
   };
 };

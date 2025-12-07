@@ -12,6 +12,7 @@ interface PlaceControlsProps {
   placeCount: number;
   onDeleteAll: () => void;
   places?: Place[]; // Added to support export
+  onExportSuccess?: (message: string) => void;
 }
 
 export const PlaceControls: React.FC<PlaceControlsProps> = ({
@@ -20,7 +21,8 @@ export const PlaceControls: React.FC<PlaceControlsProps> = ({
   onToggleAllVisibility,
   placeCount,
   onDeleteAll,
-  places = []
+  places = [],
+  onExportSuccess
 }) => {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -48,6 +50,9 @@ export const PlaceControls: React.FC<PlaceControlsProps> = ({
       if (places.length === 0) return;
       downloadPlaces(places, format);
       setIsExportMenuOpen(false);
+      if (onExportSuccess) {
+        onExportSuccess(`Places exported as ${format.toUpperCase()}`);
+      }
   };
 
   return (

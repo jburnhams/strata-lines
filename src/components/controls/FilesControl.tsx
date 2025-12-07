@@ -1,7 +1,11 @@
 import React from 'react';
+import { useState } from 'react';
 import type { Track, TrackPlaceType } from '@/types';
 import { ActivityTypeFilter } from './ActivityTypeFilter';
 import { TrackListItem } from '@/components/tracks/TrackListItem';
+import { useMultiSelect } from '@/hooks/useMultiSelect';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { TrashIcon } from '@/components/Icons';
 
 interface FilesControlProps {
   tracks: Track[];
@@ -48,6 +52,25 @@ export const FilesControl: React.FC<FilesControlProps> = ({
   createAllTrackPlaces,
   removeAllTrackPlaces
 }) => {
+  const {
+    selectedIds,
+    toggleSelection,
+    selectAll,
+    clearSelection,
+    isSelected,
+    toggleSelectMode,
+    isSelectMode,
+    selectionCount
+  } = useMultiSelect();
+
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+
+  const handleBulkDelete = () => {
+      selectedIds.forEach(id => removeTrack(id));
+      clearSelection();
+      setShowBulkDeleteConfirm(false);
+  };
+
   return (
     <section>
         <h2 className="text-xl font-semibold text-gray-200 mb-3">Manage GPX / TCX / FIT Files</h2>
@@ -84,7 +107,45 @@ export const FilesControl: React.FC<FilesControlProps> = ({
 
         {tracks.length > 0 && (
             <div className="mt-4">
-                <h3 className="text-lg font-semibold text-gray-300 mb-2">Loaded Tracks ({tracks.length})</h3>
+                <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-lg font-semibold text-gray-300">Loaded Tracks ({tracks.length})</h3>
+                    <button
+                        onClick={toggleSelectMode}
+                        className={`text-xs px-2 py-1 rounded border transition-colors ${isSelectMode ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-gray-800 border-gray-600 text-gray-400 hover:bg-gray-700'}`}
+                    >
+                        {isSelectMode ? 'Cancel' : 'Select'}
+                    </button>
+                </div>
+
+                {isSelectMode && (
+                    <div className="bg-blue-900/30 p-2 flex items-center justify-between border-b border-blue-800 text-sm rounded-t-md mb-0">
+                         <div className="flex items-center space-x-2">
+                            <input
+                                type="checkbox"
+                                checked={selectionCount === tracks.length && tracks.length > 0}
+                                onChange={() => {
+                                    if (selectionCount === tracks.length) {
+                                        clearSelection();
+                                    } else {
+                                        selectAll(tracks.map(t => t.id));
+                                    }
+                                }}
+                                className="rounded border-gray-500 bg-gray-700 text-blue-600 focus:ring-blue-500 h-4 w-4"
+                            />
+                            <span className="text-blue-300 font-medium">{selectionCount} Selected</span>
+                        </div>
+
+                        {selectionCount > 0 && (
+                            <button
+                                onClick={() => setShowBulkDeleteConfirm(true)}
+                                className="flex items-center space-x-1 text-red-400 hover:text-red-300 px-2 py-1 rounded hover:bg-red-900/50"
+                            >
+                                <TrashIcon className="h-4 w-4" />
+                                <span>Delete</span>
+                            </button>
+                        )}
+                    </div>
+                )}
 
                 {isAdvancedMode && (
                     <ActivityTypeFilter
@@ -107,6 +168,9 @@ export const FilesControl: React.FC<FilesControlProps> = ({
                                     removeTrackPlace={removeTrackPlace}
                                     createAllTrackPlaces={createAllTrackPlaces}
                                     removeAllTrackPlaces={removeAllTrackPlaces}
+                                    isSelectMode={isSelectMode}
+                                    isSelected={isSelected(track.id)}
+                                    onSelect={toggleSelection}
                                 />
                             </li>
                         ))}
@@ -147,6 +211,17 @@ export const FilesControl: React.FC<FilesControlProps> = ({
                 )}
             </div>
         )}
+
+        <ConfirmDialog
+            isOpen={showBulkDeleteConfirm}
+            title="Delete Selected Tracks"
+            message={`Are you sure you want to delete ${selectionCount} tracks? This cannot be undone.`}
+            confirmLabel="Delete"
+            cancelLabel="Cancel"
+            onConfirm={handleBulkDelete}
+            onCancel={() => setShowBulkDeleteConfirm(false)}
+            variant="danger"
+        />
     </section>
   );
 };
