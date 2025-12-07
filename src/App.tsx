@@ -329,6 +329,8 @@ const App: React.FC = () => {
         setAutoCreatePlaces={exportState.setAutoCreatePlaces}
         defaultUseLocalityName={exportState.defaultUseLocalityName}
         setDefaultUseLocalityName={exportState.setDefaultUseLocalityName}
+        placeTextStyle={exportState.placeTextStyle}
+        setPlaceTextStyle={exportState.setPlaceTextStyle}
         onZoomToPlace={(place) => {
              setMapCenter({ lat: place.latitude, lng: place.longitude } as LatLng);
              setZoom(16);

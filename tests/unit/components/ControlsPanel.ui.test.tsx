@@ -82,6 +82,13 @@ const defaultProps = {
   setAutoCreatePlaces: jest.fn(),
   defaultUseLocalityName: false,
   setDefaultUseLocalityName: jest.fn(),
+  placeTextStyle: {
+    fontSize: 12,
+    fontFamily: 'Noto Sans',
+    fontWeight: 'bold',
+    color: 'auto',
+  },
+  setPlaceTextStyle: jest.fn(),
 };
 
 describe('ControlsPanel UI Text', () => {
@@ -117,7 +124,9 @@ describe('ControlsPanel UI Text', () => {
      // Normal mode
      expect(screen.queryByText(/4\. Export PNG \(Merged\)/)).not.toBeInTheDocument();
      // Should be just "Export"
-     expect(screen.getByRole('button', { name: /^Export$/ })).toBeInTheDocument();
+     // Note: There might be multiple Export buttons now (one in PlaceControls), checking for at least one
+     const exportButtons = screen.getAllByRole('button', { name: /^Export$/ });
+     expect(exportButtons.length).toBeGreaterThan(0);
 
      // Switch to Advanced Mode
      const advancedToggle = screen.getByText('Advanced Mode');

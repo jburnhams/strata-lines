@@ -35,6 +35,7 @@ export const PlacesSection: React.FC<PlacesSectionProps> = ({
         allPlacesVisible={allVisible}
         onToggleAllVisibility={toggleAllPlacesVisibility}
         placeCount={places.length}
+        places={places}
         onDeleteAll={() => {
              places.forEach(p => deletePlace(p.id));
         }}
