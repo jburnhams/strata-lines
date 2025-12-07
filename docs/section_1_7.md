@@ -141,7 +141,7 @@ Modify `src/components/places/PlaceControls.tsx`:
 
 ### Integration Tests
 
-- [ ] PlaceEditing workflow (Deferred)
+- [ ] PlaceEditing workflow (Deferred - Attempted but encountered environmental issues with Leaflet events in JSDOM. Feature verified via unit tests and manual UI components check.)
 - [x] MultiSelect workflow (`tests/integration/components/places/MultiSelect.integration.test.tsx`)
 - [ ] PlaceExport workflow (Covered by unit tests + UI integration done manually)
 
