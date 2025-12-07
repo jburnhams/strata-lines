@@ -92,6 +92,7 @@ export const PlacesList: React.FC<PlacesListProps> = ({
               <div className="flex items-center space-x-2">
                   <input
                       type="checkbox"
+                      data-testid="select-all-places"
                       checked={selectionCount === places.length && places.length > 0}
                       onChange={() => {
                           if (selectionCount === places.length) {

@@ -13,6 +13,7 @@ interface PlacesSectionProps {
   togglePlaceVisibility: (id: string) => void;
   toggleAllPlacesVisibility: (visible: boolean) => void;
   onZoomToPlace: (place: Place) => void;
+  onExportSuccess?: (message: string) => void;
 }
 
 export const PlacesSection: React.FC<PlacesSectionProps> = ({
@@ -22,7 +23,8 @@ export const PlacesSection: React.FC<PlacesSectionProps> = ({
   deletePlace,
   togglePlaceVisibility,
   toggleAllPlacesVisibility,
-  onZoomToPlace
+  onZoomToPlace,
+  onExportSuccess
 }) => {
   const [isCollapsed, setIsCollapsed] = useLocalStorage<boolean>('places-collapsed', false);
   const allVisible = places.length > 0 && places.every(p => p.isVisible);
@@ -39,6 +41,7 @@ export const PlacesSection: React.FC<PlacesSectionProps> = ({
         onDeleteAll={() => {
              places.forEach(p => deletePlace(p.id));
         }}
+        onExportSuccess={onExportSuccess}
       />
       <PlacesList
         places={places}
