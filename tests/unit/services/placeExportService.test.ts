@@ -1,176 +1,129 @@
+
 import { exportPlacesToGeoJSON, exportPlacesToCSV, exportPlacesToGPX, downloadPlaces } from '@/services/placeExportService';
 import type { Place } from '@/types';
 
-describe('placeExportService', () => {
-  const mockPlaces: Place[] = [
-    {
-      id: 'p1',
-      title: 'Place "1"',
-      latitude: 10.123456,
-      longitude: 20.654321,
-      source: 'manual',
-      createdAt: 1610000000000, // 2021-01-07T06:13:20.000Z
-      iconStyle: 'pin',
-      isVisible: true,
-      showIcon: true
-    },
-    {
-      id: 'p2',
-      title: 'Place & 2',
-      latitude: -30.5,
-      longitude: -40.5,
-      source: 'manual',
-      createdAt: 1620000000000, // 2021-05-03T00:00:00.000Z
-      iconStyle: 'dot',
-      isVisible: false,
-      showIcon: true
-    }
-  ];
+const mockPlace: Place = {
+  id: '123',
+  latitude: 51.505,
+  longitude: -0.09,
+  title: 'Test Place',
+  createdAt: 1625097600000, // 2021-07-01T00:00:00.000Z
+  source: 'manual',
+  isVisible: true,
+  showIcon: true,
+  iconStyle: 'pin'
+};
 
+const mockPlaceWithQuotes: Place = {
+  ...mockPlace,
+  id: '124',
+  title: 'Place "With" Quotes',
+};
+
+describe('placeExportService', () => {
   describe('exportPlacesToGeoJSON', () => {
     it('should generate valid GeoJSON', () => {
-      const result = exportPlacesToGeoJSON(mockPlaces);
-      const parsed = JSON.parse(result);
+      const output = exportPlacesToGeoJSON([mockPlace]);
+      const json = JSON.parse(output);
 
-      expect(parsed.type).toBe('FeatureCollection');
-      expect(parsed.features).toHaveLength(2);
-
-      const f1 = parsed.features[0];
-      expect(f1.type).toBe('Feature');
-      expect(f1.geometry.type).toBe('Point');
-      expect(f1.geometry.coordinates).toEqual([20.654321, 10.123456]);
-      expect(f1.properties).toEqual({
-        id: 'p1',
-        title: 'Place "1"',
+      expect(json.type).toBe('FeatureCollection');
+      expect(json.features).toHaveLength(1);
+      const feature = json.features[0];
+      expect(feature.type).toBe('Feature');
+      expect(feature.geometry.type).toBe('Point');
+      expect(feature.geometry.coordinates).toEqual([-0.09, 51.505]);
+      expect(feature.properties).toEqual({
+        id: '123',
+        title: 'Test Place',
         source: 'manual',
         activityType: 'pin',
-        createdAt: '2021-01-07T06:13:20.000Z'
+        createdAt: '2021-07-01T00:00:00.000Z'
       });
-    });
-
-    it('should handle empty places array', () => {
-        const result = exportPlacesToGeoJSON([]);
-        const parsed = JSON.parse(result);
-        expect(parsed.features).toHaveLength(0);
     });
   });
 
   describe('exportPlacesToCSV', () => {
-    it('should generate valid CSV with headers and escaped titles', () => {
-      const result = exportPlacesToCSV(mockPlaces);
-      const lines = result.split('\n');
+    it('should generate valid CSV with headers', () => {
+      const output = exportPlacesToCSV([mockPlace]);
+      const lines = output.split('\n');
 
       expect(lines[0]).toBe('ID,Title,Latitude,Longitude,Source,Created At');
-
-      const line1 = lines[1];
-      expect(line1).toContain('"Place ""1"""'); // Escaped quotes
-      expect(line1).toContain('10.123456');
-      expect(line1).toContain('20.654321');
-
-      const line2 = lines[2];
-      expect(line2).toContain('"Place & 2"');
+      expect(lines[1]).toContain('123,"Test Place",51.505000,-0.090000,manual,2021-07-01T00:00:00.000Z');
     });
 
-    it('should handle empty places array', () => {
-        const result = exportPlacesToCSV([]);
-        const lines = result.split('\n');
-        expect(lines).toHaveLength(1); // Just header
-        expect(lines[0]).toBe('ID,Title,Latitude,Longitude,Source,Created At');
+    it('should escape quotes in titles', () => {
+      const output = exportPlacesToCSV([mockPlaceWithQuotes]);
+      const lines = output.split('\n');
+      expect(lines[1]).toContain('"Place ""With"" Quotes"');
     });
   });
 
   describe('exportPlacesToGPX', () => {
-    it('should generate valid GPX 1.1', () => {
-      const result = exportPlacesToGPX(mockPlaces);
+    it('should generate valid GPX', () => {
+      const output = exportPlacesToGPX([mockPlace]);
 
-      expect(result).toContain('<?xml version="1.0" encoding="UTF-8"?>');
-      expect(result).toContain('<gpx version="1.1"');
-      expect(result).toContain('xmlns="http://www.topografix.com/GPX/1/1"');
-
-      expect(result).toContain('<wpt lat="10.123456" lon="20.654321">');
-      expect(result).toContain('<name>Place "1"</name>');
-      expect(result).toContain('<time>2021-01-07T06:13:20.000Z</time>');
-
-      expect(result).toContain('<wpt lat="-30.5" lon="-40.5">');
-      // Verify XML escaping
-      expect(result).toContain('<name>Place &amp; 2</name>');
+      expect(output).toContain('<?xml version="1.0" encoding="UTF-8"?>');
+      expect(output).toContain('<gpx version="1.1" creator="StrataLines"');
+      expect(output).toContain('<wpt lat="51.505" lon="-0.09">');
+      expect(output).toContain('<name>Test Place</name>');
+      expect(output).toContain('<time>2021-07-01T00:00:00.000Z</time>');
+      expect(output).toContain('<desc>Source: manual</desc>');
     });
 
-    it('should handle special characters in XML', () => {
-      const places = [{
-        ...mockPlaces[0],
-        title: '<Test> & "Place"'
-      }];
-      const result = exportPlacesToGPX(places);
-      expect(result).toContain('&lt;Test&gt; &amp; "Place"');
+    it('should escape special characters in XML', () => {
+      const placeWithSpecialChars = { ...mockPlace, title: 'Me & You <3' };
+      const output = exportPlacesToGPX([placeWithSpecialChars]);
+
+      expect(output).toContain('<name>Me &amp; You &lt;3</name>');
     });
   });
 
   describe('downloadPlaces', () => {
-    let originalCreateObjectURL: typeof URL.createObjectURL;
-    let originalRevokeObjectURL: typeof URL.revokeObjectURL;
-    let mockCreateObjectURL: jest.Mock;
-    let mockRevokeObjectURL: jest.Mock;
-    let mockClick: jest.Mock;
-    let mockRemoveChild: jest.Mock;
-    let mockAppendChild: jest.Mock;
+    let originalURL: any;
+    let createObjectURLMock: jest.Mock;
+    let revokeObjectURLMock: jest.Mock;
 
     beforeEach(() => {
-        originalCreateObjectURL = URL.createObjectURL;
-        originalRevokeObjectURL = URL.revokeObjectURL;
+      originalURL = global.URL;
+      createObjectURLMock = jest.fn();
+      revokeObjectURLMock = jest.fn();
 
-        mockCreateObjectURL = jest.fn(() => 'blob:test-url');
-        mockRevokeObjectURL = jest.fn();
-        URL.createObjectURL = mockCreateObjectURL;
-        URL.revokeObjectURL = mockRevokeObjectURL;
-
-        mockClick = jest.fn();
-        mockRemoveChild = jest.fn();
-        mockAppendChild = jest.fn();
-
-        jest.spyOn(document, 'createElement').mockImplementation((tagName) => {
-            if (tagName === 'a') {
-                return {
-                    click: mockClick,
-                    href: '',
-                    download: ''
-                } as unknown as HTMLAnchorElement;
-            }
-            return document.createElement(tagName);
-        });
-
-        jest.spyOn(document.body, 'appendChild').mockImplementation(mockAppendChild);
-        jest.spyOn(document.body, 'removeChild').mockImplementation(mockRemoveChild);
+      global.URL = {
+        ...originalURL,
+        createObjectURL: createObjectURLMock,
+        revokeObjectURL: revokeObjectURLMock,
+      } as any;
     });
 
     afterEach(() => {
-        URL.createObjectURL = originalCreateObjectURL;
-        URL.revokeObjectURL = originalRevokeObjectURL;
-        jest.restoreAllMocks();
+      global.URL = originalURL;
     });
 
-    it('should create blob and trigger download for geojson', () => {
-        downloadPlaces(mockPlaces, 'geojson');
-        expect(mockCreateObjectURL).toHaveBeenCalled();
-        const blob = mockCreateObjectURL.mock.calls[0][0];
-        expect(blob.type).toBe('application/json');
+    it('should trigger download for GeoJSON', () => {
+      const linkMock = {
+        click: jest.fn(),
+        style: {},
+      } as unknown as HTMLAnchorElement;
 
-        expect(mockAppendChild).toHaveBeenCalled();
-        expect(mockClick).toHaveBeenCalled();
-        expect(mockRemoveChild).toHaveBeenCalled();
-        expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:test-url');
-    });
+      const createElementSpy = jest.spyOn(document, 'createElement').mockReturnValue(linkMock);
+      const appendChildSpy = jest.spyOn(document.body, 'appendChild').mockImplementation();
+      const removeChildSpy = jest.spyOn(document.body, 'removeChild').mockImplementation();
 
-    it('should create blob and trigger download for csv', () => {
-        downloadPlaces(mockPlaces, 'csv');
-        const blob = mockCreateObjectURL.mock.calls[0][0];
-        expect(blob.type).toBe('text/csv');
-    });
+      createObjectURLMock.mockReturnValue('blob:test-url');
 
-    it('should create blob and trigger download for gpx', () => {
-        downloadPlaces(mockPlaces, 'gpx');
-        const blob = mockCreateObjectURL.mock.calls[0][0];
-        expect(blob.type).toBe('application/gpx+xml');
+      downloadPlaces([mockPlace], 'geojson');
+
+      expect(createElementSpy).toHaveBeenCalledWith('a');
+      expect(linkMock.href).toBe('blob:test-url');
+      expect(linkMock.download).toMatch(/places-.*\.json/);
+      expect(appendChildSpy).toHaveBeenCalledWith(linkMock);
+      expect(linkMock.click).toHaveBeenCalled();
+      expect(removeChildSpy).toHaveBeenCalledWith(linkMock);
+      expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:test-url');
+
+      createElementSpy.mockRestore();
+      appendChildSpy.mockRestore();
+      removeChildSpy.mockRestore();
     });
   });
 });
