@@ -2,6 +2,11 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PlaceControls } from '@/components/places/PlaceControls';
 import { GeocodingSearchDialog } from '@/components/places/GeocodingSearchDialog';
+import { downloadPlaces } from '@/services/placeExportService';
+
+jest.mock('@/services/placeExportService', () => ({
+  downloadPlaces: jest.fn()
+}));
 
 jest.mock('@/components/Icons', () => ({
   PlusIcon: () => <div data-testid="plus-icon" />,
@@ -125,5 +130,31 @@ describe('PlaceControls', () => {
 
     const clearButton = screen.getByText('Clear').closest('button');
     expect(clearButton).toBeDisabled();
+  });
+
+  it('handles export workflow', () => {
+    const mockExportSuccess = jest.fn();
+    const places = [{ id: '1', title: 'Test', latitude: 0, longitude: 0, source: 'manual', createdAt: 0, isVisible: true, showIcon: true, iconStyle: 'pin' }] as any;
+
+    render(
+      <PlaceControls
+        onAddPlace={mockAddPlace}
+        allPlacesVisible={true}
+        onToggleAllVisibility={mockToggleAll}
+        placeCount={1}
+        onDeleteAll={mockDeleteAll}
+        places={places}
+        onExportSuccess={mockExportSuccess}
+      />
+    );
+
+    // Open export menu
+    fireEvent.click(screen.getByText('Export').closest('button')!);
+
+    // Select format
+    fireEvent.click(screen.getByText('GeoJSON'));
+
+    expect(downloadPlaces).toHaveBeenCalledWith(places, 'geojson');
+    expect(mockExportSuccess).toHaveBeenCalledWith(expect.stringContaining('exported as GEOJSON'));
   });
 });
