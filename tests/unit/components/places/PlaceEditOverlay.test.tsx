@@ -55,6 +55,9 @@ describe('PlaceEditOverlay', () => {
         showIcon: true,
         iconStyle: 'pin',
         textStyle: {
+            fontSize: 12,
+            fontFamily: 'Arial',
+            fontWeight: 'bold',
             color: '#000000',
             strokeColor: '#ffffff',
             strokeWidth: 2,
