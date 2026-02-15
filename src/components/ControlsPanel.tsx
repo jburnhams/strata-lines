@@ -150,6 +150,7 @@ const DesktopLayout: React.FC<LayoutProps> = (props) => {
 
             <FilesControl
                 tracks={props.tracks}
+                activeTrackId={props.activeTrackId}
                 onAddFileClick={props.onAddFileClick}
                 removeTrack={props.removeTrack}
                 removeAllTracks={props.removeAllTracks}

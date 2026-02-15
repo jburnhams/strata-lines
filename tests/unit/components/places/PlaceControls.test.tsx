@@ -54,6 +54,7 @@ describe('PlaceControls', () => {
         onToggleAllVisibility={mockToggleAll}
         placeCount={5}
         onDeleteAll={mockDeleteAll}
+        activeTrackId={null}
       />
     );
 
@@ -70,6 +71,7 @@ describe('PlaceControls', () => {
         onToggleAllVisibility={mockToggleAll}
         placeCount={5}
         onDeleteAll={mockDeleteAll}
+        activeTrackId={null}
       />
     );
 
@@ -90,6 +92,7 @@ describe('PlaceControls', () => {
         onToggleAllVisibility={mockToggleAll}
         placeCount={5}
         onDeleteAll={mockDeleteAll}
+        activeTrackId={null}
       />
     );
 
@@ -105,6 +108,7 @@ describe('PlaceControls', () => {
         onToggleAllVisibility={mockToggleAll}
         placeCount={5}
         onDeleteAll={mockDeleteAll}
+        activeTrackId={null}
       />
     );
 
@@ -125,6 +129,7 @@ describe('PlaceControls', () => {
         onToggleAllVisibility={mockToggleAll}
         placeCount={0}
         onDeleteAll={mockDeleteAll}
+        activeTrackId={null}
       />
     );
 
@@ -145,6 +150,7 @@ describe('PlaceControls', () => {
         onDeleteAll={mockDeleteAll}
         places={places}
         onExportSuccess={mockExportSuccess}
+        activeTrackId={null}
       />
     );
 
