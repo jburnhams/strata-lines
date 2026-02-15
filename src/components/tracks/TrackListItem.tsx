@@ -15,6 +15,7 @@ interface TrackListItemProps {
     isSelected?: boolean;
     onSelect?: (id: string) => void;
     isActive?: boolean;
+    onClick?: (id: string) => void;
 }
 
 export const TrackListItem: React.FC<TrackListItemProps> = ({
@@ -29,7 +30,8 @@ export const TrackListItem: React.FC<TrackListItemProps> = ({
     isSelectMode = false,
     isSelected = false,
     onSelect,
-    isActive = false
+    isActive = false,
+    onClick
 }) => {
     const itemRef = useRef<HTMLDivElement>(null);
     const [showPlaces, setShowPlaces] = useState(false);
@@ -67,9 +69,10 @@ export const TrackListItem: React.FC<TrackListItemProps> = ({
     return (
         <div className="border-b border-gray-700 last:border-b-0" ref={itemRef}>
             <div
-                className={`flex items-center text-sm text-gray-300 py-2 transition-colors duration-150 hover:bg-gray-700/50 px-2 ${isSelected ? 'bg-blue-900/30' : ''} ${isActive ? 'bg-orange-500/20 border-l-2 border-orange-500' : ''}`}
+                className={`flex items-center text-sm text-gray-300 py-2 transition-colors duration-150 hover:bg-gray-700/50 px-2 ${isSelected ? 'bg-blue-900/30' : ''} ${isActive ? 'bg-orange-500/20 border-l-2 border-orange-500' : ''} cursor-pointer`}
                 onMouseEnter={() => onHover(track.id)}
                 onMouseLeave={() => onHover(null)}
+                onClick={() => onClick && onClick(track.id)}
             >
                 {isSelectMode && onSelect ? (
                     <input

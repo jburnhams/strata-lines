@@ -78,6 +78,7 @@ interface ControlsPanelProps {
     removeTrackPlace: (id: string, type: TrackPlaceType) => Promise<void>;
     createAllTrackPlaces: (id: string, useLocality: boolean) => Promise<any>;
     removeAllTrackPlaces: (id: string) => Promise<void>;
+    onTrackClick?: (id: string) => void;
 
     autoCreatePlaces: boolean;
     setAutoCreatePlaces: (val: boolean) => void;
@@ -170,6 +171,7 @@ const DesktopLayout: React.FC<LayoutProps> = (props) => {
                 removeTrackPlace={props.removeTrackPlace}
                 createAllTrackPlaces={props.createAllTrackPlaces}
                 removeAllTrackPlaces={props.removeAllTrackPlaces}
+                onTrackClick={props.onTrackClick}
             />
 
             <PlacesSection

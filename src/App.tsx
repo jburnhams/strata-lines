@@ -398,6 +398,7 @@ const App: React.FC = () => {
         labelDensity={labelDensity}
         setLabelDensity={setLabelDensity}
         onTrackHover={setHighlightedTrackId}
+        onTrackClick={handleTrackClick}
         activeTrackId={activeTrackId}
         handleDownloadAllTracks={trackManagement.handleDownloadAllTracks}
         isDownloading={trackManagement.isDownloading}

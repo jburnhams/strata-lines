@@ -29,6 +29,7 @@ interface FilesControlProps {
     createAllTrackPlaces: (id: string, useLocality: boolean) => Promise<any>;
     removeAllTrackPlaces: (id: string) => Promise<void>;
     activeTrackId: string | null;
+    onTrackClick?: (id: string) => void;
 }
 
 export const FilesControl: React.FC<FilesControlProps> = ({
@@ -52,7 +53,8 @@ export const FilesControl: React.FC<FilesControlProps> = ({
     removeTrackPlace,
     createAllTrackPlaces,
     removeAllTrackPlaces,
-    activeTrackId
+    activeTrackId,
+    onTrackClick
 }) => {
     const {
         selectedIds,
@@ -174,6 +176,7 @@ export const FilesControl: React.FC<FilesControlProps> = ({
                                         isSelected={isSelected(track.id)}
                                         onSelect={toggleSelection}
                                         isActive={track.id === activeTrackId}
+                                        onClick={onTrackClick}
                                     />
                                 </li>
                             ))}
