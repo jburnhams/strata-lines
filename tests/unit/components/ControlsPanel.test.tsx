@@ -89,6 +89,7 @@ const defaultProps = {
     color: 'auto',
   },
   setPlaceTextStyle: jest.fn(),
+  activeTrackId: null,
 };
 
 describe('ControlsPanel', () => {
@@ -173,14 +174,14 @@ describe('ControlsPanel', () => {
     });
 
     it('triggers Add Files directly from collapsed state', () => {
-        render(<ControlsPanel {...defaultProps} />);
+      render(<ControlsPanel {...defaultProps} />);
 
-        const addFileBtn = screen.getByText('Add Files');
-        fireEvent.click(addFileBtn);
+      const addFileBtn = screen.getByText('Add Files');
+      fireEvent.click(addFileBtn);
 
-        // Check that the hidden file input exists
-        const fileInput = screen.getByTestId('hidden-file-input');
-        expect(fileInput).toBeInTheDocument();
+      // Check that the hidden file input exists
+      const fileInput = screen.getByTestId('hidden-file-input');
+      expect(fileInput).toBeInTheDocument();
     });
   });
 });

@@ -89,6 +89,7 @@ const defaultProps = {
     color: 'auto',
   },
   setPlaceTextStyle: jest.fn(),
+  activeTrackId: null,
 };
 
 describe('ControlsPanel UI Text', () => {
@@ -119,20 +120,20 @@ describe('ControlsPanel UI Text', () => {
   });
 
   it('verifies export button text', () => {
-     render(<ControlsPanel {...defaultProps} />);
+    render(<ControlsPanel {...defaultProps} />);
 
-     // Normal mode
-     expect(screen.queryByText(/4\. Export PNG \(Merged\)/)).not.toBeInTheDocument();
-     // Should be just "Export"
-     // Note: There might be multiple Export buttons now (one in PlaceControls), checking for at least one
-     const exportButtons = screen.getAllByRole('button', { name: /^Export$/ });
-     expect(exportButtons.length).toBeGreaterThan(0);
+    // Normal mode
+    expect(screen.queryByText(/4\. Export PNG \(Merged\)/)).not.toBeInTheDocument();
+    // Should be just "Export"
+    // Note: There might be multiple Export buttons now (one in PlaceControls), checking for at least one
+    const exportButtons = screen.getAllByRole('button', { name: /^Export$/ });
+    expect(exportButtons.length).toBeGreaterThan(0);
 
-     // Switch to Advanced Mode
-     const advancedToggle = screen.getByText('Advanced Mode');
-     fireEvent.click(advancedToggle);
+    // Switch to Advanced Mode
+    const advancedToggle = screen.getByText('Advanced Mode');
+    fireEvent.click(advancedToggle);
 
-     // In Advanced Mode, it becomes "Export Selected"
-     expect(screen.getByRole('button', { name: /^Export Selected$/ })).toBeInTheDocument();
+    // In Advanced Mode, it becomes "Export Selected"
+    expect(screen.getByRole('button', { name: /^Export Selected$/ })).toBeInTheDocument();
   });
 });
