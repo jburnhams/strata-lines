@@ -31,6 +31,7 @@ const App: React.FC = () => {
   const [previewZoom, setPreviewZoom] = useState<number | null>(null);
   const [previewBounds, setPreviewBounds] = useState<L.LatLngBounds | null>(null);
   const [highlightedTrackId, setHighlightedTrackId] = useState<string | null>(null);
+  const [activeTrackId, setActiveTrackId] = useState<string | null>(null);
 
   // Track management state
   const [minLengthFilter, setMinLengthFilter] = useLocalStorage<number>('minLengthFilter', 20);
@@ -59,6 +60,18 @@ const App: React.FC = () => {
     placeManagement.refreshPlaces
   );
 
+  const controlsPanelRef = useRef<{ openDrawer?: (type: 'files' | 'settings') => void }>(null);
+
+  const handleTrackClick = useCallback((trackId: string) => {
+    setHighlightedTrackId(trackId);
+    setActiveTrackId(trackId);
+
+    // On mobile, automatically open the files drawer so the highlight is visible
+    if (isMobile) {
+      controlsPanelRef.current?.openDrawer?.('files');
+    }
+  }, [isMobile]);
+
   // Clamp labelDensity to max value and ensure it's an integer
   useEffect(() => {
     const roundedAndClamped = Math.max(-1, Math.min(Math.round(labelDensity), 3));
@@ -84,7 +97,7 @@ const App: React.FC = () => {
       trackManagement.setIsLoading(true);
       try {
         const storedTracks = await db.getTracks();
-        const normalizedTracks = storedTracks.map(t => ({...t, isVisible: t.isVisible !== false }));
+        const normalizedTracks = storedTracks.map(t => ({ ...t, isVisible: t.isVisible !== false }));
         trackManagement.setTracks(normalizedTracks);
       } catch (error) {
         console.error("Failed to load tracks from database", error);
@@ -149,7 +162,7 @@ const App: React.FC = () => {
 
     // Validation
     if (type === 'lines' && visibleTracks.length === 0) {
-      trackManagement.setNotification({ type: 'error', message: "Cannot export with lines without a visible track."});
+      trackManagement.setNotification({ type: 'error', message: "Cannot export with lines without a visible track." });
       return;
     }
     if ((type === 'labels' || (type === 'combined' && includedLayers?.labels)) && (labelDensity < 0 || tileLayerKey !== 'esriImagery')) {
@@ -157,8 +170,8 @@ const App: React.FC = () => {
       return;
     }
     if (!exportState.exportDimensions.width || !exportState.exportDimensions.height ||
-        !exportState.derivedExportZoom || !exportState.exportBounds) {
-      trackManagement.setNotification({ type: 'error', message: "Export properties not calculated yet."});
+      !exportState.derivedExportZoom || !exportState.exportBounds) {
+      trackManagement.setNotification({ type: 'error', message: "Export properties not calculated yet." });
       return;
     }
 
@@ -207,10 +220,10 @@ const App: React.FC = () => {
           includedLayers,
           visiblePlaces,
           placeSettings: {
-             includePlaces: exportState.includePlaces,
-             placeTitleSize: exportState.placeTitleSize,
-             placeShowIconsGlobally: exportState.placeShowIconsGlobally,
-             placeTextStyle: exportState.placeTextStyle,
+            includePlaces: exportState.includePlaces,
+            placeTitleSize: exportState.placeTitleSize,
+            placeShowIconsGlobally: exportState.placeShowIconsGlobally,
+            placeTextStyle: exportState.placeTextStyle,
           }
         },
         {
@@ -289,6 +302,7 @@ const App: React.FC = () => {
             tileLayer={selectedTileLayer}
             labelDensity={labelDensity}
             highlightedTrackId={highlightedTrackId}
+            onTrackClick={handleTrackClick}
             exportSubdivisions={exportState.exportSubdivisions}
             currentExportSubdivisionIndex={exportState.currentExportSubdivisionIndex}
             completedSubdivisions={exportState.completedSubdivisions}
@@ -297,24 +311,26 @@ const App: React.FC = () => {
         </div>
       </div>
       <ControlsPanel
+        ref={controlsPanelRef}
         tracks={trackManagement.filteredTracks}
         places={placeManagement.places}
         onAddPlaceClick={(result) => {
           if (result) {
             placeManagement.addPlace({
-               title: result.locality || result.displayName.split(',')[0],
-               latitude: result.latitude,
-               longitude: result.longitude,
-               isVisible: true,
-               source: 'manual',
-               id: crypto.randomUUID(),
-               createdAt: Date.now(),
-               showIcon: true,
-               iconStyle: 'pin'
+              title: result.locality || result.displayName.split(',')[0],
+              latitude: result.latitude,
+              longitude: result.longitude,
+              isVisible: true,
+              source: 'manual',
+              id: crypto.randomUUID(),
+              createdAt: Date.now(),
+              showIcon: true,
+              iconStyle: 'pin'
             });
-          } else {
-             // Fallback if no result passed (legacy behavior or direct click without selection if we support it later)
-             // For now, onAddPlaceClick is called with result from the dialog
+          } else if (activeTrackId) {
+            // Smart Add: Add place at optimal middle point of active track
+            // Using createTrackPlace helper from hook
+            trackManagement.createTrackPlace(activeTrackId, 'middle', exportState.defaultUseLocalityName);
           }
         }}
         updatePlace={placeManagement.updatePlace}
@@ -332,8 +348,8 @@ const App: React.FC = () => {
         placeTextStyle={exportState.placeTextStyle}
         setPlaceTextStyle={exportState.setPlaceTextStyle}
         onZoomToPlace={(place) => {
-             setMapCenter({ lat: place.latitude, lng: place.longitude } as LatLng);
-             setZoom(16);
+          setMapCenter({ lat: place.latitude, lng: place.longitude } as LatLng);
+          setZoom(16);
         }}
         handleFiles={trackManagement.handleFiles}
         removeTrack={trackManagement.removeTrack}
@@ -360,12 +376,12 @@ const App: React.FC = () => {
         isExportingLabels={isExportingLabels}
         notification={trackManagement.notification || placeManagement.notification}
         setNotification={(n) => {
-            if (!n) {
-                trackManagement.setNotification(null);
-                placeManagement.setNotification(null);
-            } else {
-                trackManagement.setNotification(n);
-            }
+          if (!n) {
+            trackManagement.setNotification(null);
+            placeManagement.setNotification(null);
+          } else {
+            trackManagement.setNotification(n);
+          }
         }}
         lineColorStart={lineColorStart}
         setLineColorStart={setLineColorStart}
@@ -382,6 +398,7 @@ const App: React.FC = () => {
         labelDensity={labelDensity}
         setLabelDensity={setLabelDensity}
         onTrackHover={setHighlightedTrackId}
+        activeTrackId={activeTrackId}
         handleDownloadAllTracks={trackManagement.handleDownloadAllTracks}
         isDownloading={trackManagement.isDownloading}
         maxDimension={exportState.maxDimension}

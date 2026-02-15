@@ -13,6 +13,7 @@ interface PlaceControlsProps {
   onDeleteAll: () => void;
   places?: Place[]; // Added to support export
   onExportSuccess?: (message: string) => void;
+  activeTrackId: string | null;
 }
 
 export const PlaceControls: React.FC<PlaceControlsProps> = ({
@@ -22,7 +23,8 @@ export const PlaceControls: React.FC<PlaceControlsProps> = ({
   placeCount,
   onDeleteAll,
   places = [],
-  onExportSuccess
+  onExportSuccess,
+  activeTrackId
 }) => {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -33,7 +35,11 @@ export const PlaceControls: React.FC<PlaceControlsProps> = ({
   };
 
   const handleAddPlaceClick = () => {
-    setIsSearchOpen(true);
+    if (activeTrackId) {
+      onAddPlace(); // Signal to parent to use active track logic
+    } else {
+      setIsSearchOpen(true);
+    }
   };
 
   const handleLocationSelect = (result: GeocodingResult) => {
@@ -47,12 +53,12 @@ export const PlaceControls: React.FC<PlaceControlsProps> = ({
   };
 
   const handleExport = (format: 'geojson' | 'csv' | 'gpx') => {
-      if (places.length === 0) return;
-      downloadPlaces(places, format);
-      setIsExportMenuOpen(false);
-      if (onExportSuccess) {
-        onExportSuccess(`Places exported as ${format.toUpperCase()}`);
-      }
+    if (places.length === 0) return;
+    downloadPlaces(places, format);
+    setIsExportMenuOpen(false);
+    if (onExportSuccess) {
+      onExportSuccess(`Places exported as ${format.toUpperCase()}`);
+    }
   };
 
   return (
@@ -72,29 +78,29 @@ export const PlaceControls: React.FC<PlaceControlsProps> = ({
       />
 
       <div className="flex space-x-2">
-         {/* Export Button with Dropdown */}
-         <div className="relative flex-1">
-            <button
-                onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
-                disabled={placeCount === 0}
-                className={`w-full flex items-center justify-center space-x-2 px-3 py-1.5 border border-gray-300 text-gray-700 rounded text-sm ${placeCount === 0 ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'bg-white hover:bg-gray-50'}`}
-            >
-                <DownloadIcon className="h-4 w-4" />
-                <span>Export</span>
-                <ChevronDownIcon className="h-3 w-3 ml-1" />
-            </button>
+        {/* Export Button with Dropdown */}
+        <div className="relative flex-1">
+          <button
+            onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+            disabled={placeCount === 0}
+            className={`w-full flex items-center justify-center space-x-2 px-3 py-1.5 border border-gray-300 text-gray-700 rounded text-sm ${placeCount === 0 ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'bg-white hover:bg-gray-50'}`}
+          >
+            <DownloadIcon className="h-4 w-4" />
+            <span>Export</span>
+            <ChevronDownIcon className="h-3 w-3 ml-1" />
+          </button>
 
-            {isExportMenuOpen && (
-                <>
-                <div className="fixed inset-0 z-10" onClick={() => setIsExportMenuOpen(false)}></div>
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded shadow-lg z-20 py-1">
-                    <button onClick={() => handleExport('gpx')} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">GPX (Waypoints)</button>
-                    <button onClick={() => handleExport('csv')} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">CSV</button>
-                    <button onClick={() => handleExport('geojson')} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">GeoJSON</button>
-                </div>
-                </>
-            )}
-         </div>
+          {isExportMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setIsExportMenuOpen(false)}></div>
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded shadow-lg z-20 py-1">
+                <button onClick={() => handleExport('gpx')} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">GPX (Waypoints)</button>
+                <button onClick={() => handleExport('csv')} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">CSV</button>
+                <button onClick={() => handleExport('geojson')} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">GeoJSON</button>
+              </div>
+            </>
+          )}
+        </div>
 
         <button
           onClick={() => onToggleAllVisibility(!allPlacesVisible)}
@@ -117,21 +123,21 @@ export const PlaceControls: React.FC<PlaceControlsProps> = ({
 
       {showConfirmDelete && (
         <div className="p-3 bg-red-50 border border-red-200 rounded text-sm animate-fade-in">
-            <p className="text-red-800 mb-2 font-medium">Delete all places?</p>
-            <div className="flex space-x-2 justify-end">
-                <button
-                    onClick={() => setShowConfirmDelete(false)}
-                    className="px-3 py-1 bg-white border border-gray-300 rounded text-gray-700 hover:bg-gray-50 text-xs font-medium"
-                >
-                    Cancel
-                </button>
-                <button
-                    onClick={confirmDeleteAll}
-                    className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs font-medium shadow-sm"
-                >
-                    Delete All
-                </button>
-            </div>
+          <p className="text-red-800 mb-2 font-medium">Delete all places?</p>
+          <div className="flex space-x-2 justify-end">
+            <button
+              onClick={() => setShowConfirmDelete(false)}
+              className="px-3 py-1 bg-white border border-gray-300 rounded text-gray-700 hover:bg-gray-50 text-xs font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmDeleteAll}
+              className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs font-medium shadow-sm"
+            >
+              Delete All
+            </button>
+          </div>
         </div>
       )}
     </div>

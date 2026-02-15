@@ -14,6 +14,7 @@ interface PlacesSectionProps {
   toggleAllPlacesVisibility: (visible: boolean) => void;
   onZoomToPlace: (place: Place) => void;
   onExportSuccess?: (message: string) => void;
+  activeTrackId: string | null;
 }
 
 export const PlacesSection: React.FC<PlacesSectionProps> = ({
@@ -24,7 +25,8 @@ export const PlacesSection: React.FC<PlacesSectionProps> = ({
   togglePlaceVisibility,
   toggleAllPlacesVisibility,
   onZoomToPlace,
-  onExportSuccess
+  onExportSuccess,
+  activeTrackId
 }) => {
   const [isCollapsed, setIsCollapsed] = useLocalStorage<boolean>('places-collapsed', false);
   const allVisible = places.length > 0 && places.every(p => p.isVisible);
@@ -39,18 +41,19 @@ export const PlacesSection: React.FC<PlacesSectionProps> = ({
         placeCount={places.length}
         places={places}
         onDeleteAll={() => {
-             places.forEach(p => deletePlace(p.id));
+          places.forEach(p => deletePlace(p.id));
         }}
         onExportSuccess={onExportSuccess}
+        activeTrackId={activeTrackId}
       />
       <PlacesList
         places={places}
         onToggleVisibility={togglePlaceVisibility}
         onEdit={(place) => {
-             const newTitle = window.prompt("Enter new title", place.title);
-             if (newTitle !== null) {
-                 updatePlace(place.id, { title: newTitle });
-             }
+          const newTitle = window.prompt("Enter new title", place.title);
+          if (newTitle !== null) {
+            updatePlace(place.id, { title: newTitle });
+          }
         }}
         onDelete={deletePlace}
         onZoomTo={onZoomToPlace}

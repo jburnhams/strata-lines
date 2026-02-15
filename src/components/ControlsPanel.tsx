@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useImperativeHandle, forwardRef } from 'react';
 import type { AspectRatio, Track, Notification, TrackPlaceType } from '@/types';
 import { FilesControl } from '@/components/controls/FilesControl';
 import { MapStyleControl } from '@/components/controls/MapStyleControl';
@@ -12,80 +12,81 @@ import type { Place } from '@/types';
 import { GeocodingResult } from '@/services/geocoding/GeocodingProvider';
 
 interface ControlsPanelProps {
-  tracks: Track[];
-  places: Place[];
-  onAddPlaceClick: (result?: GeocodingResult) => void;
-  updatePlace: (id: string, updates: Partial<Place>) => void;
-  deletePlace: (id: string) => void;
-  togglePlaceVisibility: (id: string) => void;
-  toggleAllPlacesVisibility: (visible: boolean) => void;
-  placeTitleSize: number;
-  setPlaceTitleSize: (size: number) => void;
-  showIconsGlobally: boolean;
-  setShowIconsGlobally: (show: boolean) => void;
-  onZoomToPlace: (place: Place) => void;
+    tracks: Track[];
+    places: Place[];
+    onAddPlaceClick: (result?: GeocodingResult) => void;
+    updatePlace: (id: string, updates: Partial<Place>) => void;
+    deletePlace: (id: string) => void;
+    togglePlaceVisibility: (id: string) => void;
+    toggleAllPlacesVisibility: (visible: boolean) => void;
+    placeTitleSize: number;
+    setPlaceTitleSize: (size: number) => void;
+    showIconsGlobally: boolean;
+    setShowIconsGlobally: (show: boolean) => void;
+    onZoomToPlace: (place: Place) => void;
 
-  handleFiles: (files: FileList | null) => void;
-  removeTrack: (trackId: string) => void;
-  removeAllTracks: () => void;
-  toggleTrackVisibility: (trackId: string) => void;
-  handleExport: (type: 'combined' | 'base' | 'lines' | 'labels' | 'places', includedLayers?: ExportSelection) => void;
-  handleExportBase: () => void;
-  handleExportLines: () => void;
-  handleExportLabels: () => void;
-  aspectRatio: AspectRatio;
-  setAspectRatio: (res: AspectRatio) => void;
-  exportBoundsAspectRatio: number | null;
-  exportQuality: number;
-  setExportQuality: (quality: number) => void;
-  outputFormat: 'png' | 'jpeg';
-  setOutputFormat: (format: 'png' | 'jpeg') => void;
-  jpegQuality: number;
-  setJpegQuality: (quality: number) => void;
-  derivedExportZoom: number | null;
-  isLoading: boolean;
-  isExporting: boolean;
-  isExportingBase: boolean;
-  isExportingLines: boolean;
-  isExportingLabels: boolean;
-  notification: Notification | null;
-  setNotification: (notification: Notification | null) => void;
-  lineColorStart: string;
-  setLineColorStart: (color: string) => void;
-  lineColorEnd: string;
-  setLineColorEnd: (color: string) => void;
-  lineThickness: number;
-  setLineThickness: (thickness: number) => void;
-  viewportMiles: { width: number | null; height: number | null };
-  exportDimensions: { width: number | null; height: number | null };
-  minLengthFilter: number;
-  setMinLengthFilter: (length: number) => void;
-  tileLayerKey: string;
-  setTileLayerKey: (key: string) => void;
-  labelDensity: number;
-  setLabelDensity: (density: number) => void;
-  onTrackHover: (trackId: string | null) => void;
-  handleDownloadAllTracks: () => void;
-  isDownloading: boolean;
-  maxDimension: number;
-  setMaxDimension: (dimension: number) => void;
-  activityCounts: Record<string, number>;
-  hiddenActivityTypes: Set<string>;
-  toggleActivityFilter: (type: string) => void;
+    handleFiles: (files: FileList | null) => void;
+    removeTrack: (trackId: string) => void;
+    removeAllTracks: () => void;
+    toggleTrackVisibility: (trackId: string) => void;
+    handleExport: (type: 'combined' | 'base' | 'lines' | 'labels' | 'places', includedLayers?: ExportSelection) => void;
+    handleExportBase: () => void;
+    handleExportLines: () => void;
+    handleExportLabels: () => void;
+    aspectRatio: AspectRatio;
+    setAspectRatio: (res: AspectRatio) => void;
+    exportBoundsAspectRatio: number | null;
+    exportQuality: number;
+    setExportQuality: (quality: number) => void;
+    outputFormat: 'png' | 'jpeg';
+    setOutputFormat: (format: 'png' | 'jpeg') => void;
+    jpegQuality: number;
+    setJpegQuality: (quality: number) => void;
+    derivedExportZoom: number | null;
+    isLoading: boolean;
+    isExporting: boolean;
+    isExportingBase: boolean;
+    isExportingLines: boolean;
+    isExportingLabels: boolean;
+    notification: Notification | null;
+    setNotification: (notification: Notification | null) => void;
+    lineColorStart: string;
+    setLineColorStart: (color: string) => void;
+    lineColorEnd: string;
+    setLineColorEnd: (color: string) => void;
+    lineThickness: number;
+    setLineThickness: (thickness: number) => void;
+    viewportMiles: { width: number | null; height: number | null };
+    exportDimensions: { width: number | null; height: number | null };
+    minLengthFilter: number;
+    setMinLengthFilter: (length: number) => void;
+    tileLayerKey: string;
+    setTileLayerKey: (key: string) => void;
+    labelDensity: number;
+    setLabelDensity: (density: number) => void;
+    onTrackHover: (trackId: string | null) => void;
+    activeTrackId: string | null;
+    handleDownloadAllTracks: () => void;
+    isDownloading: boolean;
+    maxDimension: number;
+    setMaxDimension: (dimension: number) => void;
+    activityCounts: Record<string, number>;
+    hiddenActivityTypes: Set<string>;
+    toggleActivityFilter: (type: string) => void;
 
-  createTrackPlace: (id: string, type: TrackPlaceType, useLocality: boolean) => Promise<any>;
-  removeTrackPlace: (id: string, type: TrackPlaceType) => Promise<void>;
-  createAllTrackPlaces: (id: string, useLocality: boolean) => Promise<any>;
-  removeAllTrackPlaces: (id: string) => Promise<void>;
+    createTrackPlace: (id: string, type: TrackPlaceType, useLocality: boolean) => Promise<any>;
+    removeTrackPlace: (id: string, type: TrackPlaceType) => Promise<void>;
+    createAllTrackPlaces: (id: string, useLocality: boolean) => Promise<any>;
+    removeAllTrackPlaces: (id: string) => Promise<void>;
 
-  autoCreatePlaces: boolean;
-  setAutoCreatePlaces: (val: boolean) => void;
-  defaultUseLocalityName: boolean;
-  setDefaultUseLocalityName: (val: boolean) => void;
+    autoCreatePlaces: boolean;
+    setAutoCreatePlaces: (val: boolean) => void;
+    defaultUseLocalityName: boolean;
+    setDefaultUseLocalityName: (val: boolean) => void;
 
-  // New props for Global Text Style
-  placeTextStyle: import('@/types').PlaceTextStyle;
-  setPlaceTextStyle: (style: import('@/types').PlaceTextStyle) => void;
+    // New props for Global Text Style
+    placeTextStyle: import('@/types').PlaceTextStyle;
+    setPlaceTextStyle: (style: import('@/types').PlaceTextStyle) => void;
 }
 
 // Common Subcomponents
@@ -179,6 +180,7 @@ const DesktopLayout: React.FC<LayoutProps> = (props) => {
                 toggleAllPlacesVisibility={props.toggleAllPlacesVisibility}
                 onZoomToPlace={props.onZoomToPlace}
                 onExportSuccess={(msg) => props.setNotification({ type: 'info', message: msg })}
+                activeTrackId={props.activeTrackId}
             />
 
             {isAdvancedMode && (
@@ -281,11 +283,11 @@ const MobileLayout: React.FC<LayoutProps> = (props) => {
 
             {/* Main Action Button (Add Files) */}
             <button
-                 onClick={props.onAddFileClick}
-                 className={`flex items-center justify-center bg-orange-600 hover:bg-orange-700 text-white font-bold rounded transition-colors
+                onClick={props.onAddFileClick}
+                className={`flex items-center justify-center bg-orange-600 hover:bg-orange-700 text-white font-bold rounded transition-colors
                     ${isLandscape ? 'w-10 h-10 p-0' : 'px-4 py-2'}
                  `}
-                 title="Add Files"
+                title="Add Files"
             >
                 {isLandscape ? <PlusIcon /> : <span className="text-sm">Add Files</span>}
             </button>
@@ -293,21 +295,21 @@ const MobileLayout: React.FC<LayoutProps> = (props) => {
     );
 
     const SettingsBar = () => (
-         <div className={`pointer-events-auto bg-gray-800/90 border-gray-700 shadow-lg p-2 flex items-center gap-2
+        <div className={`pointer-events-auto bg-gray-800/90 border-gray-700 shadow-lg p-2 flex items-center gap-2
             ${isLandscape ? 'flex-col border-l h-full w-16 py-4' : 'flex-row border-t w-full h-16 px-4 justify-between'}
         `}>
-             {/* Main Action Button (Export) */}
-             <button
-                 onClick={handleMainExport}
-                 disabled={anyExporting}
-                 className={`flex items-center justify-center bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-bold rounded transition-colors
+            {/* Main Action Button (Export) */}
+            <button
+                onClick={handleMainExport}
+                disabled={anyExporting}
+                className={`flex items-center justify-center bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-bold rounded transition-colors
                     ${isLandscape ? 'w-10 h-10 p-0' : 'px-4 py-2 order-last'}
                  `}
-                 title="Export"
+                title="Export"
             >
-               {isLandscape ? (
+                {isLandscape ? (
                     <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-               ) : <span className="text-sm">Export</span>}
+                ) : <span className="text-sm">Export</span>}
             </button>
 
             {/* Toggle Button */}
@@ -324,7 +326,7 @@ const MobileLayout: React.FC<LayoutProps> = (props) => {
     // Full Screen Drawer Overlay
     const DrawerOverlay = ({ type, children }: { type: 'files' | 'settings', children: React.ReactNode }) => (
         <div className="absolute inset-0 z-50 bg-gray-900 flex flex-col pointer-events-auto overflow-hidden animate-fade-in">
-             <div className="flex justify-between items-center p-4 border-b border-gray-700 bg-gray-800">
+            <div className="flex justify-between items-center p-4 border-b border-gray-700 bg-gray-800">
                 <h2 className="text-lg font-bold text-orange-400">
                     {type === 'files' ? 'Files & Tracks' : 'Settings & Export'}
                 </h2>
@@ -350,8 +352,8 @@ const MobileLayout: React.FC<LayoutProps> = (props) => {
             {activeDrawer ? (
                 <DrawerOverlay type={activeDrawer}>
                     {activeDrawer === 'files' ? (
-                         <>
-                             <FilesControl
+                        <>
+                            <FilesControl
                                 tracks={props.tracks}
                                 onAddFileClick={props.onAddFileClick}
                                 removeTrack={props.removeTrack}
@@ -361,6 +363,7 @@ const MobileLayout: React.FC<LayoutProps> = (props) => {
                                 minLengthFilter={props.minLengthFilter}
                                 setMinLengthFilter={props.setMinLengthFilter}
                                 onTrackHover={props.onTrackHover}
+                                activeTrackId={props.activeTrackId}
                                 handleDownloadAllTracks={props.handleDownloadAllTracks}
                                 isDownloading={props.isDownloading}
                                 anyExporting={anyExporting}
@@ -382,6 +385,7 @@ const MobileLayout: React.FC<LayoutProps> = (props) => {
                                 toggleAllPlacesVisibility={props.toggleAllPlacesVisibility}
                                 onZoomToPlace={props.onZoomToPlace}
                                 onExportSuccess={(msg) => props.setNotification({ type: 'info', message: msg })}
+                                activeTrackId={props.activeTrackId}
                             />
                         </>
                     ) : (
@@ -401,7 +405,7 @@ const MobileLayout: React.FC<LayoutProps> = (props) => {
                                 />
                             )}
 
-                             {isAdvancedMode && (
+                            {isAdvancedMode && (
                                 <MapStyleControl
                                     tileLayerKey={props.tileLayerKey}
                                     setTileLayerKey={props.setTileLayerKey}
@@ -461,33 +465,47 @@ const MobileLayout: React.FC<LayoutProps> = (props) => {
     );
 };
 
-export const ControlsPanel: React.FC<ControlsPanelProps> = (props) => {
-  const isMobile = useIsMobile();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+export const ControlsPanel = forwardRef<{ openDrawer: (type: 'files' | 'settings') => void }, ControlsPanelProps>((props, ref) => {
+    const isMobile = useIsMobile();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [activeDrawer, setActiveDrawer] = useState<'files' | 'settings' | null>(null);
 
-  const triggerAddFile = () => {
-    fileInputRef.current?.click();
-  };
+    useImperativeHandle(ref, () => ({
+        openDrawer: (type: 'files' | 'settings') => {
+            setActiveDrawer(type);
+        }
+    }));
 
-  return (
-    <>
-      <input
-        type="file"
-        accept=".gpx,.tcx,.fit,.gz"
-        multiple
-        onChange={(e) => {
-            props.handleFiles(e.target.files);
-            e.target.value = '';
-        }}
-        className="hidden"
-        ref={fileInputRef}
-        data-testid="hidden-file-input"
-      />
-      {isMobile ? (
-        <MobileLayout {...props} onAddFileClick={triggerAddFile} />
-      ) : (
-        <DesktopLayout {...props} onAddFileClick={triggerAddFile} />
-      )}
-    </>
-  );
-};
+    const triggerAddFile = () => {
+        fileInputRef.current?.click();
+    };
+
+    const layoutProps = {
+        ...props,
+        activeDrawer,
+        setActiveDrawer,
+        onAddFileClick: triggerAddFile
+    };
+
+    return (
+        <>
+            <input
+                type="file"
+                accept=".gpx,.tcx,.fit,.gz"
+                multiple
+                onChange={(e) => {
+                    props.handleFiles(e.target.files);
+                    e.target.value = '';
+                }}
+                className="hidden"
+                ref={fileInputRef}
+                data-testid="hidden-file-input"
+            />
+            {isMobile ? (
+                <MobileLayout {...layoutProps} />
+            ) : (
+                <DesktopLayout {...layoutProps} />
+            )}
+        </>
+    );
+});
