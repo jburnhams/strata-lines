@@ -43,23 +43,28 @@ export const renderPlace = async (
     totalBounds: { x, y, width: 0, height: 0 }
   };
 
+  // Scale settings
+  const REFERENCE_ZOOM = 12;
+  const scale = Math.pow(2, zoom - REFERENCE_ZOOM);
+
   // Icon settings
   const showIcon = settings.placeShowIconsGlobally && place.showIcon;
-  const iconConfig = place.iconConfig || {
-    style: place.iconStyle || 'pin',
-    size: 24,
-    color: '#ef4444'
+  const baseIconSize = place.iconConfig?.size || 24;
+  const iconConfig = {
+    style: place.iconConfig?.style || place.iconStyle || 'pin',
+    size: baseIconSize * scale,
+    color: place.iconConfig?.color || '#ef4444'
   };
 
   // Text settings
   const textStyle = { ...settings.placeTextStyle, ...place.textStyle };
   const titleSizeScale = settings.placeTitleSize / 50;
-  const fontSize = textStyle.fontSize * titleSizeScale;
+  const fontSize = textStyle.fontSize * titleSizeScale * scale;
 
   if (showIcon) {
     renderIcon(ctx, iconConfig.style, x, y, iconConfig.size, iconConfig.color);
     result.iconBounds = {
-      x: x - iconConfig.size/2,
+      x: x - iconConfig.size / 2,
       y: y - iconConfig.size,
       width: iconConfig.size,
       height: iconConfig.size
@@ -71,14 +76,14 @@ export const renderPlace = async (
       textStyle.color = await getAutoTextColor(place.latitude, place.longitude, zoom, tileLayerUrl);
     }
 
-    const gap = 5 * titleSizeScale;
+    const gap = 5 * titleSizeScale * scale;
     const iconHalfSize = showIcon ? iconConfig.size / 2 : 0;
 
     // Center of icon vertically (assuming icon is drawn bottom-anchored at y, so center is y - size/2)
     // Actually renderIcon usually draws bottom-center at x,y.
     const iconCenterY = showIcon ? y - iconConfig.size * 0.5 : y;
 
-    const maxTextWidth = 200 * titleSizeScale;
+    const maxTextWidth = 200 * titleSizeScale * scale;
     const lines = wrapText(place.title, maxTextWidth, ctx);
     const bounds = measureTextBounds(lines, fontSize, textStyle.fontFamily, ctx);
     const totalHeight = bounds.height;
@@ -201,18 +206,18 @@ export const renderPlacesOnCanvas = async (
 
       if (result.textBounds) {
         const currentBounds = new DOMRect(
-            result.textBounds.x,
-            result.textBounds.y,
-            result.textBounds.width,
-            result.textBounds.height
+          result.textBounds.x,
+          result.textBounds.y,
+          result.textBounds.width,
+          result.textBounds.height
         );
 
         let isOverlapping = false;
         for (const rb of renderedTextBounds) {
-            if (hasOverlap(currentBounds, rb)) {
-                isOverlapping = true;
-                break;
-            }
+          if (hasOverlap(currentBounds, rb)) {
+            isOverlapping = true;
+            break;
+          }
         }
         renderedTextBounds.push(currentBounds);
 
