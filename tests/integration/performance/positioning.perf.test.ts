@@ -66,7 +66,8 @@ describe('Positioning Performance', () => {
             layerPointToLatLng: (point: L.PointExpression) => {
                 const p = L.point(point);
                 return L.latLng(p.y / 100, p.x / 100);
-            }
+            },
+            getZoom: () => 10
         } as unknown as L.Map;
 
         const settings: any = {

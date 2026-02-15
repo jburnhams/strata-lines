@@ -85,10 +85,34 @@ describe('placeRenderingService - Scaling', () => {
         );
     });
 
-    it('uses scale 8 (max) at zoom 13', async () => {
+    it('scales linearly at high zoom (unlimited)', async () => {
+        // Zoom 15 -> Scale 2^(15-10) = 32
+        await renderPlace(mockCtx as CanvasRenderingContext2D, mockPlace, 100, 100, mockSettings, 15);
+
+        // Icon size: 24 * 32 = 768
+        expect(renderIcon).toHaveBeenCalledWith(
+            expect.anything(),
+            'pin',
+            100,
+            100,
+            768,
+            expect.any(String)
+        );
+
+        // Font size: 12 * 32 = 384
+        expect(renderTextWithEffects).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            expect.anything(),
+            expect.anything(),
+            expect.objectContaining({ fontSize: 384 })
+        );
+    });
+
+    it('uses scale 8 at zoom 13', async () => {
         await renderPlace(mockCtx as CanvasRenderingContext2D, mockPlace, 100, 100, mockSettings, 13);
 
-        // Scale is 2^(13-10) = 8. (Max clamped)
+        // Scale is 2^(13-10) = 8.
         // Icon size: 24 * 8 = 192
         expect(renderIcon).toHaveBeenCalledWith(
             expect.anything(),

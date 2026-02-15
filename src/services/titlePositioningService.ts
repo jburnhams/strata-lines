@@ -16,19 +16,19 @@ const getMeasureContext = () => {
 };
 
 // Helper to get formatted text info
-const getPlaceTextInfo = (place: Place, settings: ExportSettings, ctx: CanvasRenderingContext2D) => {
-    const textStyle = { ...settings.placeTextStyle, ...place.textStyle };
-    const titleSizeScale = settings.placeTitleSize / 50;
-    const fontSize = textStyle.fontSize * titleSizeScale;
-    const maxTextWidth = 200 * titleSizeScale;
-    const fontFamily = textStyle.fontFamily || 'Noto Sans';
-    const fontWeight = textStyle.fontWeight || 'bold';
+const getPlaceTextInfo = (place: Place, settings: ExportSettings, ctx: CanvasRenderingContext2D, scale: number) => {
+  const textStyle = { ...settings.placeTextStyle, ...place.textStyle };
+  const titleSizeScale = settings.placeTitleSize / 50;
+  const fontSize = textStyle.fontSize * titleSizeScale * scale;
+  const maxTextWidth = 200 * titleSizeScale * scale;
+  const fontFamily = textStyle.fontFamily || 'Noto Sans';
+  const fontWeight = textStyle.fontWeight || 'bold';
 
-    ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
-    const titleLines = wrapText(place.title, maxTextWidth, ctx);
-    const { width, height } = measureTextBounds(titleLines, fontSize, fontFamily, ctx, fontWeight);
+  ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+  const titleLines = wrapText(place.title, maxTextWidth, ctx);
+  const { width, height } = measureTextBounds(titleLines, fontSize, fontFamily, ctx, fontWeight);
 
-    return { titleLines, fontSize, width, height };
+  return { titleLines, fontSize, width, height };
 };
 
 export const refinePositions = (
@@ -36,98 +36,99 @@ export const refinePositions = (
   initialPositions: Map<string, PlaceTitlePosition>,
   map: L.Map,
   settings: ExportSettings,
+  scale: number,
   maxIterations: number = 3,
   constraints?: PositioningConstraints
 ): Map<string, PlaceTitlePosition> => {
-    const currentPositions = new Map(initialPositions);
-    const ctx = getMeasureContext();
-    const activeConstraints: PositioningConstraints = {
-        minDistance: 5,
-        preferredGap: 20,
-        ...constraints
+  const currentPositions = new Map(initialPositions);
+  const ctx = getMeasureContext();
+  const activeConstraints: PositioningConstraints = {
+    minDistance: 5,
+    preferredGap: 20,
+    ...constraints
+  };
+
+  // Pre-calculate place info to avoid repeated calculations
+  const placeInfos = places.map(place => {
+    const { titleLines, fontSize } = getPlaceTextInfo(place, settings, ctx, scale);
+    const latLng = L.latLng(place.latitude, place.longitude);
+    const point = map.latLngToLayerPoint(latLng);
+    const iconSize = (place.iconConfig?.size || 24) * scale;
+
+    return {
+      place,
+      titleLines,
+      fontSize,
+      x: point.x,
+      y: point.y,
+      iconSize
     };
+  });
 
-    // Pre-calculate place info to avoid repeated calculations
-    const placeInfos = places.map(place => {
-       const { titleLines, fontSize } = getPlaceTextInfo(place, settings, ctx);
-       const latLng = L.latLng(place.latitude, place.longitude);
-       const point = map.latLngToLayerPoint(latLng);
-       const iconSize = place.iconConfig?.size || 20;
+  let improved = true;
+  let iteration = 0;
+  const allPositions: PlaceTitlePosition[] = ['right', 'left', 'top', 'bottom'];
 
-       return {
-           place,
-           titleLines,
-           fontSize,
-           x: point.x,
-           y: point.y,
-           iconSize
-       };
+  while (improved && iteration < maxIterations) {
+    improved = false;
+    iteration++;
+
+    // Rebuild current bounds based on currentPositions
+    const currentBounds: PlaceTitleBounds[] = placeInfos.map(info => {
+      const pos = currentPositions.get(info.place.id) || 'right';
+      const b = calculateTitleBounds(info.place, info.titleLines, info.fontSize, info.x, info.y, pos, 0, info.iconSize, 5);
+      return {
+        placeId: info.place.id,
+        position: pos,
+        bounds: b,
+        geoBounds: titleBoundsToGeoBounds(b, map)
+      };
     });
 
-    let improved = true;
-    let iteration = 0;
-    const allPositions: PlaceTitlePosition[] = ['right', 'left', 'top', 'bottom'];
+    for (const info of placeInfos) {
+      const currentPos = currentPositions.get(info.place.id)!;
+      const currentB = currentBounds.find(b => b.placeId === info.place.id)!.bounds;
 
-    while (improved && iteration < maxIterations) {
-        improved = false;
-        iteration++;
+      const currentScore = scorePosition(currentB, currentPos, currentBounds, activeConstraints, info.place.id);
 
-        // Rebuild current bounds based on currentPositions
-        const currentBounds: PlaceTitleBounds[] = placeInfos.map(info => {
-             const pos = currentPositions.get(info.place.id) || 'right';
-             const b = calculateTitleBounds(info.place, info.titleLines, info.fontSize, info.x, info.y, pos, 0, info.iconSize, 5);
-             return {
-                 placeId: info.place.id,
-                 position: pos,
-                 bounds: b,
-                 geoBounds: titleBoundsToGeoBounds(b, map)
-             };
-        });
+      let bestPos = currentPos;
+      let bestScore = currentScore;
+      let bestBounds = currentB;
 
-        for (const info of placeInfos) {
-            const currentPos = currentPositions.get(info.place.id)!;
-            const currentB = currentBounds.find(b => b.placeId === info.place.id)!.bounds;
+      // Check all other positions
+      for (const pos of allPositions) {
+        if (pos === currentPos) continue;
 
-            const currentScore = scorePosition(currentB, currentPos, currentBounds, activeConstraints, info.place.id);
+        const b = calculateTitleBounds(info.place, info.titleLines, info.fontSize, info.x, info.y, pos, 0, info.iconSize, 5);
+        const score = scorePosition(b, pos, currentBounds, activeConstraints, info.place.id);
 
-            let bestPos = currentPos;
-            let bestScore = currentScore;
-            let bestBounds = currentB;
-
-            // Check all other positions
-            for (const pos of allPositions) {
-                if (pos === currentPos) continue;
-
-                const b = calculateTitleBounds(info.place, info.titleLines, info.fontSize, info.x, info.y, pos, 0, info.iconSize, 5);
-                const score = scorePosition(b, pos, currentBounds, activeConstraints, info.place.id);
-
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestPos = pos;
-                    bestBounds = b;
-                }
-            }
-
-            if (bestPos !== currentPos) {
-                currentPositions.set(info.place.id, bestPos);
-
-                // Update the bound in currentBounds immediately so next places see the updated state
-                const idx = currentBounds.findIndex(b => b.placeId === info.place.id);
-                if (idx !== -1) {
-                    currentBounds[idx] = {
-                        placeId: info.place.id,
-                        position: bestPos,
-                        bounds: bestBounds,
-                        geoBounds: titleBoundsToGeoBounds(bestBounds, map)
-                    };
-                }
-
-                improved = true;
-            }
+        if (score > bestScore) {
+          bestScore = score;
+          bestPos = pos;
+          bestBounds = b;
         }
-    }
+      }
 
-    return currentPositions;
+      if (bestPos !== currentPos) {
+        currentPositions.set(info.place.id, bestPos);
+
+        // Update the bound in currentBounds immediately so next places see the updated state
+        const idx = currentBounds.findIndex(b => b.placeId === info.place.id);
+        if (idx !== -1) {
+          currentBounds[idx] = {
+            placeId: info.place.id,
+            position: bestPos,
+            bounds: bestBounds,
+            geoBounds: titleBoundsToGeoBounds(bestBounds, map)
+          };
+        }
+
+        improved = true;
+      }
+    }
+  }
+
+  return currentPositions;
 };
 
 export const calculateOptimalPositions = (
@@ -145,6 +146,11 @@ export const calculateOptimalPositions = (
     ...constraints
   };
 
+  const zoom = map.getZoom();
+  const REFERENCE_ZOOM = 10;
+  let scale = Math.pow(2, zoom - REFERENCE_ZOOM);
+  scale = Math.max(0.5, scale);
+
   if (activeConstraints.exportBounds && !activeConstraints.containerBounds) {
     activeConstraints.containerBounds = geoBoundsToPixelBounds(activeConstraints.exportBounds, map);
   }
@@ -153,7 +159,7 @@ export const calculateOptimalPositions = (
 
   // Prepare data
   const placesToPosition = places.map(place => {
-    const { width, height } = getPlaceTextInfo(place, settings, ctx);
+    const { width, height } = getPlaceTextInfo(place, settings, ctx, scale);
 
     return {
       place,
@@ -200,9 +206,9 @@ export const calculateOptimalPositions = (
   }
 
   if (settings.placeOptimizePositions) {
-     const refined = refinePositions(places, result, map, settings, 3, activeConstraints);
-     // Update result map
-     refined.forEach((pos, id) => result.set(id, pos));
+    const refined = refinePositions(places, result, map, settings, scale, 3, activeConstraints);
+    // Update result map
+    refined.forEach((pos, id) => result.set(id, pos));
   }
 
   return result;

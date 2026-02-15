@@ -51,7 +51,8 @@ export const renderPlace = async (
 
   // Clamp scale to prevent invisible text or massive icons
   // Min scale 0.5 ensures minimally readable text even at very low zooms
-  scale = Math.max(0.5, Math.min(scale, 8));
+  // No upper limit as per user request
+  scale = Math.max(0.5, scale);
 
   // Icon settings
   const showIcon = settings.placeShowIconsGlobally && place.showIcon;
@@ -185,7 +186,8 @@ export const renderPlacesOnCanvas = async (
         const p = point as L.Point;
         const absPoint = L.point(p.x + nwPoint.x, p.y + nwPoint.y);
         return L.CRS.EPSG3857.pointToLatLng(absPoint, zoom);
-      }
+      },
+      getZoom: () => zoom
     } as unknown as L.Map;
 
     positions = calculateOptimalPositions(visiblePlaces, mapAdapter, settings);
