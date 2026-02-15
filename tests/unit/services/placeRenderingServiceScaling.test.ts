@@ -61,59 +61,58 @@ describe('placeRenderingService - Scaling', () => {
         (renderTextWithEffects as jest.Mock).mockClear();
     });
 
-    it('uses base size at reference zoom (12)', async () => {
+    it('uses scale 4 at zoom 12 (ref 10)', async () => {
         await renderPlace(mockCtx as CanvasRenderingContext2D, mockPlace, 100, 100, mockSettings, 12);
 
-        // Check Icon Size
-        // Default size is 24. Scale is 2^(12-12) = 1.
+        // Scale is 2^(12-10) = 4.
+        // Icon size: 24 * 4 = 96
         expect(renderIcon).toHaveBeenCalledWith(
             expect.anything(),
             'pin',
             100,
             100,
-            24, // Expected size
+            96,
             expect.any(String)
         );
 
-        // Check Font Size via renderTextWithEffects call
-        // Base font size 12 * titleSizeScale (1). Scale 1.
+        // Font size: 12 * 4 = 48
         expect(renderTextWithEffects).toHaveBeenCalledWith(
             expect.anything(),
             expect.anything(),
             expect.anything(),
             expect.anything(),
-            expect.objectContaining({ fontSize: 12 })
+            expect.objectContaining({ fontSize: 48 })
         );
     });
 
-    it('doubles size at zoom 13', async () => {
+    it('uses scale 8 (max) at zoom 13', async () => {
         await renderPlace(mockCtx as CanvasRenderingContext2D, mockPlace, 100, 100, mockSettings, 13);
 
-        // Scale is 2^(13-12) = 2.
-        // Icon size: 24 * 2 = 48
+        // Scale is 2^(13-10) = 8. (Max clamped)
+        // Icon size: 24 * 8 = 192
         expect(renderIcon).toHaveBeenCalledWith(
             expect.anything(),
             'pin',
             100,
             100,
-            48,
+            192,
             expect.any(String)
         );
 
-        // Font size: 12 * 2 = 24
+        // Font size: 12 * 8 = 96
         expect(renderTextWithEffects).toHaveBeenCalledWith(
             expect.anything(),
             expect.anything(),
             expect.anything(),
             expect.anything(),
-            expect.objectContaining({ fontSize: 24 })
+            expect.objectContaining({ fontSize: 96 })
         );
     });
 
-    it('halves size at zoom 11', async () => {
-        await renderPlace(mockCtx as CanvasRenderingContext2D, mockPlace, 100, 100, mockSettings, 11);
+    it('uses scale 0.5 (min) at zoom 8', async () => {
+        await renderPlace(mockCtx as CanvasRenderingContext2D, mockPlace, 100, 100, mockSettings, 8);
 
-        // Scale is 2^(11-12) = 0.5.
+        // Scale is 2^(8-10) = 0.25 -> clamped to 0.5
         // Icon size: 24 * 0.5 = 12
         expect(renderIcon).toHaveBeenCalledWith(
             expect.anything(),

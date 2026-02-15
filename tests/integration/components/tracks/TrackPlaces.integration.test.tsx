@@ -13,7 +13,7 @@ jest.mock('@/components/MapComponent', () => ({
 }));
 jest.mock('@/utils/trackPlaceUtils');
 jest.mock('@/services/geocodingService', () => ({
-    getGeocodingService: jest.fn(),
+  getGeocodingService: jest.fn(),
 }));
 
 const mockGeocodingService = {
@@ -32,16 +32,16 @@ const mockTrack: Track = {
 };
 
 const mockPlaceStart: Place = {
-    id: 'p-start',
-    latitude: 51.5,
-    longitude: -0.1,
-    title: 'UI Integration Track',
-    createdAt: 1000,
-    source: 'track-start',
-    trackId: 't-int-ui-1',
-    isVisible: true,
-    showIcon: true,
-    iconStyle: 'pin'
+  id: 'p-start',
+  latitude: 51.5,
+  longitude: -0.1,
+  title: 'UI Integration Track',
+  createdAt: 1000,
+  source: 'track-start',
+  trackId: 't-int-ui-1',
+  isVisible: true,
+  showIcon: true,
+  iconStyle: 'pin'
 };
 
 describe('Track Places UI Integration', () => {
@@ -56,13 +56,14 @@ describe('Track Places UI Integration', () => {
     (db.addTrack as jest.Mock).mockResolvedValue(undefined);
     (trackPlaceUtils.findOptimalMiddlePoint as jest.Mock).mockReturnValue([51.51, -0.11]);
     (trackPlaceUtils.findTrackMiddlePoint as jest.Mock).mockReturnValue([51.51, -0.11]);
+    Element.prototype.scrollIntoView = jest.fn();
   });
 
   it('renders track and place controls', async () => {
     render(<App />);
 
     await waitFor(() => {
-        expect(screen.getByText('UI Integration Track')).toBeInTheDocument();
+      expect(screen.getByText('UI Integration Track')).toBeInTheDocument();
     });
 
     const managePlacesBtn = screen.getByTitle('Manage Places');
@@ -90,10 +91,10 @@ describe('Track Places UI Integration', () => {
     fireEvent.click(screen.getByTitle('Add Start Place'));
 
     await waitFor(() => {
-        expect(db.savePlaceToDb).toHaveBeenCalledWith(expect.objectContaining({
-            source: 'track-start',
-            trackId: mockTrack.id
-        }));
+      expect(db.savePlaceToDb).toHaveBeenCalledWith(expect.objectContaining({
+        source: 'track-start',
+        trackId: mockTrack.id
+      }));
     });
 
     // Should now show Remove button
@@ -105,14 +106,14 @@ describe('Track Places UI Integration', () => {
   });
 
   it('can create all places via batch button', async () => {
-      render(<App />);
-      await waitFor(() => screen.getByText('UI Integration Track'));
-      fireEvent.click(screen.getByTitle('Manage Places'));
+    render(<App />);
+    await waitFor(() => screen.getByText('UI Integration Track'));
+    fireEvent.click(screen.getByTitle('Manage Places'));
 
-      fireEvent.click(screen.getByTitle('Add All'));
+    fireEvent.click(screen.getByTitle('Add All'));
 
-      await waitFor(() => {
-          expect(db.savePlaceToDb).toHaveBeenCalledTimes(3);
-      });
+    await waitFor(() => {
+      expect(db.savePlaceToDb).toHaveBeenCalledTimes(3);
+    });
   });
 });
