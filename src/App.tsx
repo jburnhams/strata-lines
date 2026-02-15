@@ -60,7 +60,7 @@ const App: React.FC = () => {
     placeManagement.refreshPlaces
   );
 
-  const controlsPanelRef = useRef<{ openDrawer?: (type: 'files' | 'settings') => void }>(null);
+  const controlsPanelRef = useRef<{ openDrawer: (type: 'files' | 'settings') => void }>(null);
 
   const handleTrackClick = useCallback((trackId: string) => {
     setHighlightedTrackId(trackId);
