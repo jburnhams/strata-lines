@@ -44,8 +44,14 @@ export const renderPlace = async (
   };
 
   // Scale settings
-  const REFERENCE_ZOOM = 12;
-  const scale = Math.pow(2, zoom - REFERENCE_ZOOM);
+  // Lower reference zoom = larger at current zoom.
+  // Z12 was creating tiny text at Z10 (overview). Z10 reference makes text 1x at Z10.
+  const REFERENCE_ZOOM = 10;
+  let scale = Math.pow(2, zoom - REFERENCE_ZOOM);
+
+  // Clamp scale to prevent invisible text or massive icons
+  // Min scale 0.5 ensures minimally readable text even at very low zooms
+  scale = Math.max(0.5, Math.min(scale, 8));
 
   // Icon settings
   const showIcon = settings.placeShowIconsGlobally && place.showIcon;

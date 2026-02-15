@@ -94,103 +94,103 @@ export const useTrackManagement = (
           }
 
           for (let index = 0; index < processedFile.tracks.length; index++) {
-             const track = processedFile.tracks[index];
-             // Create unique ID for track
-             const trackId = `${track.name}-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 5)}`;
+            const track = processedFile.tracks[index];
+            // Create unique ID for track
+            const trackId = `${track.name}-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 5)}`;
 
-             const newTrack: Track = {
-               ...track,
-               id: trackId,
-               isVisible: true,
-               sourceFileId: processedFile.sourceFile.id
-             };
+            const newTrack: Track = {
+              ...track,
+              id: trackId,
+              isVisible: true,
+              sourceFileId: processedFile.sourceFile.id
+            };
 
-             const isDuplicate = tracks.some(
-                (existing) =>
-                  existing.name === newTrack.name && existing.points.length === newTrack.points.length
-              );
+            const isDuplicate = tracks.some(
+              (existing) =>
+                existing.name === newTrack.name && existing.points.length === newTrack.points.length
+            );
 
-             if (isDuplicate) {
-                duplicates++;
-                return;
-             }
+            if (isDuplicate) {
+              duplicates++;
+              return;
+            }
 
-             const isLongEnough = newTrack.length >= minLengthFilter;
-             if (!isLongEnough) {
-                tooShort++;
-                return;
-             }
+            const isLongEnough = newTrack.length >= minLengthFilter;
+            if (!isLongEnough) {
+              tooShort++;
+              return;
+            }
 
-             if (autoCreatePlaces) {
-               try {
-                 // Start Place
-                 if (newTrack.points.length > 0) {
-                   const startPoint = newTrack.points[0];
-                   const startPlaceId = Math.random().toString(36).substring(2, 15);
-                   const startPlace: Place = {
-                     id: startPlaceId,
-                     latitude: startPoint[0],
-                     longitude: startPoint[1],
-                     title: newTrack.name, // Use track name for performance during upload
-                     createdAt: Date.now(),
-                     source: 'track-start',
-                     trackId: newTrack.id,
-                     isVisible: true,
-                     showIcon: true,
-                     iconStyle: 'pin',
-                     iconConfig: { style: 'pin', size: 30, color: '#ef4444' }
-                   };
-                   await db.savePlaceToDb(startPlace);
-                   newTrack.startPlaceId = startPlaceId;
-                 }
+            if (autoCreatePlaces) {
+              try {
+                // Start Place
+                if (newTrack.points.length > 0) {
+                  const startPoint = newTrack.points[0];
+                  const startPlaceId = Math.random().toString(36).substring(2, 15);
+                  const startPlace: Place = {
+                    id: startPlaceId,
+                    latitude: startPoint[0],
+                    longitude: startPoint[1],
+                    title: newTrack.name, // Use track name for performance during upload
+                    createdAt: Date.now(),
+                    source: 'track-start',
+                    trackId: newTrack.id,
+                    isVisible: true,
+                    showIcon: true,
+                    iconStyle: 'pin',
+                    iconConfig: { style: 'pin', size: 30, color: '#ef4444' }
+                  };
+                  await db.savePlaceToDb(startPlace);
+                  newTrack.startPlaceId = startPlaceId;
+                }
 
-                 // End Place
-                 if (newTrack.points.length > 1) {
-                   const endPoint = newTrack.points[newTrack.points.length - 1];
-                   const endPlaceId = Math.random().toString(36).substring(2, 15);
-                   const endPlace: Place = {
-                     id: endPlaceId,
-                     latitude: endPoint[0],
-                     longitude: endPoint[1],
-                     title: newTrack.name,
-                     createdAt: Date.now(),
-                     source: 'track-end',
-                     trackId: newTrack.id,
-                     isVisible: true,
-                     showIcon: true,
-                     iconStyle: 'pin',
-                     iconConfig: { style: 'pin', size: 30, color: '#ef4444' }
-                   };
-                   await db.savePlaceToDb(endPlace);
-                   newTrack.endPlaceId = endPlaceId;
-                 }
+                // End Place
+                if (newTrack.points.length > 1) {
+                  const endPoint = newTrack.points[newTrack.points.length - 1];
+                  const endPlaceId = Math.random().toString(36).substring(2, 15);
+                  const endPlace: Place = {
+                    id: endPlaceId,
+                    latitude: endPoint[0],
+                    longitude: endPoint[1],
+                    title: newTrack.name,
+                    createdAt: Date.now(),
+                    source: 'track-end',
+                    trackId: newTrack.id,
+                    isVisible: true,
+                    showIcon: true,
+                    iconStyle: 'pin',
+                    iconConfig: { style: 'pin', size: 30, color: '#ef4444' }
+                  };
+                  await db.savePlaceToDb(endPlace);
+                  newTrack.endPlaceId = endPlaceId;
+                }
 
-                 // Middle Place
-                 if (newTrack.points.length > 1) {
-                    const middlePoint = findTrackMiddlePoint(newTrack);
-                    const middlePlaceId = Math.random().toString(36).substring(2, 15);
-                    const middlePlace: Place = {
-                     id: middlePlaceId,
-                     latitude: middlePoint[0],
-                     longitude: middlePoint[1],
-                     title: newTrack.name,
-                     createdAt: Date.now(),
-                     source: 'track-middle',
-                     trackId: newTrack.id,
-                     isVisible: true,
-                     showIcon: true,
-                     iconStyle: 'pin',
-                     iconConfig: { style: 'pin', size: 30, color: '#ef4444' }
-                   };
-                   await db.savePlaceToDb(middlePlace);
-                   newTrack.middlePlaceId = middlePlaceId;
-                 }
-               } catch (e) {
-                 console.error('Failed to auto-create places', e);
-               }
-             }
+                // Middle Place
+                if (newTrack.points.length > 1) {
+                  const middlePoint = findTrackMiddlePoint(newTrack);
+                  const middlePlaceId = Math.random().toString(36).substring(2, 15);
+                  const middlePlace: Place = {
+                    id: middlePlaceId,
+                    latitude: middlePoint[0],
+                    longitude: middlePoint[1],
+                    title: newTrack.name,
+                    createdAt: Date.now(),
+                    source: 'track-middle',
+                    trackId: newTrack.id,
+                    isVisible: true,
+                    showIcon: true,
+                    iconStyle: 'pin',
+                    iconConfig: { style: 'pin', size: 30, color: '#ef4444' }
+                  };
+                  await db.savePlaceToDb(middlePlace);
+                  newTrack.middlePlaceId = middlePlaceId;
+                }
+              } catch (e) {
+                console.error('Failed to auto-create places', e);
+              }
+            }
 
-             tracksToAdd.push(newTrack);
+            tracksToAdd.push(newTrack);
           }
         }
 
@@ -266,9 +266,9 @@ export const useTrackManagement = (
         const isFileUsed = updatedTracks.some(t => t.sourceFileId === trackToRemove.sourceFileId);
         if (!isFileUsed) {
           try {
-             await db.deleteSourceFile(trackToRemove.sourceFileId);
+            await db.deleteSourceFile(trackToRemove.sourceFileId);
           } catch (e) {
-             console.error('Failed to cleanup source file', e);
+            console.error('Failed to cleanup source file', e);
           }
         }
       }
@@ -285,26 +285,26 @@ export const useTrackManagement = (
 
       // If we are removing ALL tracks (no filter hidden), we can use clearTracks for efficiency
       if (tracksToRemove.length === tracks.length) {
-          await db.clearTracks(); // This clears both tracks and source_files
-          setTracks([]);
+        await db.clearTracks(); // This clears both tracks and source_files
+        setTracks([]);
       } else {
-          // Otherwise remove individually
-          const idsToRemove = new Set(tracksToRemove.map(t => t.id));
-          await Promise.all(tracksToRemove.map(t => db.deleteTrack(t.id)));
+        // Otherwise remove individually
+        const idsToRemove = new Set(tracksToRemove.map(t => t.id));
+        await Promise.all(tracksToRemove.map(t => db.deleteTrack(t.id)));
 
-          const remainingTracks = tracks.filter(t => !idsToRemove.has(t.id));
-          setTracks(remainingTracks);
+        const remainingTracks = tracks.filter(t => !idsToRemove.has(t.id));
+        setTracks(remainingTracks);
 
-          // Cleanup orphaned source files
-          // Find sourceFileIds that were in removed tracks but are NOT in remaining tracks
-          const removedSourceIds = new Set(tracksToRemove.map(t => t.sourceFileId).filter((id): id is string => !!id));
-          const remainingSourceIds = new Set(remainingTracks.map(t => t.sourceFileId).filter((id): id is string => !!id));
+        // Cleanup orphaned source files
+        // Find sourceFileIds that were in removed tracks but are NOT in remaining tracks
+        const removedSourceIds = new Set(tracksToRemove.map(t => t.sourceFileId).filter((id): id is string => !!id));
+        const remainingSourceIds = new Set(remainingTracks.map(t => t.sourceFileId).filter((id): id is string => !!id));
 
-          for (const sourceId of removedSourceIds) {
-             if (!remainingSourceIds.has(sourceId)) {
-                await db.deleteSourceFile(sourceId);
-             }
+        for (const sourceId of removedSourceIds) {
+          if (!remainingSourceIds.has(sourceId)) {
+            await db.deleteSourceFile(sourceId);
           }
+        }
       }
     } catch (error) {
       console.error('Failed to clear tracks', error);
@@ -362,43 +362,43 @@ export const useTrackManagement = (
 
       filteredTracks.forEach(t => {
         if (t.sourceFileId) {
-            sourceFileIdsToExport.add(t.sourceFileId);
+          sourceFileIdsToExport.add(t.sourceFileId);
         } else {
-            tracksWithoutSource.push(t);
+          tracksWithoutSource.push(t);
         }
       });
 
       // Export Original Files
       for (const sourceId of sourceFileIdsToExport) {
-         try {
-             const sourceFile = await db.getSourceFile(sourceId);
-             if (sourceFile) {
-                 let filename = sourceFile.name;
-                 // Handle duplicates in zip
-                 if (addedFilenames.has(filename)) {
-                     const count = addedFilenames.get(filename)!;
-                     addedFilenames.set(filename, count + 1);
-                     const nameParts = filename.split('.');
-                     const ext = nameParts.pop();
-                     const name = nameParts.join('.');
-                     filename = `${name}(${count}).${ext}`;
-                 } else {
-                     addedFilenames.set(filename, 1);
-                 }
+        try {
+          const sourceFile = await db.getSourceFile(sourceId);
+          if (sourceFile) {
+            let filename = sourceFile.name;
+            // Handle duplicates in zip
+            if (addedFilenames.has(filename)) {
+              const count = addedFilenames.get(filename)!;
+              addedFilenames.set(filename, count + 1);
+              const nameParts = filename.split('.');
+              const ext = nameParts.pop();
+              const name = nameParts.join('.');
+              filename = `${name}(${count}).${ext}`;
+            } else {
+              addedFilenames.set(filename, 1);
+            }
 
-                 zip.file(filename, sourceFile.data);
-             } else {
-                 // Fallback if source file missing (shouldn't happen often)
-                 // Find all filtered tracks that belong to this missing source file
-                 const associatedTracks = filteredTracks.filter(t => t.sourceFileId === sourceId);
-                 associatedTracks.forEach(t => tracksWithoutSource.push(t));
-             }
-         } catch (e) {
-             console.error(`Error fetching source file ${sourceId}`, e);
-             // Fallback
-             const associatedTracks = filteredTracks.filter(t => t.sourceFileId === sourceId);
-             associatedTracks.forEach(t => tracksWithoutSource.push(t));
-         }
+            zip.file(filename, sourceFile.data);
+          } else {
+            // Fallback if source file missing (shouldn't happen often)
+            // Find all filtered tracks that belong to this missing source file
+            const associatedTracks = filteredTracks.filter(t => t.sourceFileId === sourceId);
+            associatedTracks.forEach(t => tracksWithoutSource.push(t));
+          }
+        } catch (e) {
+          console.error(`Error fetching source file ${sourceId}`, e);
+          // Fallback
+          const associatedTracks = filteredTracks.filter(t => t.sourceFileId === sourceId);
+          associatedTracks.forEach(t => tracksWithoutSource.push(t));
+        }
       }
 
       // Export Legacy/Fallback Tracks (Generated GPX)
@@ -407,14 +407,14 @@ export const useTrackManagement = (
         let filename = `${track.name.replace(/[\/\\?%*:|"<>]/g, '_') || 'unnamed_track'}.gpx`;
 
         if (addedFilenames.has(filename)) {
-             const count = addedFilenames.get(filename)!;
-             addedFilenames.set(filename, count + 1);
-             const nameParts = filename.split('.');
-             const ext = nameParts.pop();
-             const name = nameParts.join('.');
-             filename = `${name}(${count}).${ext}`;
+          const count = addedFilenames.get(filename)!;
+          addedFilenames.set(filename, count + 1);
+          const nameParts = filename.split('.');
+          const ext = nameParts.pop();
+          const name = nameParts.join('.');
+          filename = `${name}(${count}).${ext}`;
         } else {
-            addedFilenames.set(filename, 1);
+          addedFilenames.set(filename, 1);
         }
 
         zip.file(filename, gpxContent);
@@ -445,9 +445,19 @@ export const useTrackManagement = (
     if (!track || track.points.length === 0) return;
 
     // Check if place already exists
-    if (type === 'start' && track.startPlaceId) return;
-    if (type === 'middle' && track.middlePlaceId) return;
-    if (type === 'end' && track.endPlaceId) return;
+    // Check if place already exists and is valid
+    if (type === 'start' && track.startPlaceId) {
+      const existing = await db.getPlaceFromDb(track.startPlaceId);
+      if (existing) return;
+    }
+    if (type === 'middle' && track.middlePlaceId) {
+      const existing = await db.getPlaceFromDb(track.middlePlaceId);
+      if (existing) return;
+    }
+    if (type === 'end' && track.endPlaceId) {
+      const existing = await db.getPlaceFromDb(track.endPlaceId);
+      if (existing) return;
+    }
 
     let point: [number, number];
     if (type === 'start') {
@@ -485,9 +495,9 @@ export const useTrackManagement = (
       showIcon: true,
       iconStyle: 'pin',
       iconConfig: {
-          style: 'pin',
-          size: 30,
-          color: '#ef4444'
+        style: 'pin',
+        size: 30,
+        color: '#ef4444'
       }
     };
 
@@ -549,30 +559,30 @@ export const useTrackManagement = (
 
     // Helper to create and save place
     const generateAndSavePlace = async (point: [number, number], type: TrackPlaceType, source: 'track-start' | 'track-middle' | 'track-end') => {
-        let title = track.name;
-        if (useLocalityName) {
-            try {
-                const service = getGeocodingService();
-                const locality = await service.getLocalityName(point[0], point[1]);
-                if (locality) title = locality;
-            } catch (e) { console.warn('Geocoding failed', e); }
-        }
-        const placeId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        const place: Place = {
-            id: placeId,
-            latitude: point[0],
-            longitude: point[1],
-            title,
-            createdAt: Date.now(),
-            source,
-            trackId: trackId,
-            isVisible: true,
-            showIcon: true,
-            iconStyle: 'pin',
-            iconConfig: { style: 'pin', size: 30, color: '#ef4444' }
-        };
-        await db.savePlaceToDb(place);
-        return place;
+      let title = track.name;
+      if (useLocalityName) {
+        try {
+          const service = getGeocodingService();
+          const locality = await service.getLocalityName(point[0], point[1]);
+          if (locality) title = locality;
+        } catch (e) { console.warn('Geocoding failed', e); }
+      }
+      const placeId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      const place: Place = {
+        id: placeId,
+        latitude: point[0],
+        longitude: point[1],
+        title,
+        createdAt: Date.now(),
+        source,
+        trackId: trackId,
+        isVisible: true,
+        showIcon: true,
+        iconStyle: 'pin',
+        iconConfig: { style: 'pin', size: 30, color: '#ef4444' }
+      };
+      await db.savePlaceToDb(place);
+      return place;
     };
 
     // 1. Start Place
@@ -603,43 +613,43 @@ export const useTrackManagement = (
     }
 
     if (Object.keys(trackUpdates).length > 0) {
-        const updatedTrack = { ...track, ...trackUpdates };
-        await db.addTrack(updatedTrack);
-        setTracks(prev => prev.map(t => t.id === trackId ? updatedTrack : t));
-        if (onPlacesChanged) onPlacesChanged();
+      const updatedTrack = { ...track, ...trackUpdates };
+      await db.addTrack(updatedTrack);
+      setTracks(prev => prev.map(t => t.id === trackId ? updatedTrack : t));
+      if (onPlacesChanged) onPlacesChanged();
     }
 
     return newPlaces;
   }, [tracks, onPlacesChanged]);
 
   const removeAllTrackPlaces = useCallback(async (trackId: string) => {
-      const track = tracks.find(t => t.id === trackId);
-      if (!track) return;
+    const track = tracks.find(t => t.id === trackId);
+    if (!track) return;
 
-      if (track.startPlaceId) await db.deletePlaceFromDb(track.startPlaceId);
-      if (track.middlePlaceId) await db.deletePlaceFromDb(track.middlePlaceId);
-      if (track.endPlaceId) await db.deletePlaceFromDb(track.endPlaceId);
+    if (track.startPlaceId) await db.deletePlaceFromDb(track.startPlaceId);
+    if (track.middlePlaceId) await db.deletePlaceFromDb(track.middlePlaceId);
+    if (track.endPlaceId) await db.deletePlaceFromDb(track.endPlaceId);
 
-      const updatedTrack = {
-          ...track,
-          startPlaceId: undefined,
-          middlePlaceId: undefined,
-          endPlaceId: undefined
-      };
+    const updatedTrack = {
+      ...track,
+      startPlaceId: undefined,
+      middlePlaceId: undefined,
+      endPlaceId: undefined
+    };
 
-      await db.addTrack(updatedTrack);
-      setTracks(prev => prev.map(t => t.id === trackId ? updatedTrack : t));
-      if (onPlacesChanged) onPlacesChanged();
+    await db.addTrack(updatedTrack);
+    setTracks(prev => prev.map(t => t.id === trackId ? updatedTrack : t));
+    if (onPlacesChanged) onPlacesChanged();
   }, [tracks, onPlacesChanged]);
 
   const getOrphanedPlaces = useCallback(async (): Promise<Place[]> => {
     try {
-        const allPlaces = await db.getAllPlacesFromDb();
-        const trackIds = new Set(tracks.map(t => t.id));
-        return allPlaces.filter(p => p.trackId && !trackIds.has(p.trackId));
+      const allPlaces = await db.getAllPlacesFromDb();
+      const trackIds = new Set(tracks.map(t => t.id));
+      return allPlaces.filter(p => p.trackId && !trackIds.has(p.trackId));
     } catch (e) {
-        console.error("Failed to get orphaned places", e);
-        return [];
+      console.error("Failed to get orphaned places", e);
+      return [];
     }
   }, [tracks]);
 
